@@ -334,6 +334,44 @@ carries, so ask the pool: `claimBlockedByCover(controller)` is true while older 
 still in escrow. What they are worth is priced at the claim, so read `maxWithdraw(controller)` from the pool for
 the amount. Drop the `id` filter to list every open request, for example ordered by `claimableAt`.
 
+## Latest activity
+
+The newest sales, settlements and weather readings on a chain, for a feed. Merge the three lists on the client,
+newest first: `boughtAt` for a sale, `timestamp` for the others.
+
+```graphql
+query LatestActivity($chainId: Int!, $recent: Int = 8) {
+  Policy(where: { chainId: { _eq: $chainId } }, order_by: [{ boughtAt: desc }, { start: desc }], limit: $recent) {
+    id
+    premium
+    boughtAt
+    boughtTxHash
+  }
+  Settlement(where: { chainId: { _eq: $chainId } }, order_by: { timestamp: desc }, limit: $recent) {
+    amount
+    timestamp
+    txHash
+    policy {
+      id
+    }
+  }
+  WeatherReading(where: { chainId: { _eq: $chainId } }, order_by: { to: desc }, limit: $recent) {
+    key
+    wetSeconds
+    to
+    timestamp
+    txHash
+  }
+}
+```
+
+```json
+{ "chainId": 10143 }
+```
+
+A settlement with `amount` `"0"` closed or advanced a policy over dry time. A reading with `wetSeconds` `0` was a
+dry check.
+
 ## How far the index has got
 
 ```graphql
@@ -350,3 +388,8 @@ query IndexProgress {
 ```
 
 `isReady` turns true when the backfill has reached the head. `sourceBlock - progressBlock` is the lag in blocks.
+
+The web app (`web/lib/indexer/`) adds `_meta(where: { chainId: { _eq: $chainId } }) { progressBlock isReady }` to
+the one query each screen runs, and compares `progressBlock` with the head block its own node reports. An index
+that is not ready, or more than two minutes of blocks behind (Monad makes one about every 0.4 seconds), is not
+shown: the screen reads the chain instead and says the history may be a moment behind.
