@@ -53,7 +53,7 @@ export function PoolOverview() {
   return (
     <section className="pool-lead" data-testid="pool" aria-labelledby="pool-h">
       <p className="mono pool-lead__clock">
-        <span>{copy.pool.intro}</span>
+        <b>{copy.pool.heading}</b>
         <span className={weather.fresh === false ? 'pool-lead__stale' : undefined}>
           <i className={`check__mark${weather.fresh === false ? ' check__mark--hollow' : ''}`} aria-hidden="true" />
           {weather.ageSeconds !== null
@@ -123,6 +123,7 @@ export function PoolOverview() {
           </dl>
         </>
       ) : null}
+      <p className="pool-lead__about">{copy.pool.intro}</p>
     </section>
   )
 }

@@ -1165,6 +1165,10 @@
   font-size: var(--size-small);
 }
 
+.why__table tr:last-child > * {
+  border-bottom: 0;
+}
+
 .why__table td small {
   display: block;
   margin-top: 2px;

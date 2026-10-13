@@ -1113,6 +1113,13 @@
   max-width: 20em;
 }
 
+.pool-lead__about {
+  max-width: 36em;
+  margin-top: var(--s-6);
+  font-size: var(--size-small);
+  color: var(--ink-2);
+}
+
 .pool-lead .fig__value {
   --size: clamp(96px, 15vw, 216px);
   margin-top: 18px;

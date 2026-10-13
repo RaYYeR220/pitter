@@ -653,8 +653,7 @@ export const copy = {
       raining: 'Heavy rain where you are. You are being paid.',
     },
     hair: {
-      line: '1 mm an hour: heavy rain starts at this line',
-      sources: 'Checked against several weather sources',
+      line: '1 mm an hour: where heavy rain starts',
       renews: (at: number) => `Next 10 minutes added at ${formatClock(at)}`,
       noMore: 'Cover is off, so nothing more is added',
       cent: (seconds: number) => `One more cent every ${seconds} second${seconds === 1 ? '' : 's'}`,
