@@ -82,6 +82,11 @@ pnpm --filter @cover/workflow build        # cre workflow build .
 
 `pnpm --filter @cover/workflow hash` prints the binary, config and workflow hashes of that build.
 
+Without the CLI, the SDK compiler gives a `binary.wasm` too:
+`bun node_modules/@chainlink/cre-sdk/bin/cre-compile.ts main.ts binary.wasm`. On Windows put Bun's own
+executable (`node_modules/.pnpm/bun@*/node_modules/bun/bin`) first on the `PATH` rather than the pnpm shim, and
+delete the `binary.js` it leaves behind.
+
 ## Simulate
 
 Run from this folder, logged in (`cre login`).

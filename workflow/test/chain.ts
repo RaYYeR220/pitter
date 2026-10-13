@@ -90,7 +90,7 @@ export async function startLocalChain(genesisTime: number) {
 
   const token = await deploy('TestDollar', testDollarAbi, [owner])
   const weatherIndex = await deploy('WeatherIndex', weatherIndexAbi, [owner, privateKeyToAddress(reporterKey)])
-  const coverPool = await deploy('CoverPool', coverPoolAbi, [token, owner, 'Cover Pool Share', 'cvUSD'])
+  const coverPool = await deploy('CoverPool', coverPoolAbi, [token, owner, treasury, 'Cover Pool Share', 'cvUSD'])
   const coverBook = await deploy('CoverBook', coverBookAbi, [
     token,
     coverPool,
