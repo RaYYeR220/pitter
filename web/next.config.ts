@@ -47,8 +47,10 @@ const securityHeaders = [
 
 const config: NextConfig = {
   reactStrictMode: true,
+  agentRules: false,
   poweredByHeader: false,
   transpilePackages: ['@cover/core', '@cover/service'],
+  serverExternalPackages: ['pg', '@x402/core', '@x402/evm'],
   outputFileTracingRoot: fileURLToPath(new URL('..', import.meta.url)),
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }]
