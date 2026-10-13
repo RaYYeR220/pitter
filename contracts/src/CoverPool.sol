@@ -24,9 +24,11 @@ import {IERC7540Redeem} from "./interfaces/IERC7540Redeem.sol";
 /// pool, so a confirmed claim can always be paid.
 ///
 /// Deposits are immediate. Leaving takes notice: a provider hands shares in with `requestRedeem`, the shares
-/// wait in escrow for `redeemNotice`, and only then can they be redeemed. Capital therefore cannot arrive, back
-/// a sale and leave in the same breath, and a provider cannot step out just ahead of a payout that is already
-/// on its way. From the moment of the request the capital is retiring:
+/// wait in escrow for `redeemNotice`, and they can be redeemed once the notice is over and every policy sold
+/// before the request is closed. Capital therefore cannot arrive, back a sale and leave in the same breath,
+/// and a provider cannot step out ahead of a payout on cover its capital backed, whether that payout is on its
+/// way or already confirmed and waiting to be settled. From the moment of the request the capital is
+/// retiring:
 /// - it no longer counts towards the caps, so no new cover is sold against it;
 /// - it earns nothing further: it is paid the lower of its value at the request and its value at the claim;
 /// - it still bears every loss until it is claimed.
@@ -50,11 +52,13 @@ contract CoverPool is ERC4626, Ownable2Step, ReentrancyGuardTransient, ICoverPoo
     using SafeERC20 for IERC20;
 
     /// @dev One redemption request per controller. `assetsAtRequest` is what the escrowed shares were worth
-    /// when the request was last added to; it caps what the request can be paid.
+    /// when the request was last added to; it caps what the request can be paid. `lastPolicyAtRequest` is the
+    /// book's `policyCount` at that moment: the claim waits until every policy up to it is closed.
     struct PendingRedeem {
         uint128 shares;
         uint128 assetsAtRequest;
         uint64 claimableAt;
+        uint64 lastPolicyAtRequest;
     }
 
     /// @notice Shortest redemption notice the owner can set.
@@ -93,8 +97,8 @@ contract CoverPool is ERC4626, Ownable2Step, ReentrancyGuardTransient, ICoverPoo
     /// @notice Shares held in escrow for redemption requests.
     uint256 public escrowedShares;
 
-    /// @notice The redemption request of a controller: escrowed shares, their value when requested and the
-    /// time from which they can be claimed.
+    /// @notice The redemption request of a controller: escrowed shares, their value when requested, the time
+    /// from which they can be claimed and the last policy sold before the request.
     mapping(address controller => PendingRedeem) public redeemRequests;
 
     /// @notice The exposure reserved for `key` changed. Carries the new per-cell and global totals.
@@ -131,6 +135,7 @@ contract CoverPool is ERC4626, Ownable2Step, ReentrancyGuardTransient, ICoverPoo
     error NoRedeemRequest();
     error InsufficientRequest();
     error NoticeNotOver();
+    error CoverStillOpen();
     error NoticeInvalid();
     error PreviewUnavailable();
 
@@ -236,8 +241,9 @@ contract CoverPool is ERC4626, Ownable2Step, ReentrancyGuardTransient, ICoverPoo
 
     /// @inheritdoc IERC7540Redeem
     /// @dev Moves `shares` of `owner` into escrow and adds them to the single request of `controller`, which
-    /// becomes claimable `redeemNotice` from now. Adding to an existing request restarts the notice for all of
-    /// it and re-marks all of it at the current share price.
+    /// becomes claimable `redeemNotice` from now, once every policy sold so far is closed. Adding to an
+    /// existing request restarts the notice for all of it, re-marks all of it at the current share price and
+    /// makes all of it wait for the policies sold until then.
     ///
     /// The caller must be `owner` or hold an allowance over the owner's shares. `controller` must be the owner
     /// or the caller: nobody can add to a stranger's request and so push its claim away.
@@ -259,6 +265,8 @@ contract CoverPool is ERC4626, Ownable2Step, ReentrancyGuardTransient, ICoverPoo
         request.shares = SafeCast.toUint128(total);
         request.assetsAtRequest = SafeCast.toUint128(_convertToAssets(total, Math.Rounding.Floor));
         request.claimableAt = SafeCast.toUint64(block.timestamp + redeemNotice);
+        address book_ = book;
+        request.lastPolicyAtRequest = book_ == address(0) ? 0 : SafeCast.toUint64(ICoverBook(book_).policyCount());
 
         emit RedeemRequest(controller, owner, 0, msg.sender, shares);
         return 0;
@@ -278,30 +286,38 @@ contract CoverPool is ERC4626, Ownable2Step, ReentrancyGuardTransient, ICoverPoo
     }
 
     /// @inheritdoc IERC7540Redeem
-    /// @dev A controller has one request and its id is zero.
+    /// @dev A controller has one request and its id is zero. It is pending until it can be claimed: while the
+    /// notice runs and while cover sold before it is open.
     function pendingRedeemRequest(uint256 requestId, address controller) external view returns (uint256) {
         PendingRedeem storage request = redeemRequests[controller];
-        return (requestId == 0 && block.timestamp < request.claimableAt) ? request.shares : 0;
+        return (requestId == 0 && !_claimable(request)) ? request.shares : 0;
     }
 
     /// @inheritdoc IERC7540Redeem
     function claimableRedeemRequest(uint256 requestId, address controller) external view returns (uint256) {
         PendingRedeem storage request = redeemRequests[controller];
-        return (requestId == 0 && block.timestamp >= request.claimableAt) ? request.shares : 0;
+        return (requestId == 0 && _claimable(request)) ? request.shares : 0;
+    }
+
+    /// @notice Whether the request of `controller` waits for a policy sold before it to close. A request
+    /// made before any policy was sold never does.
+    function claimBlockedByCover(address controller) external view returns (bool) {
+        return _coverStillOpen(redeemRequests[controller]);
     }
 
     /// @notice Largest amount of assets `controller` can claim now: the value of its matured request, capped
-    /// by `freeAssets`. Zero while the notice runs.
+    /// by `freeAssets`. Zero while the notice runs or cover sold before the request is open.
     function maxWithdraw(address controller) public view override returns (uint256) {
         PendingRedeem storage request = redeemRequests[controller];
-        if (block.timestamp < request.claimableAt) return 0;
+        if (!_claimable(request)) return 0;
         return Math.min(_requestValue(request), freeAssets());
     }
 
-    /// @notice Largest number of escrowed shares `controller` can claim now. Zero while the notice runs.
+    /// @notice Largest number of escrowed shares `controller` can claim now. Zero while the notice runs or
+    /// cover sold before the request is open.
     function maxRedeem(address controller) public view override returns (uint256) {
         PendingRedeem storage request = redeemRequests[controller];
-        if (block.timestamp < request.claimableAt) return 0;
+        if (!_claimable(request)) return 0;
         uint256 value = _requestValue(request);
         uint256 free = freeAssets();
         return value <= free ? request.shares : Math.mulDiv(request.shares, free, value);
@@ -309,8 +325,9 @@ contract CoverPool is ERC4626, Ownable2Step, ReentrancyGuardTransient, ICoverPoo
 
     /// @notice Claims `shares` of the caller's matured redemption request and sends the assets to `receiver`.
     /// @dev Reverts with `NotController` unless the caller is `controller`, `InsufficientRequest` when more is
-    /// claimed than was requested, `NoticeNotOver` before the request matures and `ExposureLocked` when the
-    /// assets exceed `freeAssets`. A partial claim leaves the rest claimable; a claim of nothing does nothing.
+    /// claimed than was requested, `NoticeNotOver` before the request matures, `CoverStillOpen` while a policy
+    /// sold before the request is open and `ExposureLocked` when the assets exceed `freeAssets`. A partial
+    /// claim leaves the rest claimable; a claim of nothing does nothing.
     /// @return assets The assets paid: the claimed part of the lower of the request's value at the request
     /// and its value now.
     function redeem(uint256 shares, address receiver, address controller)
@@ -324,6 +341,7 @@ contract CoverPool is ERC4626, Ownable2Step, ReentrancyGuardTransient, ICoverPoo
         PendingRedeem storage request = redeemRequests[controller];
         if (shares > request.shares) revert InsufficientRequest();
         if (block.timestamp < request.claimableAt) revert NoticeNotOver();
+        if (_coverStillOpen(request)) revert CoverStillOpen();
 
         assets = Math.mulDiv(_requestValue(request), shares, request.shares);
         _claim(request, controller, receiver, assets, shares);
@@ -345,6 +363,7 @@ contract CoverPool is ERC4626, Ownable2Step, ReentrancyGuardTransient, ICoverPoo
         uint256 value = _requestValue(request);
         if (assets > value) revert InsufficientRequest();
         if (block.timestamp < request.claimableAt) revert NoticeNotOver();
+        if (_coverStillOpen(request)) revert CoverStillOpen();
 
         shares = Math.mulDiv(assets, request.shares, value, Math.Rounding.Ceil);
         _claim(request, controller, receiver, assets, shares);
@@ -436,6 +455,17 @@ contract CoverPool is ERC4626, Ownable2Step, ReentrancyGuardTransient, ICoverPoo
     }
 
     // ───────────────────────────── internals ─────────────────────────────
+
+    /// @dev Whether a policy sold before the request is still open.
+    function _coverStillOpen(PendingRedeem storage request) private view returns (bool) {
+        uint256 lastPolicy = request.lastPolicyAtRequest;
+        return lastPolicy != 0 && ICoverBook(book).oldestOpenId() <= lastPolicy;
+    }
+
+    /// @dev Whether the notice is over and the cover sold before the request is closed.
+    function _claimable(PendingRedeem storage request) private view returns (bool) {
+        return block.timestamp >= request.claimableAt && !_coverStillOpen(request);
+    }
 
     /// @dev What the whole of a request may be paid now: its shares at the current price, but no more than
     /// they were worth when it was requested.

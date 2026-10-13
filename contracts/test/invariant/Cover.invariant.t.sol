@@ -22,7 +22,7 @@ contract CoverInvariantTest is CoverFixture {
         handler = new CoverHandler(dollar, index, pool, book, owner, underwriterKey, reporterKey);
         targetContract(address(handler));
 
-        bytes4[] memory selectors = new bytes4[](24);
+        bytes4[] memory selectors = new bytes4[](25);
         selectors[0] = CoverHandler.warp.selector;
         selectors[1] = CoverHandler.warpFar.selector;
         selectors[2] = CoverHandler.heartbeat.selector;
@@ -47,6 +47,7 @@ contract CoverInvariantTest is CoverFixture {
         selectors[21] = CoverHandler.buyAboveTheCellCap.selector;
         selectors[22] = CoverHandler.buyAtTheHorizon.selector;
         selectors[23] = CoverHandler.syncOldestOpen.selector;
+        selectors[24] = CoverHandler.claimAheadOfCover.selector;
         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
     }
 
@@ -74,7 +75,8 @@ contract CoverInvariantTest is CoverFixture {
         assertLe(pool.lockedExposure(), dollar.balanceOf(address(pool)) - pool.totalDeferred());
     }
 
-    /// No liquidity provider can claim assets that back live exposure, or anything before its notice is over.
+    /// No liquidity provider can claim assets that back live exposure, anything before its notice is over, or
+    /// anything while a policy sold before its request is open.
     function invariant_ClaimLimitsStayWithinFreeAssets() public view {
         _checkClaimLimits();
     }
@@ -116,6 +118,7 @@ contract CoverInvariantTest is CoverFixture {
         assertEq(handler.earlyExpiries(), 0, "expired inside the grace period");
         assertEq(handler.overWithdrawals(), 0, "claimed above the limit");
         assertEq(handler.earlyClaims(), 0, "claimed before the notice was over");
+        assertEq(handler.claimsAheadOfCover(), 0, "claimed while cover sold before the request was open");
         assertEq(handler.overpaidClaims(), 0, "claim paid more than the shares were worth");
         assertEq(handler.claimableMismatches(), 0, "claimable differs from settle");
     }
@@ -311,15 +314,17 @@ contract CoverInvariantTest is CoverFixture {
         uint256 providers = handler.lpCount();
         for (uint256 i = 0; i <= providers; ++i) {
             address provider = i == providers ? lp : handler.lps(i);
-            (uint256 requested,, uint64 claimableAt) = pool.redeemRequests(provider);
+            (uint256 requested,, uint64 claimableAt, uint64 lastPolicy) = pool.redeemRequests(provider);
             uint256 maxAssets = pool.maxWithdraw(provider);
             uint256 maxShares = pool.maxRedeem(provider);
+            bool blocked = lastPolicy != 0 && book.oldestOpenId() <= lastPolicy;
+            assertEq(pool.claimBlockedByCover(provider), blocked);
 
             assertLe(maxAssets, free, "maxWithdraw above free assets");
             assertLe(maxShares, requested, "maxRedeem above the request");
-            if (vm.getBlockTimestamp() < claimableAt) {
-                assertEq(maxAssets, 0, "claimable before the notice is over");
-                assertEq(maxShares, 0, "claimable before the notice is over");
+            if (vm.getBlockTimestamp() < claimableAt || blocked) {
+                assertEq(maxAssets, 0, "claimable before the notice is over or the cover is closed");
+                assertEq(maxShares, 0, "claimable before the notice is over or the cover is closed");
                 assertEq(pool.claimableRedeemRequest(0, provider), 0);
                 assertEq(pool.pendingRedeemRequest(0, provider), requested);
             } else {
@@ -335,7 +340,7 @@ contract CoverInvariantTest is CoverFixture {
         uint256 providers = handler.lpCount();
         for (uint256 i = 0; i <= providers; ++i) {
             address provider = i == providers ? lp : handler.lps(i);
-            (uint256 requested,,) = pool.redeemRequests(provider);
+            (uint256 requested,,,) = pool.redeemRequests(provider);
             requestedTotal += requested;
         }
         assertEq(pool.escrowedShares(), requestedTotal, "escrow differs from the requests");
@@ -348,7 +353,7 @@ contract CoverInvariantTest is CoverFixture {
         uint256[] memory claimableAt = new uint256[](providers);
         for (uint256 i = 0; i < providers; ++i) {
             address provider = handler.lps(i);
-            (uint256 requested,, uint64 matures) = pool.redeemRequests(provider);
+            (uint256 requested,, uint64 matures,) = pool.redeemRequests(provider);
             if (requested != 0) (requestedAt[i], claimableAt[i]) = (handler.requestedAt(provider), matures);
         }
 

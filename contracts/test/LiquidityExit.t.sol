@@ -2,7 +2,7 @@
 pragma solidity ^0.8.30;
 
 import {CoverPool} from "../src/CoverPool.sol";
-import {Quote} from "../src/Types.sol";
+import {Quote, Reading} from "../src/Types.sol";
 import {CoverFixture} from "./utils/CoverFixture.sol";
 
 /// @dev The redemption notice against the two ways capital used to slip out from under the cover it backed:
@@ -147,24 +147,65 @@ contract LiquidityExitTest is CoverFixture {
         vm.prank(lp);
         pool.requestRedeem(shares, lp, lp);
 
-        // The notice is over and so is the window, but the oracle never reported it: what the policy may yet
-        // pay stays in the pool.
+        // The notice is over and so is the window, but the oracle never reported it: the claim waits until the
+        // policy sold before the request is closed.
         vm.warp(T0 + NOTICE);
-        assertEq(pool.claimableRedeemRequest(0, lp), shares);
-        assertEq(pool.maxWithdraw(lp), pool.freeAssets());
-        assertEq(pool.freeAssets(), pool.totalAssets() - 18_000e6);
+        assertTrue(pool.claimBlockedByCover(lp));
+        assertEq(pool.claimableRedeemRequest(0, lp), 0);
+        assertEq(pool.maxWithdraw(lp), 0);
 
         vm.prank(lp);
-        vm.expectRevert(CoverPool.ExposureLocked.selector);
+        vm.expectRevert(CoverPool.CoverStillOpen.selector);
         pool.redeem(shares, lp, lp);
 
-        // Once the window is reported dry, the rest can go.
+        // Once the window is reported dry and settled, all of it can go.
         _report(KEY, q.start, q.end, 0);
         book.settle(id);
+        assertFalse(pool.claimBlockedByCover(lp));
         vm.prank(lp);
         uint256 assets = pool.redeem(shares, lp, lp);
         assertApproxEqAbs(assets, POOL_DEPOSIT + 190e6, 2);
         assertEq(pool.lockedExposure(), 0);
+    }
+
+    function test_ALeaverCarriesItsShareOfALossConfirmedBeforeItsClaim() public {
+        vm.prank(whale);
+        pool.deposit(100_000e6, whale);
+
+        // Three policies of 50,000, each the per-cell cap of the 200,000 pool; then `lp` asks to leave.
+        uint64 start = _now() + 60;
+        uint64 end = start + 10 minutes;
+        uint128 rate = uint128(50_000e6 / uint256(10 minutes));
+        uint256[] memory ids = new uint256[](3);
+        Reading[] memory wet = new Reading[](3);
+        for (uint256 i = 0; i < 3; ++i) {
+            ids[i] = _buy(_quote(holder, KEY + i, start, end, rate, 500e6));
+            wet[i] = Reading(KEY + i, start, end, 600);
+        }
+        uint256 shares = pool.balanceOf(lp);
+        vm.prank(lp);
+        pool.requestRedeem(shares, lp, lp);
+
+        // It rains through all three windows and the oracle says so on time. Nobody settles.
+        vm.warp(end);
+        _submitReport(wet);
+
+        // The notice ends long after the windows did, with the loss confirmed but not yet paid: the claim
+        // waits for it.
+        vm.warp(T0 + NOTICE);
+        vm.prank(lp);
+        vm.expectRevert(CoverPool.CoverStillOpen.selector);
+        pool.redeem(shares, lp, lp);
+
+        // Anyone may settle, the leaver included. It then carries half of the loss, like the provider who stays.
+        vm.startPrank(lp);
+        book.settleMany(ids);
+        uint256 out = pool.redeem(shares, lp, lp);
+        vm.stopPrank();
+
+        uint256 loss = 3 * 600 * uint256(rate);
+        assertApproxEqAbs(out, pool.convertToAssets(pool.balanceOf(whale)), 10);
+        assertApproxEqAbs(out, (200_000e6 + 3 * 475e6 - loss) / 2, 10);
     }
 
     function test_TheNoticeCannotBeCutBelowTheCoverHorizon() public {
@@ -198,7 +239,7 @@ contract LiquidityExitTest is CoverFixture {
         vm.prank(lp);
         pool.requestRedeem(shares, lp, lp);
 
-        (,, uint64 claimableAt) = pool.redeemRequests(lp);
+        (,, uint64 claimableAt,) = pool.redeemRequests(lp);
         assertGe(claimableAt, _policy(id).end);
     }
 }

@@ -32,7 +32,7 @@ contract CoverPoolRedeemTest is PoolFixture {
     }
 
     function _state(address controller) internal view returns (uint256 shares, uint256 assetsAtRequest, uint64 at) {
-        (shares, assetsAtRequest, at) = pool.redeemRequests(controller);
+        (shares, assetsAtRequest, at,) = pool.redeemRequests(controller);
     }
 
     function _donate(uint256 amount) internal {
@@ -453,6 +453,85 @@ contract CoverPoolRedeemTest is PoolFixture {
         _redeem(lp2, 200e6 * SHARE_UNIT);
         assertEq(pool.activeAssets(), 1_300e6);
         assertEq(pool.totalAssets(), 1_300e6);
+    }
+
+    // ───────────────────────────── cover sold before the request ─────────────────────────────
+
+    function test_RequestRedeem_RecordsTheLastPolicySoldAndRecordsItAgainWhenAddedTo() public {
+        BookStub(book).setPolicyCount(7);
+        _request(lp, 100e6 * SHARE_UNIT);
+        (,,, uint64 lastPolicy) = pool.redeemRequests(lp);
+        assertEq(lastPolicy, 7);
+
+        BookStub(book).setPolicyCount(9);
+        _request(lp, 100e6 * SHARE_UNIT);
+        (,,, lastPolicy) = pool.redeemRequests(lp);
+        assertEq(lastPolicy, 9);
+    }
+
+    function test_Claim_WaitsUntilTheCoverSoldBeforeTheRequestIsClosed() public {
+        BookStub(book).setPolicyCount(5);
+        BookStub(book).setOldestOpenId(3);
+        _request(lp, SHARES);
+        vm.warp(T0 + NOTICE);
+
+        // The notice is over, but policies 3 to 5 were sold before the request and are still open.
+        assertTrue(pool.claimBlockedByCover(lp));
+        assertEq(pool.claimableRedeemRequest(0, lp), 0);
+        assertEq(pool.pendingRedeemRequest(0, lp), SHARES);
+        assertEq(pool.maxRedeem(lp), 0);
+        assertEq(pool.maxWithdraw(lp), 0);
+
+        vm.startPrank(lp);
+        vm.expectRevert(CoverPool.CoverStillOpen.selector);
+        pool.redeem(SHARES, lp, lp);
+        vm.expectRevert(CoverPool.CoverStillOpen.selector);
+        pool.withdraw(1e6, lp, lp);
+        vm.stopPrank();
+
+        // Policy 5, the last one sold before the request, still holds it.
+        BookStub(book).setOldestOpenId(5);
+        assertTrue(pool.claimBlockedByCover(lp));
+
+        BookStub(book).setOldestOpenId(6);
+        assertFalse(pool.claimBlockedByCover(lp));
+        assertEq(pool.claimableRedeemRequest(0, lp), SHARES);
+        assertEq(pool.pendingRedeemRequest(0, lp), 0);
+        assertEq(pool.maxWithdraw(lp), DEPOSIT);
+        assertEq(_redeem(lp, SHARES), DEPOSIT);
+    }
+
+    function test_Claim_IsNotHeldByCoverSoldAfterTheRequest() public {
+        BookStub(book).setPolicyCount(2);
+        BookStub(book).setOldestOpenId(3);
+        _request(lp, SHARES);
+
+        // Policies 3 to 10 are sold later, against the capital that stays, and are all still open.
+        BookStub(book).setPolicyCount(10);
+        vm.warp(T0 + NOTICE);
+        assertFalse(pool.claimBlockedByCover(lp));
+        assertEq(_redeem(lp, SHARES), DEPOSIT);
+    }
+
+    function test_Claim_ARequestMadeBeforeAnySaleIsNeverHeld() public {
+        BookStub(book).setOldestOpenId(0);
+        _request(lp, SHARES);
+        vm.warp(T0 + NOTICE);
+        assertFalse(pool.claimBlockedByCover(lp));
+        assertEq(_redeem(lp, SHARES), DEPOSIT);
+    }
+
+    function test_Claim_TheNoticeIsCheckedBeforeTheCover() public {
+        BookStub(book).setPolicyCount(1);
+        _request(lp, SHARES);
+        assertTrue(pool.claimBlockedByCover(lp));
+
+        vm.expectRevert(CoverPool.NoticeNotOver.selector);
+        _redeem(lp, SHARES);
+    }
+
+    function test_ClaimBlockedByCover_IsFalseWithoutARequest() public view {
+        assertFalse(pool.claimBlockedByCover(lp2));
     }
 
     // ───────────────────────────── free assets ─────────────────────────────

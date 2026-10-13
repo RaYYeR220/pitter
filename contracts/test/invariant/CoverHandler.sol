@@ -67,6 +67,7 @@ contract CoverHandler is Signing {
     uint256 public earlyExpiries;
     uint256 public overWithdrawals;
     uint256 public earlyClaims;
+    uint256 public claimsAheadOfCover;
     uint256 public overpaidClaims;
     uint256 public claimableMismatches;
 
@@ -489,11 +490,16 @@ contract CoverHandler is Signing {
 
     function cancelRedeem(uint256 lpSeed) external {
         address lp = lps[lpSeed % lps.length];
-        (uint256 requested,,) = pool.redeemRequests(lp);
+        (uint256 requested,,,) = pool.redeemRequests(lp);
         if (requested == 0) return;
         vm.prank(lp);
         pool.cancelRedeemRequest();
         ++cancellations;
+    }
+
+    /// @dev A claim that went through must not have left a policy sold before its request open.
+    function _checkCoverClosed(uint256 lastPolicy, uint256 claimed) internal {
+        if (claimed != 0 && lastPolicy != 0 && book.oldestOpenId() <= lastPolicy) ++claimsAheadOfCover;
     }
 
     /// @dev Claims part of a matured request in shares. The payout may not exceed what the shares are worth
@@ -501,7 +507,9 @@ contract CoverHandler is Signing {
     function claimRedeem(uint256 lpSeed, uint256 shares) external {
         address lp = lps[lpSeed % lps.length];
         shares = bound(shares, 0, pool.maxRedeem(lp));
-        (uint256 requested, uint256 atRequest,) = pool.redeemRequests(lp);
+        (,,, uint256 lastPolicy) = pool.redeemRequests(lp);
+        _checkCoverClosed(lastPolicy, shares);
+        (uint256 requested, uint256 atRequest,,) = pool.redeemRequests(lp);
         uint256 fair = pool.convertToAssets(shares);
         uint256 balanceBefore = dollar.balanceOf(lp);
 
@@ -517,6 +525,8 @@ contract CoverHandler is Signing {
     function claimWithdraw(uint256 lpSeed, uint256 assets) external {
         address lp = lps[lpSeed % lps.length];
         assets = bound(assets, 0, pool.maxWithdraw(lp));
+        (,,, uint256 lastPolicy) = pool.redeemRequests(lp);
+        _checkCoverClosed(lastPolicy, assets);
         uint256 poolAssets = pool.totalAssets();
         uint256 supply = pool.totalSupply();
         uint256 balanceBefore = dollar.balanceOf(lp);
@@ -533,12 +543,25 @@ contract CoverHandler is Signing {
     /// @dev A request cannot be claimed before its notice is over.
     function claimEarly(uint256 lpSeed) external {
         address lp = lps[lpSeed % lps.length];
-        (uint256 requested,, uint64 claimableAt) = pool.redeemRequests(lp);
+        (uint256 requested,, uint64 claimableAt,) = pool.redeemRequests(lp);
         if (requested == 0 || _now() >= claimableAt) return;
         vm.prank(lp);
         try pool.redeem(requested, lp, lp) {
             ++earlyClaims;
         } catch {}
+    }
+
+    /// @dev A matured request cannot be claimed while a policy sold before it is open.
+    function claimAheadOfCover(uint256 lpSeed) external {
+        address lp = lps[lpSeed % lps.length];
+        (uint256 requested,, uint64 claimableAt,) = pool.redeemRequests(lp);
+        if (requested == 0 || _now() < claimableAt || !pool.claimBlockedByCover(lp)) return;
+        vm.prank(lp);
+        try pool.redeem(requested, lp, lp) {
+            ++claimsAheadOfCover;
+        } catch (bytes memory reason) {
+            if (bytes4(reason) != CoverPool.CoverStillOpen.selector) ++unexpectedReverts;
+        }
     }
 
     /// @dev Asking for more than the limit must be refused, whatever backs the excess.
@@ -554,7 +577,7 @@ contract CoverHandler is Signing {
     /// @dev Shares that were never handed in cannot be redeemed, however long they have been held.
     function exitWithoutNotice(uint256 lpSeed, uint256 shares) external {
         address lp = lps[lpSeed % lps.length];
-        (uint256 requested,,) = pool.redeemRequests(lp);
+        (uint256 requested,,,) = pool.redeemRequests(lp);
         shares = requested + bound(shares, 1, 1_000e12);
         vm.prank(lp);
         try pool.redeem(shares, lp, lp) {
