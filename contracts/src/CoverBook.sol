@@ -91,6 +91,10 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient {
     /// @notice Longest window that can be bought, in seconds.
     uint64 public maxDuration = 12 hours;
 
+    /// @notice Furthest ahead of its purchase a window may end, in seconds. It never exceeds the pool's
+    /// redemption notice, so capital that asks to leave after a sale stays until that cover has ended.
+    uint64 public maxHorizon = 12 hours + 30 minutes;
+
     /// @notice Sales stop when the index heartbeat is older than this, in seconds.
     uint64 public maxOracleAge = 20 minutes;
 
@@ -136,6 +140,7 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient {
     event FeeSet(uint256 feeBps);
     event MinLeadSet(uint256 minLead);
     event DurationBoundsSet(uint256 minDuration, uint256 maxDuration);
+    event MaxHorizonSet(uint256 maxHorizon);
     event MaxPolicyPayoutSet(uint256 maxPolicyPayout);
     event MinPremiumSet(uint256 minPremium);
     event MaxOracleAgeSet(uint256 maxOracleAge);
@@ -146,6 +151,7 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient {
     error BadQuoteSignature();
     error QuoteUsed();
     error WindowInvalid();
+    error WindowTooFar();
     error LeadTooShort();
     error PolicyTooLarge();
     error PremiumTooSmall();
@@ -371,6 +377,14 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient {
         emit DurationBoundsSet(minDuration_, maxDuration_);
     }
 
+    /// @notice Sets how far ahead of its purchase a window may end. The horizon has to span the longest window
+    /// and may not outlast the pool's redemption notice.
+    function setMaxHorizon(uint64 maxHorizon_) external onlyOwner {
+        if (maxHorizon_ < maxDuration || maxHorizon_ > pool.redeemNotice()) revert ConfigInvalid();
+        maxHorizon = maxHorizon_;
+        emit MaxHorizonSet(maxHorizon_);
+    }
+
     /// @notice Sets the largest maximum payout of a single policy. Zero stops sales.
     function setMaxPolicyPayout(uint256 maxPolicyPayout_) external onlyOwner {
         if (maxPolicyPayout_ > type(uint128).max) revert ConfigInvalid();
@@ -417,6 +431,7 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient {
         if (q.start % MINUTE != 0 || q.end % MINUTE != 0 || q.end <= q.start) revert WindowInvalid();
         uint64 duration = q.end - q.start;
         if (duration < minDuration || duration > maxDuration) revert WindowInvalid();
+        if (q.end > block.timestamp + maxHorizon) revert WindowTooFar();
 
         if (q.start < block.timestamp + minLead) revert LeadTooShort();
 

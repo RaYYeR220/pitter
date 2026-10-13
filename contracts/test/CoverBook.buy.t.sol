@@ -316,6 +316,43 @@ contract CoverBookBuyTest is CoverFixture {
         assertEq(_policy(id).maxPayout, uint256(RATE) * 60);
     }
 
+    function test_Buy_AcceptsAWindowEndingExactlyAtTheHorizon() public {
+        // The longest window, starting as late as the horizon of twelve and a half hours allows.
+        uint64 end = _now() + 12 hours + 30 minutes;
+        uint256 id = _buy(_quote(holder, KEY, end - 12 hours, end, 1, PREMIUM));
+        assertEq(_policy(id).end, _now() + book.maxHorizon());
+    }
+
+    function test_Buy_RevertWhen_WindowEndsBeyondTheHorizon() public {
+        uint64 end = _now() + 12 hours + 31 minutes;
+        Quote memory q = _quote(holder, KEY, end - 12 hours, end, 1, PREMIUM);
+        _expectBuyRevert(q, CoverBook.WindowTooFar.selector);
+
+        // The same limit guards the gasless path.
+        bytes memory signature = _signQuote(q);
+        (Authorization memory a, uint8 v, bytes32 r, bytes32 s) = _premiumAuthorization(q, holderKey);
+        vm.expectRevert(CoverBook.WindowTooFar.selector);
+        vm.prank(relayer);
+        book.buyWithAuthorization(q, signature, a.validAfter, a.validBefore, v, r, s);
+
+        assertEq(book.policyCount(), 0);
+    }
+
+    function test_Buy_RevertWhen_AShortWindowStartsFarAhead() public {
+        // Ten minutes of cover a day from now: short enough, but the capital behind it may be gone by then.
+        Quote memory q = _quote(holder, KEY, _now() + 1 days, _now() + 1 days + 10 minutes, RATE, PREMIUM);
+        _expectBuyRevert(q, CoverBook.WindowTooFar.selector);
+    }
+
+    function test_Buy_TheHorizonMovesWithTheClock() public {
+        uint64 end = _now() + 12 hours + 31 minutes;
+        Quote memory q = _quote(holder, KEY, end - 10 minutes, end, RATE, PREMIUM);
+        _expectBuyRevert(q, CoverBook.WindowTooFar.selector);
+
+        vm.warp(_now() + 60);
+        assertEq(_buy(q), 1);
+    }
+
     function test_Buy_RevertWhen_LeadTooShort() public {
         vm.prank(owner);
         book.setMinLead(10 minutes);
@@ -524,6 +561,8 @@ contract CoverBookBuyTest is CoverFixture {
         book.setMinPremium(10);
         book.setMaxActiveCells(0);
         pool.setMaxCellBps(0);
+        book.setDurationBounds(60, 20 minutes);
+        book.setMaxHorizon(20 minutes);
         vm.stopPrank();
 
         // Start with a quote that violates every rule after the signature check, then repair one rule at a time.
@@ -548,6 +587,9 @@ contract CoverBookBuyTest is CoverFixture {
         _expectBuyRevert(q, CoverBook.WindowInvalid.selector);
 
         q.start = nowTs + 60;
+        q.end = nowTs + 60 + 20 minutes;
+        _expectBuyRevert(q, CoverBook.WindowTooFar.selector);
+
         q.end = nowTs + 60 + 10 minutes;
         _expectBuyRevert(q, CoverBook.LeadTooShort.selector);
 

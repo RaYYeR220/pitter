@@ -4,6 +4,7 @@ pragma solidity ^0.8.30;
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {CoverBook} from "../src/CoverBook.sol";
+import {Quote} from "../src/Types.sol";
 import {ICoverPool} from "../src/interfaces/ICoverPool.sol";
 import {IWeatherIndex} from "../src/interfaces/IWeatherIndex.sol";
 import {CoverFixture} from "./utils/CoverFixture.sol";
@@ -25,6 +26,7 @@ contract CoverBookAdminTest is CoverFixture {
         assertEq(book.minLead(), 0);
         assertEq(book.minDuration(), 60);
         assertEq(book.maxDuration(), 12 hours);
+        assertEq(book.maxHorizon(), 12 hours + 30 minutes);
         assertEq(book.maxPolicyPayout(), MAX_POLICY_PAYOUT);
         assertEq(book.minPremium(), 0);
         assertEq(book.maxOracleAge(), 20 minutes);
@@ -176,6 +178,66 @@ contract CoverBookAdminTest is CoverFixture {
     function test_SetDurationBounds_RevertWhen_CallerIsNotOwner() public {
         _notOwner();
         book.setDurationBounds(60, 1 hours);
+    }
+
+    function test_SetMaxHorizon() public {
+        vm.expectEmit(address(book));
+        emit CoverBook.MaxHorizonSet(12 hours);
+        vm.prank(owner);
+        book.setMaxHorizon(12 hours);
+        assertEq(book.maxHorizon(), 12 hours);
+    }
+
+    function test_SetMaxHorizon_AppliesToTheNextSale() public {
+        vm.startPrank(owner);
+        book.setDurationBounds(60, 1 hours);
+        book.setMaxHorizon(1 hours);
+        vm.stopPrank();
+
+        Quote memory q = _quote(holder, KEY, _now() + 51 minutes, _now() + 61 minutes, RATE, PREMIUM);
+        bytes memory signature = _signQuote(q);
+        vm.expectRevert(CoverBook.WindowTooFar.selector);
+        vm.prank(holder);
+        book.buy(q, signature);
+
+        assertEq(_buy(_quote(holder, KEY, _now() + 50 minutes, _now() + 1 hours, RATE, PREMIUM)), 1);
+    }
+
+    function test_SetMaxHorizon_MayReachTheRedemptionNotice() public {
+        vm.prank(owner);
+        book.setMaxHorizon(13 hours);
+        assertEq(book.maxHorizon(), pool.redeemNotice());
+    }
+
+    function test_SetMaxHorizon_RevertWhen_BeyondTheRedemptionNotice() public {
+        vm.expectRevert(CoverBook.ConfigInvalid.selector);
+        vm.prank(owner);
+        book.setMaxHorizon(13 hours + 1);
+
+        // A longer notice makes room for a longer horizon.
+        vm.startPrank(owner);
+        pool.setRedeemNotice(1 days);
+        book.setMaxHorizon(1 days);
+        vm.stopPrank();
+        assertEq(book.maxHorizon(), 1 days);
+    }
+
+    function test_SetMaxHorizon_RevertWhen_BelowTheLongestWindow() public {
+        vm.expectRevert(CoverBook.ConfigInvalid.selector);
+        vm.prank(owner);
+        book.setMaxHorizon(12 hours - 1);
+
+        // Shorter windows make room for a shorter horizon.
+        vm.startPrank(owner);
+        book.setDurationBounds(60, 1 hours);
+        book.setMaxHorizon(1 hours);
+        vm.stopPrank();
+        assertEq(book.maxHorizon(), 1 hours);
+    }
+
+    function test_SetMaxHorizon_RevertWhen_CallerIsNotOwner() public {
+        _notOwner();
+        book.setMaxHorizon(12 hours);
     }
 
     function test_SetMaxPolicyPayout() public {

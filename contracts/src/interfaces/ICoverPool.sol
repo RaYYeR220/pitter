@@ -12,4 +12,7 @@ interface ICoverPool {
 
     /// @notice Pays `amount` of reserved exposure for `key` to `to`.
     function pay(address to, uint256 key, uint256 amount) external;
+
+    /// @notice Time a liquidity provider waits between asking to leave and leaving, in seconds.
+    function redeemNotice() external view returns (uint64);
 }
