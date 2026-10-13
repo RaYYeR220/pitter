@@ -43,6 +43,14 @@ export interface Policy {
   closed: boolean
 }
 
+/** Liveness of the weather index. */
+export interface Oracle {
+  /** Time of the last accepted report. */
+  heartbeat: number
+  /** `issuedAt` of the last accepted report; the next one must be later. */
+  lastIssuedAt: bigint
+}
+
 export interface TokenDomain {
   name: string
   version: string
@@ -59,6 +67,7 @@ export interface CoverReader {
   claimable(ids: readonly bigint[]): Promise<bigint[]>
   activeCells(): Promise<bigint[]>
   lastTo(keys: readonly bigint[]): Promise<Map<bigint, bigint>>
+  oracle(): Promise<Oracle>
   /** The token's EIP-712 domain, confirmed against the domain separator the token reports. */
   tokenDomain(): Promise<TokenDomain>
   allowance(owner: Address, spender: Address): Promise<bigint>
@@ -205,6 +214,11 @@ export function viemCoverReader(
     async lastTo(keys) {
       const values = await Promise.all(keys.map((key) => index<bigint>('lastTo', [key])))
       return new Map(keys.map((key, i) => [key, BigInt(values[i]!)]))
+    },
+
+    async oracle() {
+      const [heartbeat, lastIssuedAt] = await Promise.all([index<bigint>('heartbeat'), index<bigint>('lastIssuedAt')])
+      return { heartbeat: Number(heartbeat), lastIssuedAt: BigInt(lastIssuedAt) }
     },
 
     tokenDomain() {

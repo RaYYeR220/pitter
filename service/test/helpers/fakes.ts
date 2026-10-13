@@ -1,6 +1,6 @@
 import type { Address, Hex } from 'viem'
 import { parseEther, parseGwei, zeroAddress } from 'viem'
-import type { CoverReader, Head, Market, Policy, TokenDomain } from '../../src/chain/reader'
+import type { CoverReader, Head, Market, Oracle, Policy, TokenDomain } from '../../src/chain/reader'
 import type { Logger } from '../../src/http/respond'
 import type { Price, PriceRequest, Pricing, ReadingsRequest, WeatherReporter } from '../../src/ports'
 import { BroadcastRejected, SimulationReverted } from '../../src/relayer/errors'
@@ -72,6 +72,12 @@ export class FakeReader implements CoverReader {
 
   async lastTo(keys: readonly bigint[]): Promise<Map<bigint, bigint>> {
     return new Map(keys.map((key) => [key, this.lastToValues.get(key) ?? 0n]))
+  }
+
+  oracleState: Oracle = { heartbeat: T0 - 60, lastIssuedAt: BigInt(T0 - 60) }
+
+  async oracle(): Promise<Oracle> {
+    return this.oracleState
   }
 
   async tokenDomain(): Promise<TokenDomain> {
