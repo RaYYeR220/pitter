@@ -477,6 +477,19 @@ export const coverBookAbi = [
   },
   {
     "type": "function",
+    "name": "maxHorizon",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "maxOracleAge",
     "inputs": [],
     "outputs": [
@@ -523,6 +536,19 @@ export const coverBookAbi = [
         "name": "",
         "type": "uint64",
         "internalType": "uint64"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "minPremium",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint128",
+        "internalType": "uint128"
       }
     ],
     "stateMutability": "view"
@@ -747,6 +773,19 @@ export const coverBookAbi = [
   },
   {
     "type": "function",
+    "name": "setMaxHorizon",
+    "inputs": [
+      {
+        "name": "maxHorizon_",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "setMaxOracleAge",
     "inputs": [
       {
@@ -779,6 +818,19 @@ export const coverBookAbi = [
         "name": "minLead_",
         "type": "uint64",
         "internalType": "uint64"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setMinPremium",
+    "inputs": [
+      {
+        "name": "minPremium_",
+        "type": "uint128",
+        "internalType": "uint128"
       }
     ],
     "outputs": [],
@@ -960,6 +1012,19 @@ export const coverBookAbi = [
   },
   {
     "type": "event",
+    "name": "MaxHorizonSet",
+    "inputs": [
+      {
+        "name": "maxHorizon",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "MaxOracleAgeSet",
     "inputs": [
       {
@@ -990,6 +1055,19 @@ export const coverBookAbi = [
     "inputs": [
       {
         "name": "minLead",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "MinPremiumSet",
+    "inputs": [
+      {
+        "name": "minPremium",
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
@@ -1222,6 +1300,11 @@ export const coverBookAbi = [
   },
   {
     "type": "error",
+    "name": "PremiumTooSmall",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "QuoteExpired",
     "inputs": []
   },
@@ -1281,6 +1364,11 @@ export const coverBookAbi = [
   {
     "type": "error",
     "name": "WindowInvalid",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "WindowTooFar",
     "inputs": []
   },
   {
