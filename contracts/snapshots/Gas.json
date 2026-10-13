@@ -1,0 +1,17 @@
+{
+  "buy: next window in an active cell": "317705",
+  "buyWithAuthorization: first policy in a new cell": "482636",
+  "buyWithAuthorization: next window in an active cell": "391681",
+  "depositWithAuthorization": "161019",
+  "onReport: 1 dry reading": "89460",
+  "onReport: 1 wet reading": "108987",
+  "onReport: 10 dry readings": "317701",
+  "onReport: 10 readings for new cells": "856051",
+  "onReport: 10 wet readings": "512935",
+  "onReport: heartbeat, no readings": "64074",
+  "settle: dry close": "147536",
+  "settle: payout and close": "218524",
+  "settle: payout while the window is open": "166152",
+  "settleMany: three policies": "338760",
+  "submit: 1 wet reading": "100381"
+}
