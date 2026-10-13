@@ -1,5 +1,6 @@
 import { isAddressEqual, type Address, type Hex } from 'viem'
 import type { AreaWeather, ChainReader, PolicyRow } from '../chain/reader'
+import type { DataOrigin } from '../indexer/gate'
 
 /** One piece of cover a holder bought, with what it has paid so far. */
 export interface CoverRecord {
@@ -19,6 +20,8 @@ export interface CoverRecord {
   closed: boolean
   /** Hash of the purchase, when the source knows it. */
   purchase: Hex | null
+  /** Hash of the latest settlement that paid the holder, when the source knows it. */
+  lastPayout?: Hex | null
 }
 
 export type CoverPhase = 'upcoming' | 'active' | 'ended' | 'closed'
@@ -36,6 +39,13 @@ export interface CoverSnapshot {
   records: CoverRecord[]
   /** The last weather check of every area the holder has open cover in. */
   weather: ReadonlyMap<bigint, AreaWeather>
+  /** Where the records were read from. Absent means the chain, with no indexer configured. */
+  origin?: DataOrigin
+  /**
+   * What the holder has paid and been paid over all of their cover, when the source keeps a running total and
+   * may list only the newest records. Absent means `records` is complete and can be summed.
+   */
+  totals?: { cost: bigint; paid: bigint }
 }
 
 /**
@@ -103,37 +113,50 @@ export class RpcCoverHistorySource implements CoverHistorySource {
 
   async snapshot(holder: Address): Promise<CoverSnapshot> {
     const mine = (await this.table.refresh()).filter((row) => isAddressEqual(row.holder, holder))
-    const open = mine.filter((row) => !row.closed)
-    const keys = [...new Set(open.map((row) => row.key))]
-
-    const [claimable, weather, { time }] = await Promise.all([
-      this.reader.claimable(open.map((row) => row.id)),
-      this.reader.weather(keys),
-      this.reader.balances(holder),
-    ])
-    const confirmed = new Map(open.map((row, i) => [row.id, claimable[i] ?? 0n]))
-
-    const records = mine
-      .map(
-        (row): CoverRecord => ({
-          id: row.id,
-          key: row.key,
-          start: row.start,
-          end: row.end,
-          ratePerSecond: row.ratePerSecond,
-          premium: row.premium,
-          maxPayout: row.maxPayout,
-          paid: row.paid,
-          confirmed: confirmed.get(row.id) ?? 0n,
-          settledUntil: row.settledUntil,
-          closed: row.closed,
-          purchase: this.purchases.get(row.id) ?? null,
-        }),
-      )
-      .sort((a, b) => (a.start === b.start ? (a.id > b.id ? -1 : 1) : b.start - a.start))
-
-    return { at: time, records, weather }
+    const records = mine.map(
+      (row): CoverRecord => ({
+        id: row.id,
+        key: row.key,
+        start: row.start,
+        end: row.end,
+        ratePerSecond: row.ratePerSecond,
+        premium: row.premium,
+        maxPayout: row.maxPayout,
+        paid: row.paid,
+        confirmed: 0n,
+        settledUntil: row.settledUntil,
+        closed: row.closed,
+        purchase: this.purchases.get(row.id) ?? null,
+      }),
+    )
+    return withLiveReads(this.reader, holder, records)
   }
+}
+
+/**
+ * Completes a holder's records with what only the chain knows at this moment: the payouts of open cover the
+ * weather record has confirmed, the last weather check of their areas, and the chain's clock. Newest first.
+ */
+export async function withLiveReads(
+  reader: Pick<ChainReader, 'claimable' | 'weather' | 'balances'>,
+  holder: Address,
+  records: readonly CoverRecord[],
+): Promise<CoverSnapshot> {
+  const open = records.filter((record) => !record.closed)
+  const keys = [...new Set(open.map((record) => record.key))]
+
+  const [claimable, weather, { time }] = await Promise.all([
+    reader.claimable(open.map((record) => record.id)),
+    reader.weather(keys),
+    reader.balances(holder),
+  ])
+  const confirmed = new Map(open.map((record, i) => [record.id, claimable[i] ?? 0n]))
+
+  const completed = records
+    .map((record) => ({ ...record, confirmed: confirmed.get(record.id) ?? 0n }))
+    .sort((a, b) => (a.start === b.start ? (a.id > b.id ? -1 : 1) : b.start - a.start))
+
+  return { at: time, records: completed, weather }
 }
 
 /** The latest end of the holder's cover in one area that has not ended yet; null when there is none. */
