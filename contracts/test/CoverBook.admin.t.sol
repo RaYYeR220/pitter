@@ -29,6 +29,9 @@ contract CoverBookAdminTest is CoverFixture {
         assertEq(book.maxHorizon(), 12 hours + 30 minutes);
         assertEq(book.maxPolicyPayout(), MAX_POLICY_PAYOUT);
         assertEq(book.minPremium(), 0);
+        assertFalse(book.servedOnly());
+        assertEq(book.servedKeys().length, 0);
+        assertEq(book.oldestOpenId(), 1);
         assertEq(book.maxOracleAge(), 20 minutes);
         assertEq(book.maxActiveCells(), 64);
         assertEq(book.expiryGrace(), 24 hours);

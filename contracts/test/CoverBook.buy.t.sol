@@ -559,6 +559,7 @@ contract CoverBookBuyTest is CoverFixture {
         vm.startPrank(owner);
         book.setMinLead(10 minutes);
         book.setMinPremium(10);
+        book.setServedOnly(true);
         book.setMaxActiveCells(0);
         pool.setMaxCellBps(0);
         book.setDurationBounds(60, 20 minutes);
@@ -602,6 +603,10 @@ contract CoverBookBuyTest is CoverFixture {
         _expectBuyRevert(q, CoverBook.PremiumTooSmall.selector);
 
         q.premium = PREMIUM;
+        _expectBuyRevert(q, CoverBook.AreaNotServed.selector);
+
+        vm.prank(owner);
+        book.setServedOnly(false);
         _expectBuyRevert(q, CoverBook.OracleStale.selector);
 
         _heartbeat();

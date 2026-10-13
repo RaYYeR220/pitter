@@ -24,7 +24,9 @@ import {Quote} from "./Types.sol";
 /// `ratePerSecond * (end - start)`. That maximum is reserved in the pool at purchase, so a sale that the pool
 /// cannot back reverts instead of creating an unbacked promise. There are no refunds and no cancellations.
 ///
-/// Prices come from the underwriter key as EIP-712 quotes. A quote can be used once.
+/// Prices come from the underwriter key as EIP-712 quotes. A quote can be used once. With `servedOnly` on,
+/// cover is sold only for the keys the owner has marked as served, and there may be no more of those than
+/// active-cell slots, so the cap on active cells can never shut out an area the product serves.
 ///
 /// @dev Invariants:
 /// - the pool's `lockedExposure` equals the sum of `maxPayout - paid` over open policies, and the same holds
@@ -97,6 +99,9 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient, ICoverBook
     /// @notice Shortest window that can be bought, in seconds.
     uint64 public minDuration = 60;
 
+    /// @notice Whether cover is sold only for served keys.
+    bool public servedOnly;
+
     /// @notice Longest window that can be bought, in seconds.
     uint64 public maxDuration = 12 hours;
 
@@ -135,6 +140,7 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient, ICoverBook
 
     mapping(uint256 id => Policy) private _policies;
     EnumerableSet.UintSet private _activeCells;
+    EnumerableSet.UintSet private _served;
 
     event PolicyBought(
         uint256 indexed id,
@@ -160,6 +166,8 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient, ICoverBook
     event MinPremiumSet(uint256 minPremium);
     event MaxOracleAgeSet(uint256 maxOracleAge);
     event MaxActiveCellsSet(uint256 maxActiveCells);
+    event ServedSet(uint256 indexed key, bool served);
+    event ServedOnlySet(bool servedOnly);
     event ExpiryGraceSet(uint256 expiryGrace);
 
     error QuoteExpired();
@@ -170,6 +178,7 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient, ICoverBook
     error LeadTooShort();
     error PolicyTooLarge();
     error PremiumTooSmall();
+    error AreaNotServed();
     error OracleStale();
     error TooManyCells();
     error PremiumNotReceived();
@@ -351,6 +360,16 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient, ICoverBook
         return _activeCells.values();
     }
 
+    /// @notice Whether `key` is marked as served.
+    function isServed(uint256 key) external view returns (bool) {
+        return _served.contains(key);
+    }
+
+    /// @notice Keys marked as served.
+    function servedKeys() external view returns (uint256[] memory keys) {
+        return _served.values();
+    }
+
     /// @notice EIP-712 digest of a quote: what the underwriter signs, and the ERC-3009 nonce the holder uses
     /// in `buyWithAuthorization`.
     function hashQuote(Quote calldata q) public view returns (bytes32) {
@@ -430,9 +449,30 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient, ICoverBook
     }
 
     /// @notice Sets how many keys may have open policies at once. Keys that are already active stay active.
+    /// While `servedOnly` is on, it may not drop below the number of served keys.
     function setMaxActiveCells(uint32 maxActiveCells_) external onlyOwner {
         maxActiveCells = maxActiveCells_;
+        _checkServedFit();
         emit MaxActiveCellsSet(maxActiveCells_);
+    }
+
+    /// @notice Marks `keys` as served or not. Open policies of a key that stops being served settle as usual.
+    /// While `servedOnly` is on, there may be no more served keys than `maxActiveCells`.
+    function setServed(uint256[] calldata keys, bool served) external onlyOwner {
+        uint256 count = keys.length;
+        for (uint256 i = 0; i < count; ++i) {
+            uint256 key = keys[i];
+            if (served ? _served.add(key) : _served.remove(key)) emit ServedSet(key, served);
+        }
+        _checkServedFit();
+    }
+
+    /// @notice Sets whether cover is sold only for served keys. Turning it on needs no more served keys than
+    /// `maxActiveCells`.
+    function setServedOnly(bool servedOnly_) external onlyOwner {
+        servedOnly = servedOnly_;
+        _checkServedFit();
+        emit ServedOnlySet(servedOnly_);
     }
 
     /// @notice Sets the grace period before an unfinished policy may be expired, at least `MIN_EXPIRY_GRACE`.
@@ -462,6 +502,7 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient, ICoverBook
         uint256 maxPayout = uint256(q.ratePerSecond) * duration;
         if (maxPayout > maxPolicyPayout) revert PolicyTooLarge();
         if (q.premium < minPremium) revert PremiumTooSmall();
+        if (servedOnly && !_served.contains(q.key)) revert AreaNotServed();
 
         if (block.timestamp > uint256(index.heartbeat()) + maxOracleAge) revert OracleStale();
 
@@ -526,6 +567,11 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient, ICoverBook
 
         if (paid != 0) pool.pay(holder, key, paid);
         if (closing && remaining != paid) pool.release(key, remaining - paid);
+    }
+
+    /// @dev Every served key must be able to hold a slot among the active cells.
+    function _checkServedFit() private view {
+        if (servedOnly && _served.length() > maxActiveCells) revert ConfigInvalid();
     }
 
     /// @dev Moves `oldestOpenId` past closed policies, at most `maxSteps` of them.
