@@ -23,7 +23,7 @@ runs = 256
 
 [invariant]
 runs = 64
-depth = 64
+depth = 128
 fail_on_revert = true
 
 [rpc_endpoints]
