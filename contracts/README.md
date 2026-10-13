@@ -5,7 +5,8 @@ minute-aligned window and pays a fixed rate for every second the oracle confirms
 `rate x duration`. That maximum is reserved in the pool when the policy is sold, so a sale the pool cannot back
 reverts instead of creating an unbacked promise.
 
-Solidity 0.8.30, Foundry, OpenZeppelin Contracts 5.7.
+Solidity 0.8.30, OpenZeppelin Contracts 5.7, Foundry 1.8 or newer (the project selects the Monad network
+family, which older releases do not know). Dependencies are git submodules: `git submodule update --init`.
 
 ## What each contract does
 
