@@ -271,6 +271,27 @@ contract CoverBookSettleTest is CoverFixture {
         assertEq(dollar.balanceOf(holder), HOLDER_FUNDS - PREMIUM + 300 * RATE);
     }
 
+    function test_Settle_StarvingTheTransferOfGasNeverForcesADeferral() public {
+        vm.warp(end);
+        _report(KEY, start, end, 300);
+        uint256 snapshot = vm.snapshotState();
+
+        // Whatever gas the caller supplies, the settlement either runs out of gas as a whole or pays the
+        // holder directly. It never completes with the payout pushed aside.
+        uint256 completed;
+        for (uint256 gasLimit = 20_000; gasLimit <= 400_000; gasLimit += 250) {
+            vm.prank(keeper);
+            try book.settle{gas: gasLimit}(id) returns (uint256 paid) {
+                assertEq(paid, 300 * RATE);
+                assertEq(pool.deferred(holder), 0, "payout deferred by gas starvation");
+                assertEq(dollar.balanceOf(holder), HOLDER_FUNDS - PREMIUM + paid);
+                ++completed;
+            } catch {}
+            vm.revertToState(snapshot);
+        }
+        assertGt(completed, 0, "no gas limit in the sweep was enough to settle");
+    }
+
     function test_Settle_PoliciesInOneCellShareTheSameReports() public {
         // A second, larger policy over the same window for another holder.
         Quote memory q = _quote(attacker, KEY, start, end, 3 * RATE, PREMIUM);

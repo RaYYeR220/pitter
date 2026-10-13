@@ -239,6 +239,28 @@ contract NativeUsdcForkTest is Signing {
         assertEq(book.activeCells().length, 0);
     }
 
+    function test_Fork_Settle_StarvingTheTransferOfGasNeverForcesADeferral() public onlyOnFork {
+        Quote memory q = _quote();
+        (bytes memory quoteSig, uint8 v, bytes32 r, bytes32 s) = _signedPurchase(q, holderKey);
+        vm.prank(relayer);
+        uint256 id = book.buyWithAuthorization(q, quoteSig, 0, q.expiry, v, r, s);
+        vm.warp(q.end);
+        _report(_readings(Reading(KEY, q.start, q.end, 240)));
+        uint256 holderBefore = USDC.balanceOf(holder);
+        uint256 snapshot = vm.snapshotState();
+
+        uint256 completed;
+        for (uint256 gasLimit = 30_000; gasLimit <= 600_000; gasLimit += 1_000) {
+            try book.settle{gas: gasLimit}(id) returns (uint256 paid) {
+                assertEq(pool.deferred(holder), 0, "payout deferred by gas starvation");
+                assertEq(USDC.balanceOf(holder), holderBefore + paid);
+                ++completed;
+            } catch {}
+            vm.revertToState(snapshot);
+        }
+        assertGt(completed, 0, "no gas limit in the sweep was enough to settle");
+    }
+
     function test_Fork_Settle_DefersThePayoutOfABlacklistedHolder() public onlyOnFork {
         Quote memory q = _quote();
         (bytes memory quoteSig, uint8 v, bytes32 r, bytes32 s) = _signedPurchase(q, holderKey);
