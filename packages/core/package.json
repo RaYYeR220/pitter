@@ -13,6 +13,7 @@
     "./eip712": "./src/eip712.ts",
     "./weather": "./src/weather/index.ts",
     "./pricing": "./src/pricing/index.ts",
+    "./refusals": "./src/refusals.ts",
     "./testing": "./test/replay.ts"
   },
   "scripts": {

@@ -10,6 +10,7 @@ platform dependencies, so it also bundles into the oracle's WASM runtime.
 | `@cover/core/eip712` | hashing and signing of quotes and reports, byte-for-byte what the contracts verify |
 | `@cover/core/weather` | the oracle: asking the sources, judging each cell, building and signing reports |
 | `@cover/core/pricing` | the premium for a window of cover |
+| `@cover/core/refusals` | the code behind each contract error a buyer or a provider can act on (`AreaNotServed` is `area_not_served`, `CoverStillOpen` is `cover_still_open`), shared by the service and the app |
 | `@cover/core/testing` | a replay of recorded answers from the real sources, for tests |
 
 ## Price and payout use the same sources
