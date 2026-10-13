@@ -35,6 +35,7 @@ const UNAVAILABLE: Record<RelayerUnavailable['reason'], [code: string, message: 
   chain_mismatch: ['relayer_misconfigured', 'The relayer is not available'],
   unfunded: ['relayer_unfunded', 'The relayer is out of funds; transactions can still be sent directly'],
   gas_price_too_high: ['gas_price_too_high', 'Network fees are above what the relayer pays; try again shortly'],
+  busy: ['relayer_busy', 'The relayer is busy; try again shortly'],
 }
 
 /**

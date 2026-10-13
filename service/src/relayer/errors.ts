@@ -48,7 +48,7 @@ export class InclusionUnknown extends Error {
   }
 }
 
-export type UnavailableReason = 'chain_mismatch' | 'unfunded' | 'gas_price_too_high'
+export type UnavailableReason = 'chain_mismatch' | 'unfunded' | 'gas_price_too_high' | 'busy'
 
 /** The relayer cannot send anything right now. */
 export class RelayerUnavailable extends Error {
