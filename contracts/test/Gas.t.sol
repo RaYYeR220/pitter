@@ -13,6 +13,7 @@ contract GasTest is CoverFixture {
     address internal forwarder = makeAddr("forwarder");
     address internal newcomer;
     uint256 internal newcomerKey;
+    address internal leaver = makeAddr("leaver");
 
     uint256 internal constant WET_BASE = (uint256(1) << 64) | (uint256(2000) << 32);
     uint256 internal constant DRY_BASE = (uint256(1) << 64) | (uint256(3000) << 32);
@@ -29,6 +30,14 @@ contract GasTest is CoverFixture {
         vm.startPrank(owner);
         index.setForwarder(forwarder, true);
         dollar.mint(newcomer, HOLDER_FUNDS);
+        dollar.mint(leaver, 2_000e6);
+        pool.setRedeemNotice(10 minutes);
+        vm.stopPrank();
+
+        // A provider whose redemption request will have matured by the time the tests run.
+        vm.startPrank(leaver);
+        dollar.approve(address(pool), type(uint256).max);
+        pool.requestRedeem(pool.deposit(1_000e6, leaver), leaver, leaver);
         vm.stopPrank();
 
         // Ten cells that have seen rain and ten that have only ever been dry.
@@ -163,6 +172,25 @@ contract GasTest is CoverFixture {
     }
 
     // ───────────────────────────── liquidity ─────────────────────────────
+
+    function test_Gas_RequestRedeem() public {
+        vm.prank(lp);
+        pool.requestRedeem(POOL_DEPOSIT / 2 * 1e6, lp, lp);
+        vm.snapshotGasLastFrame("Gas", "requestRedeem");
+    }
+
+    function test_Gas_Redeem_ClaimAMaturedRequest() public {
+        vm.prank(leaver);
+        uint256 assets = pool.redeem(1_000e6 * 1e6, leaver, leaver);
+        vm.snapshotGasLastFrame("Gas", "redeem: claim a matured request");
+        assertEq(assets, 1_000e6);
+    }
+
+    function test_Gas_CancelRedeemRequest() public {
+        vm.prank(leaver);
+        pool.cancelRedeemRequest();
+        vm.snapshotGasLastFrame("Gas", "cancelRedeemRequest");
+    }
 
     function test_Gas_DepositWithAuthorization() public {
         Authorization memory a = Authorization(holder, address(pool), 500e6, 0, NOW + 1 hours, keccak256("deposit"));

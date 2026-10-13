@@ -219,6 +219,24 @@ contract NativeUsdcForkTest is Signing {
         assertEq(USDC.balanceOf(lp), 4_000e6);
     }
 
+    function test_Fork_RequestAndRedeem_PaysNativeUsdcAfterTheNotice() public onlyOnFork {
+        uint256 shares = pool.balanceOf(lp);
+        vm.startPrank(lp);
+        pool.requestRedeem(shares, lp, lp);
+
+        vm.expectRevert(CoverPool.NoticeNotOver.selector);
+        pool.redeem(shares, lp, lp);
+
+        vm.warp(_now() + pool.redeemNotice());
+        uint256 assets = pool.redeem(shares, lp, lp);
+        vm.stopPrank();
+
+        assertEq(assets, 5_000e6);
+        assertEq(USDC.balanceOf(lp), 10_000e6);
+        assertEq(pool.totalSupply(), 0);
+        assertEq(pool.escrowedShares(), 0);
+    }
+
     function test_Fork_Settle_PaysNativeUsdcAndReleasesTheRest() public onlyOnFork {
         Quote memory q = _quote();
         (bytes memory quoteSig, uint8 v, bytes32 r, bytes32 s) = _signedPurchase(q, holderKey);
