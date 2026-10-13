@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'bun:test'
 import { join } from 'node:path'
-import { sealProbe } from './fixtures/signing-probe'
+import { judgeProbe, sealProbe } from './fixtures/engine-probe'
 
-// The workflow signs its reports inside the QuickJS engine that Javy compiles into the WASM binary. This test
-// compiles the signing path with the same Javy release the CRE toolchain uses and runs it in that engine.
+// The workflow reads its sources and signs its reports inside the QuickJS engine that Javy compiles into the
+// WASM binary. This test compiles both paths with the same Javy release the CRE toolchain uses and runs them in
+// that engine.
 
 const home = process.env.USERPROFILE ?? process.env.HOME ?? ''
 const platform = `${process.platform}-${process.arch}`
@@ -11,7 +12,7 @@ const cached = home ? await Array.fromAsync(new Bun.Glob(`*/${platform}/javy*`).
 const javy = cached.sort().at(-1)
 const node = Bun.which('node')
 const available = javy !== undefined && node !== null
-if (!available) console.warn('skipping the WASM signing test: it needs node and the Javy binary that `cre workflow build` downloads')
+if (!available) console.warn('skipping the WASM engine test: it needs node and the Javy binary that `cre workflow build` downloads')
 
 const WASI_RUNNER = `
   const { readFileSync } = require('node:fs')
@@ -27,27 +28,31 @@ async function run(command: string[]): Promise<string> {
   return stdout + stderr
 }
 
-describe.skipIf(!available)('signing inside the workflow engine', () => {
-  it('produces the same digest, signature and payload as outside it', async () => {
+describe.skipIf(!available)('inside the workflow engine', () => {
+  it('judges the recorded sources and signs a report exactly as outside it', async () => {
     const workDir = join(import.meta.dir, '.tmp')
     const build = await Bun.build({
-      entrypoints: [join(import.meta.dir, 'fixtures', 'signing-probe.entry.ts')],
+      entrypoints: [join(import.meta.dir, 'fixtures', 'engine-probe.entry.ts')],
       outdir: workDir,
       target: 'browser',
       format: 'esm',
-      naming: 'signing-probe.js',
+      naming: 'engine-probe.js',
     })
     expect(build.success).toBe(true)
 
-    const wasm = join(workDir, 'signing-probe.wasm')
-    await run([javy as string, 'build', join(workDir, 'signing-probe.js'), '-o', wasm])
+    const wasm = join(workDir, 'engine-probe.wasm')
+    await run([javy as string, 'build', join(workDir, 'engine-probe.js'), '-o', wasm])
     const output = await run([node as string, '--no-warnings', '-e', WASI_RUNNER, wasm])
 
     const line = output.split('\n').find((candidate) => candidate.startsWith('{'))
     expect(line).toBeDefined()
     const insideEngine = JSON.parse(line as string)
-    const expected = sealProbe()
-    expect(insideEngine).toEqual(expected)
-    expect(expected.signature).toMatch(/^0x[0-9a-f]{128}(1b|1c)$/)
+    const sealed = sealProbe()
+    const judged = judgeProbe()
+    expect(insideEngine).toEqual({ sealed, judged })
+    expect(sealed.signature).toMatch(/^0x[0-9a-f]{128}(1b|1c)$/)
+    expect(judged.requests).toBe(15)
+    expect(judged.verdicts).toMatch(/^[wd]{37}$/)
+    expect(judged.verdicts.startsWith('dww')).toBe(true)
   }, 120_000)
 })

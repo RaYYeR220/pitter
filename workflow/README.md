@@ -162,9 +162,9 @@ pnpm --filter @cover/workflow test         # bun test
 - `test/run-local.test.ts`: a local chain (`anvil`) with the contracts from `contracts/out`: heartbeat, sale,
   report, payout, chained report, refused reports, delivery through `onReport`. Skipped without `anvil` or the
   contract build;
-- `test/wasm-signing.test.ts`: compiles the signing path with Javy and runs it in the engine the workflow runs
-  in; digest, signature and payload match the ones computed outside. Skipped until `cre workflow build` has
-  downloaded Javy.
+- `test/wasm-engine.test.ts`: compiles the source parsing and the signing path with Javy and runs them in the
+  engine the workflow runs in; verdicts, digest, signature and payload match the ones computed outside. Skipped
+  until `cre workflow build` has downloaded Javy.
 
 ## Sources
 
