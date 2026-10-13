@@ -49,7 +49,7 @@ Transaction links point at MonadVision; [PROOF.md](PROOF.md) has the full list a
 | Statement | Tag | Evidence |
 |---|---|---|
 | Contracts: 412 tests pass, 10 fork tests skipped without an RPC (422 with one), including 16 fuzz tests and 12 invariants over 8,192 calls each. | REPRODUCIBLE | `cd contracts && forge test` |
-| core 154, service 434 (+1 skipped), workflow 45, indexer 37, web 258 plus 2 end-to-end tests. | REPRODUCIBLE | Commands in the [README](README.md#tests). |
+| core 154, service 442 (+1 skipped), workflow 45, indexer 37, web 276 plus 2 end-to-end tests. | REPRODUCIBLE | Commands in the [README](README.md#tests). |
 | An independent review before the mainnet deployment found no critical or high-severity issues; three medium and two low ones were fixed with regression tests. | REPRODUCIBLE (the fixes) | The behaviours and their tests are in [docs/security.md](docs/security.md). The review report is not published in this repository. |
 
 ## NOT-CLAIMED
@@ -60,7 +60,7 @@ Transaction links point at MonadVision; [PROOF.md](PROOF.md) has the full list a
 - **No claim that the price is right.** The pricing model has not been assessed against real loss data. We do not claim premiums cover payouts over time, or that backers make money.
 - **No commercial weather licence.** Open-Meteo's free tier is for non-commercial use. Three of the five sources are models from that one provider.
 - **No claim about rain on a particular street.** The trigger is the sources agreeing about a 0.05 degree cell.
-- **Not live: paid cover over x402** (switched off on the deployed app) **and a hosted indexer** (the indexer runs locally; the app reads the chain directly).
+- **Not live: paid cover over x402** (switched off on the deployed app).
 - **No real riders yet.** The three mainnet covers were bought by the maintainers' own address, for cents.
 - **No mainnet payout during the rain yet.** The two mainnet covers were each settled once, in full, after their windows had ended.
 - **No multisig or timelock.** The owner of every contract, on both networks, is the deployer key.

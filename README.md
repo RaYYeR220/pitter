@@ -53,7 +53,7 @@ flowchart LR
   wx["Weather sources<br/>Open-Meteo: ICON, GFS, Météo-France<br/>airport METAR, MET Norway"]
   sim["Chainlink CRE workflow<br/>cre workflow simulate --broadcast"]
   don["Chainlink DON<br/>same workflow, deployed"]
-  idx["Envio indexer, hosted"]
+  idx["Envio HyperIndex, hosted<br/>Monad mainnet + testnet"]
 
   subgraph monad["Monad"]
     mock["MockKeystoneForwarder"]
@@ -81,11 +81,11 @@ flowchart LR
   wx -.-> don
   don -.->|"signed report"| fwd
   fwd -.->|"onReport, signature checked"| index
-  index -.->|"events"| idx
-  idx -.->|"GraphQL"| web
+  monad -->|"events via HyperSync"| idx
+  idx -->|"GraphQL: history, pool totals, activity"| web
 ```
 
-Solid edges run today. Dotted edges are built but not live: delivery from Chainlink's production DON (deploying a workflow there needs a commercial agreement with Chainlink), a hosted indexer (the indexer is configured for both networks, runs locally and is tested; the app reads the chain directly), and paid cover over x402 (implemented and tested, switched off on the live deployment). Details: [docs/architecture.md](docs/architecture.md).
+Solid edges run today. Dotted edges are built but not live: delivery from Chainlink's production DON (deploying a workflow there needs a commercial agreement with Chainlink) and paid cover over x402 (implemented and tested, switched off on the live deployment). The app reads cover history, pool totals and recent activity from the hosted Envio indexer (`https://indexer.dev.hyperindex.xyz/c7209ad/v1/graphql`, both networks) and falls back to direct chain reads if the index is more than two minutes behind. Details: [docs/architecture.md](docs/architecture.md).
 
 ## Packages
 
@@ -138,10 +138,10 @@ Record, including the reporter, underwriter and limits: [`contracts/deployments/
 |---|---|---|
 | contracts | `cd contracts && forge test` | 412 passed; 10 fork tests against native USDC skipped without an RPC (422 with `MONAD_RPC_URL=https://rpc.monad.xyz`). Includes 16 fuzz tests and 12 invariants, each invariant checked over 64 runs of 128 calls (8,192 calls) |
 | core | `pnpm --filter @cover/core test` | 154 passed |
-| service | `pnpm --filter @cover/service test` | 434 passed, 1 skipped (a Postgres case) |
+| service | `pnpm --filter @cover/service test` | 442 passed (407 unit, 35 integration on a local Monad-rules chain), 1 skipped (a Postgres case) |
 | workflow | `pnpm --filter @cover/workflow test` | 45 passed |
 | indexer | `cd indexer && docker compose run --rm --build --no-deps indexer pnpm test` | 37 passed (the Envio runtime needs Linux, hence Docker) |
-| web | `pnpm --filter @cover/web test` | 258 passed |
+| web | `pnpm --filter @cover/web test` | 276 passed |
 | web, end to end | `pnpm --filter @cover/web test:e2e` | 2 Playwright tests in Chromium with a virtual passkey that has PRF, against the test network: sign up, practice dollars, cover in the simulator area, rain, payout, sign in again from nothing; the shift log opened in a second browser |
 
 ```bash

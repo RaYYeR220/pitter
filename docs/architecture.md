@@ -217,8 +217,13 @@ cover once, however often it is sent. It is implemented and tested and switched 
 
 `indexer/` is an Envio HyperIndex project over the three contracts on both networks: cover history and
 payouts per holder, exposure per area, weather readings, pool totals and a daily series, exit requests, and
-served areas. It runs locally with Docker Compose and its handler tests run on simulated events. It is not
-hosted yet; the app reads the chain directly through Multicall3, behind an interface an indexer can replace.
+served areas. It is hosted on Envio (`https://indexer.dev.hyperindex.xyz/c7209ad/v1/graphql`), synced over
+HyperSync on Monad mainnet and testnet, and also runs locally with Docker Compose; its handler tests run on
+simulated events. The app reads a holder's history, pool totals, the daily series, area exposure and recent
+activity from it in one query per refresh, checks `_meta.progressBlock` against the chain head on every query,
+and falls back to direct reads through Multicall3 when the index is more than two minutes behind or
+unreachable. Where new cover starts is always read from the chain, so a lagging index can never make the app
+buy overlapping cover.
 Queries: [indexer/queries.md](../indexer/queries.md).
 
 ## Monad specifics, in one place
