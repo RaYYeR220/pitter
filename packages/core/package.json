@@ -1,0 +1,31 @@
+{
+  "name": "@cover/core",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./abi": "./src/abi/index.ts",
+    "./chains": "./src/chains.ts",
+    "./cells": "./src/cells.ts",
+    "./eip712": "./src/eip712.ts",
+    "./weather": "./src/weather/index.ts",
+    "./pricing": "./src/pricing/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "sync:contracts": "node scripts/sync-contracts.mjs",
+    "record:fixtures": "node scripts/record-fixtures.mjs"
+  },
+  "dependencies": {
+    "@noble/curves": "1.9.1",
+    "viem": "2.57.5"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "vitest": "^5.0.4"
+  }
+}
