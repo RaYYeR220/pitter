@@ -114,8 +114,9 @@ Closing a policy walks the book's `oldestOpenId` forward over up to 32 closed po
 272,000 for that walk. Six such closes fit under the 3,000,000 a relay may ask for; a longer batch is cut into
 several transactions, so no batch is refused on every tick for its gas. `test/integration/gas.test.ts` builds
 the worst case on a local Monad chain (every close walks 32 steps, pays an address that held nothing and
-frees its cell) and checks it against these limits; `GAS_REPORT=<file>` writes the measurements out. Leaving
-the pool is not relayed; for reference, `requestRedeem` measures 181,266, a claim (`redeem`) 121,557,
+frees its cell) and checks it against these limits; `GAS_REPORT=<file>` writes the measurements out. A single
+`settle` of the same worst case measures 491,159; the relayer sends `settleMany` instead. Leaving the pool is
+not relayed; for reference, `requestRedeem` measures 181,266, a claim (`redeem`) 121,557,
 `cancelRedeemRequest` 70,641, and the reads behind it 30,806 to 58,544 (`claimBlockedByCover` the most).
 
 **Keeper.** A tick reads the cells with open cover, asks the weather module in `@cover/core` about them and
