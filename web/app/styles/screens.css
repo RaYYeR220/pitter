@@ -1017,8 +1017,8 @@
 
 @media (max-width: 820px) {
   .hero {
-    min-height: calc(100svh - 64px);
-    padding-bottom: 22px;
+    min-height: calc(100svh - 104px);
+    padding-bottom: 18px;
   }
 
   .hero__main {
