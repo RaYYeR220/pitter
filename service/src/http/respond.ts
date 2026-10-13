@@ -1,3 +1,4 @@
+import { BaseError as ChainError } from 'viem'
 import { ZodError } from 'zod'
 import { ServiceError } from './errors'
 
@@ -56,6 +57,12 @@ export function guard(name: string, handler: Handler, logger: Logger): Handler {
       if (error instanceof ZodError) return errorResponse(validationError(error))
       const reference = crypto.randomUUID()
       logger.error('unhandled error', { handler: name, reference, error })
+      if (error instanceof ChainError) {
+        const details = { details: { reference } }
+        return errorResponse(
+          new ServiceError(502, 'rpc_unavailable', 'The network is not reachable right now', details),
+        )
+      }
       return errorResponse(new ServiceError(500, 'internal', 'Internal error', { details: { reference } }))
     }
   }

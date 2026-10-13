@@ -16,8 +16,7 @@ export interface LedgerEntry {
 
 export type Claim =
   /** `resumed` is what an earlier attempt recorded when it left the work `settled`; null for fresh work. */
-  | { claimed: true; resumed: Json | null }
-  | { claimed: false; entry: LedgerEntry }
+  { claimed: true; resumed: Json | null } | { claimed: false; entry: LedgerEntry }
 
 /**
  * Makes a unit of work happen once. `claim` is atomic: of any number of concurrent callers with the same key
@@ -31,9 +30,14 @@ export interface Ledger {
   release(key: string): Promise<void>
 }
 
-/** Process-local ledger for development and tests. */
+/** Process-local ledger for development and tests. Finished entries beyond `capacity` are forgotten, oldest first. */
 export class MemoryLedger implements Ledger {
   private readonly entries = new Map<string, LedgerEntry>()
+  private readonly capacity: number
+
+  constructor(capacity = 20_000) {
+    this.capacity = capacity
+  }
 
   async claim(key: string, now: number): Promise<Claim> {
     const entry = this.entries.get(key)
@@ -49,7 +53,13 @@ export class MemoryLedger implements Ledger {
   }
 
   async save(key: string, status: 'settled' | 'done', data: Json, now: number): Promise<void> {
+    this.entries.delete(key)
     this.entries.set(key, { status, data, updatedAt: now })
+    if (this.entries.size <= this.capacity) return
+    for (const [candidate, entry] of this.entries) {
+      if (entry.status === 'done') this.entries.delete(candidate)
+      if (this.entries.size <= this.capacity) break
+    }
   }
 
   async release(key: string): Promise<void> {

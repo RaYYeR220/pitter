@@ -13,6 +13,14 @@ export interface RelayCall {
   gas: bigint
 }
 
+export interface RelayOptions {
+  /**
+   * Runs once the nonce is held, before the call is simulated. Throw from it to abandon the call, for example
+   * when another transaction has just done the same work.
+   */
+  before?: () => Promise<void>
+}
+
 export interface RelayResult extends RelayReceipt {
   function: RelayedFunction
 }
@@ -61,7 +69,7 @@ export class Relayer {
     this.address = options.account.address
   }
 
-  async execute(call: RelayCall): Promise<RelayResult> {
+  async execute(call: RelayCall, options: RelayOptions = {}): Promise<RelayResult> {
     const { rpc, nonces, allowlist, account, chainId, maxFeePerGas, maxPriorityFeePerGas } = this.options
 
     const allowed = allowlist.check(call.to, call.data)
@@ -74,6 +82,7 @@ export class Relayer {
       signer,
       () => rpc.transactionCount(this.address),
       async (lease) => {
+        await options.before?.()
         await rpc.simulate({ from: this.address, to: call.to, data: call.data, gas: call.gas })
 
         for (let attempt = 0; ; attempt++) {
