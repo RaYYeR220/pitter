@@ -1,0 +1,223 @@
+enum PolicyStatus {
+  "Bought and not yet closed."
+  OPEN
+  "Closed with its whole window settled."
+  SETTLED
+  "Closed after the grace period without the oracle reporting the rest of the window."
+  EXPIRED
+}
+
+enum RedeemRequestStatus {
+  "Shares are in escrow, waiting for the notice to pass or for the claim."
+  OPEN
+  "Every escrowed share has been redeemed."
+  CLAIMED
+  "The controller took the shares back."
+  CANCELLED
+}
+
+"""
+A policy: cover for one cell over a minute-aligned window, paying a fixed rate per wet second.
+"""
+type Policy {
+  "Policy id in the book, as a decimal string."
+  id: ID!
+  holder: Holder!
+  cell: Cell!
+  "Weather index key: (triggerId << 64) | cellId."
+  key: BigInt!
+  cellId: BigInt!
+  triggerId: BigInt!
+  "Window start, unix seconds."
+  start: Int!
+  "Window end (exclusive), unix seconds."
+  end: Int!
+  "Payout per wet second, in token base units."
+  ratePerSecond: BigInt!
+  "Premium paid, including the protocol fee."
+  premium: BigInt!
+  "Part of the premium that went to the treasury."
+  fee: BigInt!
+  "ratePerSecond x (end - start): what the pool reserved at purchase."
+  maxPayout: BigInt!
+  "Total paid out so far."
+  paid: BigInt!
+  "Time up to which the window has been settled, unix seconds."
+  settledUntil: Int!
+  status: PolicyStatus!
+  boughtAt: Int!
+  boughtTxHash: String!
+  closedAt: Int
+  settlements: [Settlement!]! @derivedFrom(field: "policy")
+}
+
+"""
+One settlement of a policy. A policy is settled in steps as the oracle reports its window.
+"""
+type Settlement {
+  "Transaction hash and log index."
+  id: ID!
+  policy: Policy!
+  holder: Holder!
+  cell: Cell!
+  "Paid to the holder by this settlement. Zero when the settled time was dry."
+  amount: BigInt!
+  "Time the policy is settled up to after this settlement, unix seconds."
+  settledUntil: Int!
+  "Whether this settlement closed the policy."
+  closed: Boolean!
+  txHash: String!
+  timestamp: Int! @index
+}
+
+"""
+One oracle reading: how many seconds of an interval were wet in a cell.
+"""
+type WeatherReading {
+  "Transaction hash and log index."
+  id: ID!
+  cell: Cell!
+  key: BigInt!
+  "Start of the interval, unix seconds."
+  from: Int!
+  "End of the interval, unix seconds."
+  to: Int! @index
+  wetSeconds: Int!
+  "Wet seconds recorded for the key up to `to`."
+  cumulative: BigInt!
+  txHash: String!
+  timestamp: Int!
+}
+
+"""
+A grid cell under one trigger: everything known about a weather index key.
+"""
+type Cell {
+  "The key, as a decimal string."
+  id: ID!
+  key: BigInt!
+  triggerId: BigInt!
+  "(latIndex << 32) | lonIndex"
+  cellId: BigInt!
+  "Row of the 0.05 degree grid, counted from the south pole. Null when the key is not on the grid."
+  latIndex: Int
+  "Column of the 0.05 degree grid, counted from the antimeridian. Null when the key is not on the grid."
+  lonIndex: Int
+  "Latitude of the cell centre."
+  lat: Float
+  "Longitude of the cell centre."
+  lon: Float
+  "Assets the pool reserves for the open policies of this cell."
+  exposure: BigInt!
+  openPolicies: Int! @index
+  policyCount: Int!
+  totalPremiums: BigInt!
+  totalPaid: BigInt!
+  "Wet seconds recorded so far."
+  wetSeconds: BigInt!
+  "End of the latest reading that was wet, unix seconds."
+  lastWetAt: Int
+  "End of the latest reading, unix seconds."
+  lastReadingAt: Int
+  policies: [Policy!]! @derivedFrom(field: "cell")
+  readings: [WeatherReading!]! @derivedFrom(field: "cell")
+}
+
+"""
+A policy holder and their totals.
+"""
+type Holder {
+  "The holder's address, lowercase."
+  id: ID!
+  policyCount: Int!
+  openPolicies: Int!
+  totalPremiums: BigInt!
+  totalPaid: BigInt!
+  "Payouts the token refused to deliver, waiting in the pool for claimDeferred."
+  deferred: BigInt!
+  firstPolicyAt: Int
+  lastActivityAt: Int!
+  policies: [Policy!]! @derivedFrom(field: "holder")
+  settlements: [Settlement!]! @derivedFrom(field: "holder")
+}
+
+"""
+Pool activity of one UTC day.
+"""
+type PoolDay {
+  "The UTC date, YYYY-MM-DD."
+  id: ID!
+  "Midnight that starts the day, unix seconds."
+  startsAt: Int! @index
+  "Premiums paid, including the protocol fee."
+  premiums: BigInt!
+  "Protocol fees taken from the premiums."
+  fees: BigInt!
+  payouts: BigInt!
+  "Assets deposited by liquidity providers."
+  deposits: BigInt!
+  "Assets claimed by liquidity providers."
+  withdrawals: BigInt!
+  policiesBought: Int!
+  settlements: Int!
+  "payouts / premiums of the day. Null when no premium was paid."
+  lossRatio: Float
+}
+
+"""
+The pool as a whole. One row per chain, with id "pool".
+"""
+type PoolState {
+  id: ID!
+  "Assets reserved for the open policies of every cell."
+  lockedExposure: BigInt!
+  "The oracle heartbeat: when the reporter last spoke, unix seconds. Zero before the first report."
+  lastHeartbeat: Int!
+  policyCount: Int!
+  openPolicies: Int!
+  holderCount: Int!
+  "Cells with at least one open policy."
+  activeCells: Int!
+  settlementCount: Int!
+  readingCount: Int!
+  openRedeemRequests: Int!
+  "Premiums paid, including the protocol fee."
+  totalPremiums: BigInt!
+  totalFees: BigInt!
+  totalPayouts: BigInt!
+  totalDeposits: BigInt!
+  totalWithdrawals: BigInt!
+  "Shares waiting in redemption escrow."
+  escrowedShares: BigInt!
+  "Payouts set aside because the token refused the transfer."
+  totalDeferred: BigInt!
+  "totalPayouts / totalPremiums. Null when no premium was paid."
+  lossRatio: Float
+  "Share of every premium that goes to the treasury, in basis points."
+  feeBps: Int!
+  "Seconds a redemption request waits before it can be claimed."
+  redeemNotice: Int!
+  updatedAt: Int!
+}
+
+"""
+The redemption request of a controller. A controller has one request at a time; a new request after a claim
+or a cancellation starts the row over.
+"""
+type RedeemRequest {
+  "The controller's address, lowercase."
+  id: ID!
+  "Owner of the shares most recently added to the request."
+  owner: String!
+  "Shares still in escrow."
+  shares: BigInt!
+  claimedShares: BigInt!
+  claimedAssets: BigInt!
+  "When shares were last added. Adding restarts the notice for the whole request."
+  requestedAt: Int!
+  "From when the request can be claimed, unix seconds."
+  claimableAt: Int!
+  status: RedeemRequestStatus! @index
+  closedAt: Int
+  txHash: String!
+}
