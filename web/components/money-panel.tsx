@@ -117,7 +117,13 @@ export function HistoryPanel() {
           <h3>{formatDayAndClock(shift.start)}</h3>
           <ul className="plain">
             {shift.records.map((record) => (
-              <li key={record.id.toString()} data-testid="history-row" data-id={record.id.toString()}>
+              <li
+                key={record.id.toString()}
+                data-testid="history-row"
+                data-id={record.id.toString()}
+                data-start={record.start}
+                data-paid={record.paid.toString()}
+              >
                 {copy.history.row(record.start, record.end)} · {copy.history.status[phaseOf(record, now)]}
                 <br />
                 <span className="muted">
