@@ -38,6 +38,8 @@ describe('package surface', () => {
       'sealReports',
       'quotePremium',
       'fetchForecast',
+      'FORECAST_MODELS',
+      'DEFAULT_FORECAST_MODEL',
     ]) {
       expect(core).toHaveProperty(name)
     }

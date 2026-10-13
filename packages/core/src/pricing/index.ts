@@ -1,5 +1,14 @@
-export { FORECAST_HOURS, type Forecast, fetchForecast, forecastRequest, parseForecast } from './forecast'
 export {
+  FORECAST_HOURS,
+  FORECAST_MODELS,
+  type Forecast,
+  type ModelForecast,
+  fetchForecast,
+  forecastRequest,
+  parseForecast,
+} from './forecast'
+export {
+  DEFAULT_FORECAST_MODEL,
   ForecastUnavailableError,
   PRICING_DEFAULTS,
   type PremiumQuote,

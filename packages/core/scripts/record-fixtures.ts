@@ -1,5 +1,8 @@
 // Records one snapshot of the real weather sources for the unit tests:
-//   WEATHER_USER_AGENT="<who you are and a contact>" pnpm --filter @cover/core record:fixtures
+//   WEATHER_USER_AGENT="cover-weather-oracle/0.1 (+https://github.com/<owner>/<repo>)" pnpm --filter @cover/core record:fixtures
+// The User-Agent goes to aviationweather.gov and MET Norway: use a neutral project string, never a personal
+// address. `--forecast-only` records the pricing forecasts alone: they come from Open-Meteo, which gets no
+// User-Agent of ours, and the weather snapshot is left as it is.
 // The snapshot keeps the response shapes of the sources and drops what the oracle never reads.
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -10,8 +13,12 @@ import { distanceKm } from '../src/weather/geo'
 import { planRequests } from '../src/weather/plan'
 import type { CellTarget, WeatherRequest } from '../src/weather/types'
 
-const userAgent = process.env.WEATHER_USER_AGENT
-if (!userAgent) throw new Error('set WEATHER_USER_AGENT to a string that identifies you (MET Norway requires it)')
+const forecastOnly = process.argv.includes('--forecast-only')
+const userAgent = process.env.WEATHER_USER_AGENT ?? ''
+if (!forecastOnly && !userAgent) {
+  throw new Error('set WEATHER_USER_AGENT to a neutral string that identifies the project (MET Norway requires one)')
+}
+if (userAgent.includes('@')) throw new Error('WEATHER_USER_AGENT must not contain an e-mail address')
 
 const here = dirname(fileURLToPath(import.meta.url))
 const fixturesDir = join(here, '..', 'test', 'fixtures')
@@ -77,32 +84,37 @@ function trimMetNorway(body: unknown): unknown {
 }
 
 const recordedAt = Math.floor(Date.now() / 1000)
-const requests = planRequests(cells, { userAgent })
-const exchanges = []
-for (const request of requests) {
-  const { status, text } = await get(request)
-  let body = status >= 200 && status < 300 ? json(text) : text
-  if (status === 200 && request.provider === 'metar') body = trimMetar(body, request)
-  if (status === 200 && request.provider === 'met-norway') body = trimMetNorway(body)
-  exchanges.push({ provider: request.provider, url: request.url, status, bytes: text.length, body })
+mkdirSync(fixturesDir, { recursive: true })
+
+if (!forecastOnly) {
+  const requests = planRequests(cells, { userAgent })
+  const exchanges = []
+  for (const request of requests) {
+    const { status, text } = await get(request)
+    let body = status >= 200 && status < 300 ? json(text) : text
+    if (status === 200 && request.provider === 'metar') body = trimMetar(body, request)
+    if (status === 200 && request.provider === 'met-norway') body = trimMetNorway(body)
+    exchanges.push({ provider: request.provider, url: request.url, status, bytes: text.length, body })
+  }
+
+  writeFileSync(
+    join(fixturesDir, 'weather.json'),
+    `${JSON.stringify(
+      {
+        recordedAt,
+        cells: cells.map((cell) => ({ name: cell.name, key: cell.key.toString(), lat: cell.lat, lon: cell.lon })),
+        exchanges,
+      },
+      null,
+      1,
+    )}\n`,
+  )
 }
 
-mkdirSync(fixturesDir, { recursive: true })
-writeFileSync(
-  join(fixturesDir, 'weather.json'),
-  `${JSON.stringify(
-    {
-      recordedAt,
-      cells: cells.map((cell) => ({ name: cell.name, key: cell.key.toString(), lat: cell.lat, lon: cell.lon })),
-      exchanges,
-    },
-    null,
-    1,
-  )}\n`,
-)
-
+// Places whose forecasts cover the pricing cases: dry everywhere, and models that disagree.
+const FORECAST_PLACES = ['warsaw', 'bergen', 'moscow', 'sydney']
 const forecasts = []
-for (const name of ['warsaw', 'sumburgh', 'manchester']) {
+for (const name of FORECAST_PLACES) {
   const cell = cells.find((candidate) => candidate.name === name)
   if (!cell) continue
   const request = forecastRequest(cell)

@@ -29,6 +29,13 @@ export function recordedCell(name: string): CellTarget {
   return { key: cell.key, lat: cell.lat, lon: cell.lon }
 }
 
+/** Unix seconds at which the forecasts in `recordedForecasts` were taken. Use it as "now" when pricing from them. */
+export const forecastRecordedAt: number = forecastFixture.recordedAt
+
+/**
+ * Forecasts for `warsaw`, `bergen`, `moscow` and `sydney` from every model the oracle settles from, recorded
+ * the way `forecastRequest` asks for them.
+ */
 export const recordedForecasts = forecastFixture.forecasts.map((forecast) => ({
   name: forecast.name,
   key: BigInt(forecast.key),

@@ -1,40 +1,39 @@
 import { describe, expect, it } from 'vitest'
-import { type Forecast, fetchForecast, forecastRequest, parseForecast } from '../src/pricing/forecast'
+import { type Forecast, fetchForecast, parseForecast } from '../src/pricing/forecast'
 import { ForecastUnavailableError, PRICING_DEFAULTS, quotePremium } from '../src/pricing/quote'
-import { recordedAt, recordedCell, recordedForecasts, replayFetch } from './replay'
+import defaultForecasts from './fixtures/forecast-default.json'
+import { recordedCell } from './replay'
 
-// The forecasts were recorded at 06:58:01 UTC; 07:00 UTC is the reference for the windows below.
-const NOW = recordedAt
-const T0700 = recordedAt - (recordedAt % 3600) + 3600
+// A forecast that names no models: Open-Meteo's default model, as callers built before the price was taken from
+// the settlement models still pass. `fixtures/forecast-default.json` was recorded at 06:58:01 UTC with
+// `minutely_15=precipitation&hourly=precipitation_probability` and no `models`; 07:00 UTC is the reference for
+// the windows below. Pricing from the models the oracle settles from is tested in `pricing.models.test.ts`.
+const NOW = defaultForecasts.recordedAt
+const T0700 = NOW - (NOW % 3600) + 3600
 const minutes = (n: number) => n * 60
 const RATE = 1000n // 0.001 dollars per wet second
 
 const forecastOf = (name: string): Forecast => {
-  const recorded = recordedForecasts.find((forecast) => forecast.name === name)
+  const recorded = defaultForecasts.forecasts.find((forecast) => forecast.name === name)
   if (!recorded) throw new Error(`no recorded forecast for ${name}`)
-  return parseForecast(recorded.body)
+  return parseForecast(JSON.stringify(recorded.body))
 }
 
 const warsaw = recordedCell('warsaw')
 const sumburgh = recordedCell('sumburgh')
 const manchester = recordedCell('manchester')
 
-describe('forecast', () => {
-  it('asks for 15-minute precipitation and hourly probability for one cell', () => {
-    expect(forecastRequest(warsaw).url).toBe(
-      'https://api.open-meteo.com/v1/forecast?latitude=52.225&longitude=21.025&minutely_15=precipitation' +
-        '&hourly=precipitation_probability&forecast_minutely_15=104&forecast_hours=26&timeformat=unixtime&timezone=UTC',
-    )
-  })
-
-  it('parses the recorded answer', async () => {
-    const forecast = await fetchForecast(sumburgh, replayFetch())
+describe('forecast without named models', () => {
+  it('parses the default-model answer as one series, without models', () => {
+    const forecast = forecastOf('sumburgh')
+    expect(forecast.models).toBeUndefined()
     expect(forecast.minutely15.time).toHaveLength(104)
     expect(forecast.minutely15.time[0]).toBe(T0700 - minutes(15))
     expect(forecast.minutely15.precipitation.slice(0, 7)).toEqual([1, 1, 0.5, 0.5, 0.5, 0.5, 0])
     expect(forecast.hourly.time).toHaveLength(26)
     expect(forecast.hourly.time[0]).toBe(T0700 - minutes(60))
     expect(forecast.hourly.precipitationProbability.slice(0, 6)).toEqual([100, 100, 100, 100, 76, 42])
+    expect(forecast.hourly.precipitation).toBeUndefined()
   })
 
   it('fails when the source refuses or answers without data', async () => {
@@ -54,7 +53,7 @@ describe('forecast', () => {
   })
 })
 
-describe('quotePremium', () => {
+describe('quotePremium from a forecast without named models', () => {
   it('uses a 1% floor and a 25% load by default', () => {
     expect(PRICING_DEFAULTS).toMatchObject({ floorBps: 100, loadBps: 2500, thresholdMmPerHour: 1, nowcastHorizonSeconds: 7200 })
   })
@@ -77,6 +76,8 @@ describe('quotePremium', () => {
         precipitationProbability: 2,
         probabilityWet: 0.02,
         basis: 'hourly',
+        model: 'best_match',
+        observationFloor: false,
       },
       {
         start: T0700 + minutes(15),
@@ -86,6 +87,8 @@ describe('quotePremium', () => {
         precipitationProbability: 2,
         probabilityWet: 0.02,
         basis: 'hourly',
+        model: 'best_match',
+        observationFloor: false,
       },
     ])
     expect(quote.expectedWetSeconds).toBe(12)
@@ -95,6 +98,7 @@ describe('quotePremium', () => {
     expect(quote.key).toBe(warsaw.key)
     expect(quote.loadBps).toBe(2500)
     expect(quote.floorBps).toBe(100)
+    expect(quote.models).toEqual(['best_match'])
   })
 
   it('applies the floor when the forecast gives no chance of rain', () => {
