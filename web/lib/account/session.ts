@@ -39,6 +39,8 @@ export interface SignedCoverPayment {
  */
 export interface CoverSigner {
   readonly address: Address
+  /** The limits the signer works within. Read-only: a wider scope takes a new sign-in. */
+  readonly scope: SessionScope
   /** Whether a cover payment of `amount` would be signed right now. Consult it before every purchase. */
   check(amount: bigint): ScopeDecision
   /** Signs a payment to the cover book if, and only if, the scope allows it. Throws `ScopeError` otherwise. */
