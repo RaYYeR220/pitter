@@ -21,6 +21,9 @@ contract DeployTest is Signing {
     address internal underwriter;
     uint256 internal underwriterKey;
 
+    uint256 internal constant AREA_A = (uint256(1) << 64) | (uint256(5000) << 32);
+    uint256 internal constant AREA_B = AREA_A + 1;
+
     function setUp() public {
         vm.warp(1_760_000_400);
         (reporter, reporterKey) = makeAddrAndKey("reporter");
@@ -69,6 +72,10 @@ contract DeployTest is Signing {
         assertEq(d.book.treasury(), treasury);
         assertEq(d.book.minLead(), 600);
         assertEq(d.book.maxPolicyPayout(), 250e6);
+
+        // Off the main network, cover is not limited to served areas unless asked.
+        assertFalse(d.book.servedOnly());
+        assertEq(d.book.servedKeys().length, 0);
 
         // Left unset, the notice, the cover horizon and the premium floor keep their defaults.
         assertEq(d.pool.redeemNotice(), 13 hours);
@@ -123,6 +130,28 @@ contract DeployTest is Signing {
         script.checkHorizon(d.pool, d.book);
     }
 
+    function test_Deploy_ServesTheGivenAreas() public {
+        Deploy.Params memory p = _params();
+        p.servedOnly = true;
+        p.servedKeys = new uint256[](2);
+        p.servedKeys[0] = AREA_A;
+        p.servedKeys[1] = AREA_B;
+        Deploy.Deployment memory d = script.deploy(p, address(script));
+
+        assertTrue(d.book.servedOnly());
+        assertTrue(d.book.isServed(AREA_A));
+        assertTrue(d.book.isServed(AREA_B));
+        assertEq(d.book.servedKeys().length, 2);
+    }
+
+    function test_Deploy_RevertWhen_NoPremiumFloorOnMainnet() public {
+        Deploy.Params memory p = _params();
+        p.token = address(new TestDollar(address(this)));
+        vm.chainId(143);
+        vm.expectRevert(Deploy.MinPremiumRequired.selector);
+        script.deploy(p, address(script));
+    }
+
     function test_Deploy_OffersOwnershipToAnotherOwner() public {
         Deploy.Params memory p = _params();
         p.owner = finalOwner;
@@ -151,6 +180,7 @@ contract DeployTest is Signing {
         TestDollar existing = new TestDollar(address(this));
         Deploy.Params memory p = _params();
         p.token = address(existing);
+        p.minPremium = 250_000;
 
         vm.chainId(143);
         Deploy.Deployment memory d = script.deploy(p, address(script));
@@ -225,6 +255,15 @@ contract DeployTest is Signing {
         vm.setEnv("MAX_HORIZON", "72000");
         vm.setEnv("MIN_PREMIUM", "250000");
 
+        // On the main network cover is limited to served areas by default; elsewhere it is not.
+        vm.chainId(143);
+        assertTrue(script.paramsFromEnv(address(this)).servedOnly);
+        vm.chainId(31337);
+        assertFalse(script.paramsFromEnv(address(this)).servedOnly);
+
+        vm.setEnv("SERVED_ONLY", "true");
+        vm.setEnv("SERVED_KEYS", string.concat(vm.toString(AREA_A), ",", vm.toString(AREA_B)));
+
         Deploy.Deployment memory d = script.run();
 
         assertTrue(d.testDollar);
@@ -238,6 +277,9 @@ contract DeployTest is Signing {
         assertEq(d.book.minPremium(), 250_000);
         assertEq(d.pool.redeemNotice(), 1 days);
         assertEq(d.book.maxHorizon(), 20 hours);
+        assertTrue(d.book.servedOnly());
+        assertTrue(d.book.isServed(AREA_A));
+        assertTrue(d.book.isServed(AREA_B));
         assertEq(d.book.pendingOwner(), finalOwner);
         assertEq(d.pool.book(), address(d.book));
 
@@ -257,6 +299,8 @@ contract DeployTest is Signing {
         assertEq(vm.parseJsonUint(json, ".maxPolicyPayout"), 75e6);
         assertEq(vm.parseJsonUint(json, ".redeemNotice"), 86_400);
         assertEq(vm.parseJsonUint(json, ".maxHorizon"), 72_000);
+        assertTrue(vm.parseJsonBool(json, ".servedOnly"));
+        assertEq(vm.parseJsonUintArray(json, ".servedKeys").length, 2);
         assertEq(vm.parseJsonUint(json, ".minPremium"), 250_000);
         vm.removeFile(path);
 

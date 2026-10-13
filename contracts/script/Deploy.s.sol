@@ -22,7 +22,10 @@ import {WeatherIndex} from "../src/WeatherIndex.sol";
 /// - `OWNER`        optional  final owner of every contract; defaults to the deployer
 /// - `MIN_LEAD`     optional  seconds between a purchase and its window; defaults to 600 on mainnet, else 0
 /// - `MAX_POLICY_PAYOUT` optional  largest payout of one policy in token base units; defaults to 500e6
-/// - `MIN_PREMIUM`  optional  smallest premium of one policy in token base units; defaults to none
+/// - `MIN_PREMIUM`  optional  smallest premium of one policy in token base units; defaults to none, and is
+///                            required on chain 143
+/// - `SERVED_ONLY`  optional  sell cover only for served keys; defaults to true on chain 143, else false
+/// - `SERVED_KEYS`  optional  comma-separated keys to mark as served; at most 64 while `SERVED_ONLY` is on
 /// - `REDEEM_NOTICE` optional  seconds a liquidity provider waits between asking to leave and leaving;
 ///                            defaults to the pool's 13 hours
 /// - `MAX_HORIZON`  optional  seconds ahead of its purchase a policy may end: at least the longest window
@@ -49,6 +52,8 @@ contract Deploy is Script {
         uint128 minPremium;
         uint64 redeemNotice;
         uint64 maxHorizon;
+        bool servedOnly;
+        uint256[] servedKeys;
         string shareName;
         string shareSymbol;
     }
@@ -63,6 +68,7 @@ contract Deploy is Script {
 
     error TokenRequired(uint256 chainId);
     error HorizonBeyondNotice(uint256 maxHorizon, uint256 redeemNotice);
+    error MinPremiumRequired();
 
     function run() external returns (Deployment memory d) {
         vm.startBroadcast();
@@ -91,6 +97,10 @@ contract Deploy is Script {
         p.minPremium = uint128(vm.envOr("MIN_PREMIUM", uint256(0)));
         p.redeemNotice = uint64(vm.envOr("REDEEM_NOTICE", uint256(0)));
         p.maxHorizon = uint64(vm.envOr("MAX_HORIZON", uint256(0)));
+        p.servedOnly = vm.envOr("SERVED_ONLY", block.chainid == MONAD_MAINNET);
+        if (bytes(vm.envOr("SERVED_KEYS", string(""))).length != 0) {
+            p.servedKeys = vm.envUint("SERVED_KEYS", ",");
+        }
         p.shareName = vm.envOr("SHARE_NAME", string("Cover Pool Share"));
         p.shareSymbol = vm.envOr("SHARE_SYMBOL", string("cvUSD"));
         if (bytes(vm.envOr("FORWARDERS", string(""))).length != 0) {
@@ -108,6 +118,9 @@ contract Deploy is Script {
         } else {
             d.token = p.token;
         }
+        // On the main network a free policy would let anyone hold cell slots and make the relayer, the keeper
+        // and the oracle pay for them.
+        if (block.chainid == MONAD_MAINNET && p.minPremium == 0) revert MinPremiumRequired();
 
         d.index = new WeatherIndex(deployer, p.reporter);
         for (uint256 i = 0; i < p.forwarders.length; ++i) {
@@ -126,6 +139,8 @@ contract Deploy is Script {
         if (p.maxHorizon > d.book.maxHorizon()) d.book.setMaxHorizon(p.maxHorizon);
         checkHorizon(d.pool, d.book);
         if (p.minPremium != 0) d.book.setMinPremium(p.minPremium);
+        if (p.servedKeys.length != 0) d.book.setServed(p.servedKeys, true);
+        if (p.servedOnly) d.book.setServedOnly(true);
 
         if (p.owner != deployer) {
             d.index.transferOwnership(p.owner);
@@ -162,6 +177,8 @@ contract Deploy is Script {
         vm.serializeUint(root, "maxPolicyPayout", p.maxPolicyPayout);
         vm.serializeUint(root, "minPremium", p.minPremium);
         vm.serializeUint(root, "maxHorizon", d.book.maxHorizon());
+        vm.serializeBool(root, "servedOnly", d.book.servedOnly());
+        vm.serializeUint(root, "servedKeys", d.book.servedKeys());
         string memory json = vm.serializeUint(root, "redeemNotice", d.pool.redeemNotice());
 
         vm.createDir("deployments", true);
