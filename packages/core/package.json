@@ -18,13 +18,14 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "sync:contracts": "node scripts/sync-contracts.mjs",
-    "record:fixtures": "node scripts/record-fixtures.mjs"
+    "record:fixtures": "bun scripts/record-fixtures.ts"
   },
   "dependencies": {
     "@noble/curves": "1.9.1",
     "viem": "2.57.5"
   },
   "devDependencies": {
+    "bun": "1.4.3",
     "typescript": "5.9.3",
     "vitest": "^5.0.4"
   }

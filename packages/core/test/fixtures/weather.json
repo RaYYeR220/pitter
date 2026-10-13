@@ -1,0 +1,2849 @@
+{
+ "recordedAt": 1791874681,
+ "cells": [
+  {
+   "name": "warsaw",
+   "key": "18446756288596545460",
+   "lat": 52.225,
+   "lon": 21.025
+  },
+  {
+   "name": "sumburgh",
+   "key": "18446756945726541302",
+   "lat": 59.875,
+   "lon": -1.275
+  },
+  {
+   "name": "manchester",
+   "key": "18446756387380792802",
+   "lat": 53.375,
+   "lon": -2.275
+  },
+  {
+   "name": "shawbury",
+   "key": "18446756335841185242",
+   "lat": 52.775,
+   "lon": -2.675
+  },
+  {
+   "name": "aberdeen",
+   "key": "18446756718093274595",
+   "lat": 57.225,
+   "lon": -2.225
+  },
+  {
+   "name": "amsterdam",
+   "key": "18446756297186479727",
+   "lat": 52.325,
+   "lon": 4.775
+  },
+  {
+   "name": "bergen",
+   "key": "18446756988676214394",
+   "lat": 60.375,
+   "lon": 5.325
+  },
+  {
+   "name": "spadeadam",
+   "key": "18446756533409680860",
+   "lat": 55.075,
+   "lon": -2.575
+  },
+  {
+   "name": "alpena",
+   "key": "18446755674416220040",
+   "lat": 45.075,
+   "lon": -83.575
+  },
+  {
+   "name": "ho-chi-minh",
+   "key": "18446752732363626085",
+   "lat": 10.825,
+   "lon": 106.675
+  },
+  {
+   "name": "moscow",
+   "key": "18446756610719092988",
+   "lat": 55.975,
+   "lon": 37.425
+  },
+  {
+   "name": "sydney",
+   "key": "18446748888367897055",
+   "lat": -33.925,
+   "lon": 151.175
+  },
+  {
+   "name": "mid-atlantic",
+   "key": "18446755670121253816",
+   "lat": 45.025,
+   "lon": -29.975
+  },
+  {
+   "name": "warsaw-block-0-0",
+   "key": "18446756271416676272",
+   "lat": 52.025,
+   "lon": 20.825
+  },
+  {
+   "name": "warsaw-block-0-1",
+   "key": "18446756271416676273",
+   "lat": 52.025,
+   "lon": 20.875
+  },
+  {
+   "name": "warsaw-block-0-2",
+   "key": "18446756271416676274",
+   "lat": 52.025,
+   "lon": 20.925
+  },
+  {
+   "name": "warsaw-block-0-3",
+   "key": "18446756271416676275",
+   "lat": 52.025,
+   "lon": 20.975
+  },
+  {
+   "name": "warsaw-block-0-4",
+   "key": "18446756271416676276",
+   "lat": 52.025,
+   "lon": 21.025
+  },
+  {
+   "name": "warsaw-block-1-0",
+   "key": "18446756275711643568",
+   "lat": 52.075,
+   "lon": 20.825
+  },
+  {
+   "name": "warsaw-block-1-1",
+   "key": "18446756275711643569",
+   "lat": 52.075,
+   "lon": 20.875
+  },
+  {
+   "name": "warsaw-block-1-2",
+   "key": "18446756275711643570",
+   "lat": 52.075,
+   "lon": 20.925
+  },
+  {
+   "name": "warsaw-block-1-3",
+   "key": "18446756275711643571",
+   "lat": 52.075,
+   "lon": 20.975
+  },
+  {
+   "name": "warsaw-block-1-4",
+   "key": "18446756275711643572",
+   "lat": 52.075,
+   "lon": 21.025
+  },
+  {
+   "name": "warsaw-block-2-0",
+   "key": "18446756280006610864",
+   "lat": 52.125,
+   "lon": 20.825
+  },
+  {
+   "name": "warsaw-block-2-1",
+   "key": "18446756280006610865",
+   "lat": 52.125,
+   "lon": 20.875
+  },
+  {
+   "name": "warsaw-block-2-2",
+   "key": "18446756280006610866",
+   "lat": 52.125,
+   "lon": 20.925
+  },
+  {
+   "name": "warsaw-block-2-3",
+   "key": "18446756280006610867",
+   "lat": 52.125,
+   "lon": 20.975
+  },
+  {
+   "name": "warsaw-block-2-4",
+   "key": "18446756280006610868",
+   "lat": 52.125,
+   "lon": 21.025
+  },
+  {
+   "name": "warsaw-block-3-0",
+   "key": "18446756284301578160",
+   "lat": 52.175,
+   "lon": 20.825
+  },
+  {
+   "name": "warsaw-block-3-1",
+   "key": "18446756284301578161",
+   "lat": 52.175,
+   "lon": 20.875
+  },
+  {
+   "name": "warsaw-block-3-2",
+   "key": "18446756284301578162",
+   "lat": 52.175,
+   "lon": 20.925
+  },
+  {
+   "name": "warsaw-block-3-3",
+   "key": "18446756284301578163",
+   "lat": 52.175,
+   "lon": 20.975
+  },
+  {
+   "name": "warsaw-block-3-4",
+   "key": "18446756284301578164",
+   "lat": 52.175,
+   "lon": 21.025
+  },
+  {
+   "name": "warsaw-block-4-0",
+   "key": "18446756288596545456",
+   "lat": 52.225,
+   "lon": 20.825
+  },
+  {
+   "name": "warsaw-block-4-1",
+   "key": "18446756288596545457",
+   "lat": 52.225,
+   "lon": 20.875
+  },
+  {
+   "name": "warsaw-block-4-2",
+   "key": "18446756288596545458",
+   "lat": 52.225,
+   "lon": 20.925
+  },
+  {
+   "name": "warsaw-block-4-3",
+   "key": "18446756288596545459",
+   "lat": 52.225,
+   "lon": 20.975
+  }
+ ],
+ "exchanges": [
+  {
+   "provider": "open-meteo",
+   "url": "https://api.open-meteo.com/v1/forecast?latitude=52.225,59.875,53.375,52.775,57.225,52.325,60.375,55.075,45.075,10.825,55.975,-33.925,45.025,52.025,52.025,52.025,52.025,52.025,52.075,52.075,52.075,52.075,52.075,52.125,52.125,52.125,52.125,52.125,52.175,52.175,52.175,52.175,52.175,52.225,52.225,52.225,52.225&longitude=21.025,-1.275,-2.275,-2.675,-2.225,4.775,5.325,-2.575,-83.575,106.675,37.425,151.175,-29.975,20.825,20.875,20.925,20.975,21.025,20.825,20.875,20.925,20.975,21.025,20.825,20.875,20.925,20.975,21.025,20.825,20.875,20.925,20.975,21.025,20.825,20.875,20.925,20.975&minutely_15=precipitation&models=icon_seamless,gfs_seamless,meteofrance_seamless&past_minutely_15=1&forecast_minutely_15=1&timeformat=unixtime&timezone=UTC",
+   "status": 200,
+   "bytes": 18973,
+   "body": [
+    {
+     "latitude": 52.25,
+     "longitude": 21,
+     "generationtime_ms": 0.41472911834716797,
+     "utc_offset_seconds": 0,
+     "timezone": "GMT",
+     "timezone_abbreviation": "GMT",
+     "elevation": 115,
+     "minutely_15_units": {
+      "time": "unixtime",
+      "precipitation_icon_seamless": "mm",
+      "precipitation_gfs_seamless": "mm",
+      "precipitation_meteofrance_seamless": "mm"
+     },
+     "minutely_15": {
+      "time": [
+       1791873000,
+       1791873900
+      ],
+      "precipitation_icon_seamless": [
+       0,
+       0
+      ],
+      "precipitation_gfs_seamless": [
+       0,
+       0
+      ],
+      "precipitation_meteofrance_seamless": [
+       0,
+       0
+      ]
+     }
+    },
+    {
+     "latitude": 59.9375,
+     "longitude": -1.3125,
+     "generationtime_ms": 0.6033182144165039,
+     "utc_offset_seconds": 0,
+     "timezone": "GMT",
+     "timezone_abbreviation": "GMT",
+     "elevation": 1,
+     "location_id": 1,
+     "minutely_15_units": {
+      "time": "unixtime",
+      "precipitation_icon_seamless": "mm",
+      "precipitation_gfs_seamless": "mm",
+      "precipitation_meteofrance_seamless": "mm"
+     },
+     "minutely_15": {
+      "time": [
+       1791873000,
+       1791873900
+      ],
+      "precipitation_icon_seamless": [
+       0.9,
+       0.9
+      ],
+      "precipitation_gfs_seamless": [
+       1.3,
+       1.3
+      ],
+      "precipitation_meteofrance_seamless": [
+       1.2,
+       1.2
+      ]
+     }
+    },
+    {
+     "latitude": 53.38,
+     "longitude": -2.2800002,
+     "generationtime_ms": 0.6363391876220703,
+     "utc_offset_seconds": 0,
+     "timezone": "GMT",
+     "timezone_abbreviation": "GMT",
+     "elevation": 65,
+     "location_id": 2,
+     "minutely_15_units": {
+      "time": "unixtime",
+      "precipitation_icon_seamless": "mm",
+      "precipitation_gfs_seamless": "mm",
+      "precipitation_meteofrance_seamless": "mm"
+     },
+     "minutely_15": {
+      "time": [
+       1791873000,
+       1791873900
+      ],
+      "precipitation_icon_seamless": [
+       0.4,
+       0.2
+      ],
+      "precipitation_gfs_seamless": [
+       0.3,
+       0.3
+      ],
+      "precipitation_meteofrance_seamless": [
+       0,
+       0.3
+      ]
+     }
+    },
+    {
+     "latitude": 52.75,
+     "longitude": -2.6875,
+     "generationtime_ms": 0.41043758392333984,
+     "utc_offset_seconds": 0,
+     "timezone": "GMT",
+     "timezone_abbreviation": "GMT",
+     "elevation": 70,
+     "location_id": 3,
+     "minutely_15_units": {
+      "time": "unixtime",
+      "precipitation_icon_seamless": "mm",
+      "precipitation_gfs_seamless": "mm",
+      "precipitation_meteofrance_seamless": "mm"
+     },
+     "minutely_15": {
+      "time": [
+       1791873000,
+       1791873900
+      ],
+      "precipitation_icon_seamless": [
+       0.3,
+       0.3
+      ],
+      "precipitation_gfs_seamless": [
+       0.8,
+       0.8
+      ],
+      "precipitation_meteofrance_seamless": [
+       0.5,
+       0.4
+      ]
+     }
+    },
+    {
+     "latitude": 57.22,
+     "longitude": -2.2200003,
+     "generationtime_ms": 0.6259679794311523,
+     "utc_offset_seconds": 0,
+     "timezone": "GMT",
+     "timezone_abbreviation": "GMT",
+     "elevation": 46,
+     "location_id": 4,
+     "minutely_15_units": {
+      "time": "unixtime",
+      "precipitation_icon_seamless": "mm",
+      "precipitation_gfs_seamless": "mm",
+      "precipitation_meteofrance_seamless": "mm"
+     },
+     "minutely_15": {
+      "time": [
+       1791873000,
+       1791873900
+      ],
+      "precipitation_icon_seamless": [
+       0,
+       0
+      ],
+      "precipitation_gfs_seamless": [
+       0.3,
+       0.3
+      ],
+      "precipitation_meteofrance_seamless": [
+       0.1,
+       0.1
+      ]
+     }
+    },
+    {
+     "latitude": 52.32,
+     "longitude": 4.78,
+     "generationtime_ms": 0.047087669372558594,
+     "utc_offset_seconds": 0,
+     "timezone": "GMT",
+     "timezone_abbreviation": "GMT",
+     "elevation": -5,
+     "location_id": 5,
+     "minutely_15_units": {
+      "time": "unixtime",
+      "precipitation_icon_seamless": "mm",
+      "precipitation_gfs_seamless": "mm",
+      "precipitation_meteofrance_seamless": "mm"
+     },
+     "minutely_15": {
+      "time": [
+       1791873000,
+       1791873900
+      ],
+      "precipitation_icon_seamless": [
+       0,
+       0
+      ],
+      "precipitation_gfs_seamless": [
+       0,
+       0
+      ],
+      "precipitation_meteofrance_seamless": [
+       0,
+       0
+      ]
+     }
+    },
+    {
+     "latitude": 60.375,
+     "longitude": 5.3125,
+     "generationtime_ms": 0.03802776336669922,
+     "utc_offset_seconds": 0,
+     "timezone": "GMT",
+     "timezone_abbreviation": "GMT",
+     "elevation": 115,
+     "location_id": 6,
+     "minutely_15_units": {
+      "time": "unixtime",
+      "precipitation_icon_seamless": "mm",
+      "precipitation_gfs_seamless": "mm",
+      "precipitation_meteofrance_seamless": "mm"
+     },
+     "minutely_15": {
+      "time": [
+       1791873000,
+       1791873900
+      ],
+      "precipitation_icon_seamless": [
+       0,
+       0
+      ],
+      "precipitation_gfs_seamless": [
+       0,
+       0
+      ],
+      "precipitation_meteofrance_seamless": [
+       0,
+       0
+      ]
+     }
+    },
+    {
+     "latitude": 55.08,
+     "longitude": -2.58,
+     "generationtime_ms": 0.09572505950927734,
+     "utc_offset_seconds": 0,
+     "timezone": "GMT",
+     "timezone_abbreviation": "GMT",
+     "elevation": 297,
+     "location_id": 7,
+     "minutely_15_units": {
+      "time": "unixtime",
+      "precipitation_icon_seamless": "mm",
+      "precipitation_gfs_seamless": "mm",
+      "precipitation_meteofrance_seamless": "mm"
+     },
+     "minutely_15": {
+      "time": [
+       1791873000,
+       1791873900
+      ],
+      "precipitation_icon_seamless": [
+       0,
+       0
+      ],
+      "precipitation_gfs_seamless": [
+       0.2,
+       0.2
+      ],
+      "precipitation_meteofrance_seamless": [
+       1.4,
+       0.4
+      ]
+     }
+    },
+    {
+     "latitude": 45.125,
+     "longitude": -83.625,
+     "generationtime_ms": 0.9801387786865234,
+     "utc_offset_seconds": 0,
+     "timezone": "GMT",
+     "timezone_abbreviation": "GMT",
+     "elevation": 216,
+     "location_id": 8,
+     "minutely_15_units": {
+      "time": "unixtime",
+      "precipitation_icon_seamless": "mm",
+      "precipitation_gfs_seamless": "mm",
+      "precipitation_meteofrance_seamless": "mm"
+     },
+     "minutely_15": {
+      "time": [
+       1791873000,
+       1791873900
+      ],
+      "precipitation_icon_seamless": [
+       1,
+       1
+      ],
+      "precipitation_gfs_seamless": [
+       1.4,
+       9.4
+      ],
+      "precipitation_meteofrance_seamless": [
+       0.1,
+       0.1
+      ]
+     }
+    },
+    {
+     "latitude": 10.875,
+     "longitude": 106.625,
+     "generationtime_ms": 2.1638870239257812,
+     "utc_offset_seconds": 0,
+     "timezone": "GMT",
+     "timezone_abbreviation": "GMT",
+     "elevation": 11,
+     "location_id": 9,
+     "minutely_15_units": {
+      "time": "unixtime",
+      "precipitation_icon_seamless": "mm",
+      "precipitation_gfs_seamless": "mm",
+      "precipitation_meteofrance_seamless": "mm"
+     },
+     "minutely_15": {
+      "time": [
+       1791873000,
+       1791873900
+      ],
+      "precipitation_icon_seamless": [
+       0.4,
+       0.4
+      ],
+      "precipitation_gfs_seamless": [
+       0.1,
+       0.1
+      ],
+      "precipitation_meteofrance_seamless": [
+       0.1,
+       0.1
+      ]
+     }
+    },
+    {
+     "latitude": 56,
+     "longitude": 37.4375,
+     "generationtime_ms": 0.06914138793945312,
+     "utc_offset_seconds": 0,
+     "timezone": "GMT",
+     "timezone_abbreviation": "GMT",
+     "elevation": 187,
+     "location_id": 10,
+     "minutely_15_units": {
+      "time": "unixtime",
+      "precipitation_icon_seamless": "mm",
+      "precipitation_gfs_seamless": "mm",
+      "precipitation_meteofrance_seamless": "mm"
+     },
+     "minutely_15": {
+      "time": [
+       1791873000,
+       1791873900
+      ],
+      "precipitation_icon_seamless": [
+       0.1,
+       0.1
+      ],
+      "precipitation_gfs_seamless": [
+       0.3,
+       0.3
+      ],
+      "precipitation_meteofrance_seamless": [
+       0.2,
+       0.2
+      ]
+     }
+    },
+    {
+     "latitude": -33.875,
+     "longitude": 151.125,
+     "generationtime_ms": 2.1295547485351562,
+     "utc_offset_seconds": 0,
+     "timezone": "GMT",
+     "timezone_abbreviation": "GMT",
+     "elevation": 0,
+     "location_id": 11,
+     "minutely_15_units": {
+      "time": "unixtime",
+      "precipitation_icon_seamless": "mm",
+      "precipitation_gfs_seamless": "mm",
+      "precipitation_meteofrance_seamless": "mm"
+     },
+     "minutely_15": {
+      "time": [
+       1791873000,
+       1791873900
+      ],
+      "precipitation_icon_seamless": [
+       0.1,
+       0.1
+      ],
+      "precipitation_gfs_seamless": [
+       0.1,
+       0.1
+      ],
+      "precipitation_meteofrance_seamless": [
+       0,
+       0
+      ]
+     }
+    },
+    {
+     "latitude": 45,
+     "longitude": -30,
+     "generationtime_ms": 0.0787973403930664,
+     "utc_offset_seconds": 0,
+     "timezone": "GMT",
+     "timezone_abbreviation": "GMT",
+     "elevation": 0,
+     "location_id": 12,
+     "minutely_15_units": {
+      "time": "unixtime",
+      "precipitation_icon_seamless": "mm",
+      "precipitation_gfs_seamless": "mm",
+      "precipitation_meteofrance_seamless": "mm"
+     },
+     "minutely_15": {
+      "time": [
+       1791873000,
+       1791873900
+      ],
+      "precipitation_icon_seamless": [
+       0,
+       0
+      ],
+      "precipitation_gfs_seamless": [
+       0,
+       0
+      ],
+      "precipitation_meteofrance_seamless": [
+       0,
+       0
+      ]
+     }
+    },
+    {
+     "latitude": 52,
+     "longitude": 20.8125,
+     "generationtime_ms": 0.06878376007080078,
+     "utc_offset_seconds": 0,
+     "timezone": "GMT",
+     "timezone_abbreviation": "GMT",
+     "elevation": 137,
+     "location_id": 13,
+     "minutely_15_units": {
+      "time": "unixtime",
+      "precipitation_icon_seamless": "mm",
+      "precipitation_gfs_seamless": "mm",
+      "precipitation_meteofrance_seamless": "mm"
+     },
+     "minutely_15": {
+      "time": [
+       1791873000,
+       1791873900
+      ],
+      "precipitation_icon_seamless": [
+       0,
+       0
+      ],
+      "precipitation_gfs_seamless": [
+       0,
+       0
+      ],
+      "precipitation_meteofrance_seamless": [
+       0,
+       0
+      ]
+     }
+    },
+    {
+     "latitude": 52,
+     "longitude": 20.875,
+     "generationtime_ms": 0.032067298889160156,
+     "utc_offset_seconds": 0,
+     "timezone": "GMT",
+     "timezone_abbreviation": "GMT",
+     "elevation": 126,
+     "location_id": 14,
+     "minutely_15_units": {
+      "time": "unixtime",
+      "precipitation_icon_seamless": "mm",
+      "precipitation_gfs_seamless": "mm",
+      "precipitation_meteofrance_seamless": "mm"
+     },
+     "minutely_15": {
+      "time": [
+       1791873000,
+       1791873900
+      ],
+      "precipitation_icon_seamless": [
+       0,
+       0
+      ],
+      "precipitation_gfs_seamless": [
+       0,
+       0
+      ],
+      "precipitation_meteofrance_seamless": [
+       0,
+       0
+      ]
+     }
+    },
+    {
+     "latitude": 52,
+     "longitude": 20.9375,
+     "generationtime_ms": 0.04279613494873047,
+     "utc_offset_seconds": 0,
+     "timezone": "GMT",
+     "timezone_abbreviation": "GMT",
+     "elevation": 126,
+     "location_id": 15,
+     "minutely_15_units": {
+      "time": "unixtime",
+      "precipitation_icon_seamless": "mm",
+      "precipitation_gfs_seamless": "mm",
+      "precipitation_meteofrance_seamless": "mm"
+     },
+     "minutely_15": {
+      "time": [
+       1791873000,
+       1791873900
+      ],
+      "precipitation_icon_seamless": [
+       0,
+       0
+      ],
+      "precipitation_gfs_seamless": [
+       0,
+       0
+      ],
+      "precipitation_meteofrance_seamless": [
+       0,
+       0
+      ]
+     }
+    },
+    {
+     "latitude": 52,
+     "longitude": 21,
+     "generationtime_ms": 0.04410743713378906,
+     "utc_offset_seconds": 0,
+     "timezone": "GMT",
+     "timezone_abbreviation": "GMT",
+     "elevation": 119,
+     "location_id": 16,
+     "minutely_15_units": {
+      "time": "unixtime",
+      "precipitation_icon_seamless": "mm",
+      "precipitation_gfs_seamless": "mm",
+      "precipitation_meteofrance_seamless": "mm"
+     },
+     "minutely_15": {
+      "time": [
+       1791873000,
+       1791873900
+      ],
+      "precipitation_icon_seamless": [
+       0,
+       0
+      ],
+      "precipitation_gfs_seamless": [
+       0,
+       0
+      ],
+      "precipitation_meteofrance_seamless": [
+       0,
+       0
+      ]
+     }
+    },
+    {
+     "latitude": 52,
+     "longitude": 21,
+     "generationtime_ms": 0.03993511199951172,
+     "utc_offset_seconds": 0,
+     "timezone": "GMT",
+     "timezone_abbreviation": "GMT",
+     "elevation": 126,
+     "location_id": 17,
+     "minutely_15_units": {
+      "time": "unixtime",
+      "precipitation_icon_seamless": "mm",
+      "precipitation_gfs_seamless": "mm",
+      "precipitation_meteofrance_seamless": "mm"
+     },
+     "minutely_15": {
+      "time": [
+       1791873000,
+       1791873900
+      ],
+      "precipitation_icon_seamless": [
+       0,
+       0
+      ],
+      "precipitation_gfs_seamless": [
+       0,
+       0
+      ],
+      "precipitation_meteofrance_seamless": [
+       0,
+       0
+      ]
+     }
+    },
+    {
+     "latitude": 52.0625,
+     "longitude": 20.8125,
+     "generationtime_ms": 0.05507469177246094,
+     "utc_offset_seconds": 0,
+     "timezone": "GMT",
+     "timezone_abbreviation": "GMT",
+     "elevation": 119,
+     "location_id": 18,
+     "minutely_15_units": {
+      "time": "unixtime",
+      "precipitation_icon_seamless": "mm",
+      "precipitation_gfs_seamless": "mm",
+      "precipitation_meteofrance_seamless": "mm"
+     },
+     "minutely_15": {
+      "time": [
+       1791873000,
+       1791873900
+      ],
+      "precipitation_icon_seamless": [
+       0,
+       0
+      ],
+      "precipitation_gfs_seamless": [
+       0,
+       0
+      ],
+      "precipitation_meteofrance_seamless": [
+       0,
+       0
+      ]
+     }
+    },
+    {
+     "latitude": 52.0625,
+     "longitude": 20.875,
+     "generationtime_ms": 0.06699562072753906,
+     "utc_offset_seconds": 0,
+     "timezone": "GMT",
+     "timezone_abbreviation": "GMT",
+     "elevation": 118,
+     "location_id": 19,
+     "minutely_15_units": {
+      "time": "unixtime",
+      "precipitation_icon_seamless": "mm",
+      "precipitation_gfs_seamless": "mm",
+      "precipitation_meteofrance_seamless": "mm"
+     },
+     "minutely_15": {
+      "time": [
+       1791873000,
+       1791873900
+      ],
+      "precipitation_icon_seamless": [
+       0,
+       0
+      ],
+      "precipitation_gfs_seamless": [
+       0,
+       0
+      ],
+      "precipitation_meteofrance_seamless": [
+       0,
+       0
+      ]
+     }
+    },
+    {
+     "latitude": 52.0625,
+     "longitude": 20.9375,
+     "generationtime_ms": 0.04887580871582031,
+     "utc_offset_seconds": 0,
+     "timezone": "GMT",
+     "timezone_abbreviation": "GMT",
+     "elevation": 122,
+     "location_id": 20,
+     "minutely_15_units": {
+      "time": "unixtime",
+      "precipitation_icon_seamless": "mm",
+      "precipitation_gfs_seamless": "mm",
+      "precipitation_meteofrance_seamless": "mm"
+     },
+     "minutely_15": {
+      "time": [
+       1791873000,
+       1791873900
+      ],
+      "precipitation_icon_seamless": [
+       0,
+       0
+      ],
+      "precipitation_gfs_seamless": [
+       0,
+       0
+      ],
+      "precipitation_meteofrance_seamless": [
+       0,
+       0
+      ]
+     }
+    },
+    {
+     "latitude": 52.0625,
+     "longitude": 21,
+     "generationtime_ms": 0.04887580871582031,
+     "utc_offset_seconds": 0,
+     "timezone": "GMT",
+     "timezone_abbreviation": "GMT",
+     "elevation": 117,
+     "location_id": 21,
+     "minutely_15_units": {
+      "time": "unixtime",
+      "precipitation_icon_seamless": "mm",
+      "precipitation_gfs_seamless": "mm",
+      "precipitation_meteofrance_seamless": "mm"
+     },
+     "minutely_15": {
+      "time": [
+       1791873000,
+       1791873900
+      ],
+      "precipitation_icon_seamless": [
+       0,
+       0
+      ],
+      "precipitation_gfs_seamless": [
+       0,
+       0
+      ],
+      "precipitation_meteofrance_seamless": [
+       0,
+       0
+      ]
+     }
+    },
+    {
+     "latitude": 52.0625,
+     "longitude": 21,
+     "generationtime_ms": 0.04792213439941406,
+     "utc_offset_seconds": 0,
+     "timezone": "GMT",
+     "timezone_abbreviation": "GMT",
+     "elevation": 110,
+     "location_id": 22,
+     "minutely_15_units": {
+      "time": "unixtime",
+      "precipitation_icon_seamless": "mm",
+      "precipitation_gfs_seamless": "mm",
+      "precipitation_meteofrance_seamless": "mm"
+     },
+     "minutely_15": {
+      "time": [
+       1791873000,
+       1791873900
+      ],
+      "precipitation_icon_seamless": [
+       0,
+       0
+      ],
+      "precipitation_gfs_seamless": [
+       0,
+       0
+      ],
+      "precipitation_meteofrance_seamless": [
+       0,
+       0
+      ]
+     }
+    },
+    {
+     "latitude": 52.125,
+     "longitude": 20.8125,
+     "generationtime_ms": 0.052094459533691406,
+     "utc_offset_seconds": 0,
+     "timezone": "GMT",
+     "timezone_abbreviation": "GMT",
+     "elevation": 105,
+     "location_id": 23,
+     "minutely_15_units": {
+      "time": "unixtime",
+      "precipitation_icon_seamless": "mm",
+      "precipitation_gfs_seamless": "mm",
+      "precipitation_meteofrance_seamless": "mm"
+     },
+     "minutely_15": {
+      "time": [
+       1791873000,
+       1791873900
+      ],
+      "precipitation_icon_seamless": [
+       0,
+       0
+      ],
+      "precipitation_gfs_seamless": [
+       0,
+       0
+      ],
+      "precipitation_meteofrance_seamless": [
+       0,
+       0
+      ]
+     }
+    },
+    {
+     "latitude": 52.125,
+     "longitude": 20.875,
+     "generationtime_ms": 0.03993511199951172,
+     "utc_offset_seconds": 0,
+     "timezone": "GMT",
+     "timezone_abbreviation": "GMT",
+     "elevation": 111,
+     "location_id": 24,
+     "minutely_15_units": {
+      "time": "unixtime",
+      "precipitation_icon_seamless": "mm",
+      "precipitation_gfs_seamless": "mm",
+      "precipitation_meteofrance_seamless": "mm"
+     },
+     "minutely_15": {
+      "time": [
+       1791873000,
+       1791873900
+      ],
+      "precipitation_icon_seamless": [
+       0,
+       0
+      ],
+      "precipitation_gfs_seamless": [
+       0,
+       0
+      ],
+      "precipitation_meteofrance_seamless": [
+       0,
+       0
+      ]
+     }
+    },
+    {
+     "latitude": 52.125,
+     "longitude": 20.9375,
+     "generationtime_ms": 0.05125999450683594,
+     "utc_offset_seconds": 0,
+     "timezone": "GMT",
+     "timezone_abbreviation": "GMT",
+     "elevation": 112,
+     "location_id": 25,
+     "minutely_15_units": {
+      "time": "unixtime",
+      "precipitation_icon_seamless": "mm",
+      "precipitation_gfs_seamless": "mm",
+      "precipitation_meteofrance_seamless": "mm"
+     },
+     "minutely_15": {
+      "time": [
+       1791873000,
+       1791873900
+      ],
+      "precipitation_icon_seamless": [
+       0,
+       0
+      ],
+      "precipitation_gfs_seamless": [
+       0,
+       0
+      ],
+      "precipitation_meteofrance_seamless": [
+       0,
+       0
+      ]
+     }
+    },
+    {
+     "latitude": 52.125,
+     "longitude": 21,
+     "generationtime_ms": 0.029802322387695312,
+     "utc_offset_seconds": 0,
+     "timezone": "GMT",
+     "timezone_abbreviation": "GMT",
+     "elevation": 109,
+     "location_id": 26,
+     "minutely_15_units": {
+      "time": "unixtime",
+      "precipitation_icon_seamless": "mm",
+      "precipitation_gfs_seamless": "mm",
+      "precipitation_meteofrance_seamless": "mm"
+     },
+     "minutely_15": {
+      "time": [
+       1791873000,
+       1791873900
+      ],
+      "precipitation_icon_seamless": [
+       0,
+       0
+      ],
+      "precipitation_gfs_seamless": [
+       0,
+       0
+      ],
+      "precipitation_meteofrance_seamless": [
+       0,
+       0
+      ]
+     }
+    },
+    {
+     "latitude": 52.125,
+     "longitude": 21,
+     "generationtime_ms": 0.02765655517578125,
+     "utc_offset_seconds": 0,
+     "timezone": "GMT",
+     "timezone_abbreviation": "GMT",
+     "elevation": 116,
+     "location_id": 27,
+     "minutely_15_units": {
+      "time": "unixtime",
+      "precipitation_icon_seamless": "mm",
+      "precipitation_gfs_seamless": "mm",
+      "precipitation_meteofrance_seamless": "mm"
+     },
+     "minutely_15": {
+      "time": [
+       1791873000,
+       1791873900
+      ],
+      "precipitation_icon_seamless": [
+       0,
+       0
+      ],
+      "precipitation_gfs_seamless": [
+       0,
+       0
+      ],
+      "precipitation_meteofrance_seamless": [
+       0,
+       0
+      ]
+     }
+    },
+    {
+     "latitude": 52.1875,
+     "longitude": 20.8125,
+     "generationtime_ms": 0.057578086853027344,
+     "utc_offset_seconds": 0,
+     "timezone": "GMT",
+     "timezone_abbreviation": "GMT",
+     "elevation": 100,
+     "location_id": 28,
+     "minutely_15_units": {
+      "time": "unixtime",
+      "precipitation_icon_seamless": "mm",
+      "precipitation_gfs_seamless": "mm",
+      "precipitation_meteofrance_seamless": "mm"
+     },
+     "minutely_15": {
+      "time": [
+       1791873000,
+       1791873900
+      ],
+      "precipitation_icon_seamless": [
+       0,
+       0
+      ],
+      "precipitation_gfs_seamless": [
+       0,
+       0
+      ],
+      "precipitation_meteofrance_seamless": [
+       0,
+       0
+      ]
+     }
+    },
+    {
+     "latitude": 52.1875,
+     "longitude": 20.875,
+     "generationtime_ms": 0.03933906555175781,
+     "utc_offset_seconds": 0,
+     "timezone": "GMT",
+     "timezone_abbreviation": "GMT",
+     "elevation": 105,
+     "location_id": 29,
+     "minutely_15_units": {
+      "time": "unixtime",
+      "precipitation_icon_seamless": "mm",
+      "precipitation_gfs_seamless": "mm",
+      "precipitation_meteofrance_seamless": "mm"
+     },
+     "minutely_15": {
+      "time": [
+       1791873000,
+       1791873900
+      ],
+      "precipitation_icon_seamless": [
+       0,
+       0
+      ],
+      "precipitation_gfs_seamless": [
+       0,
+       0
+      ],
+      "precipitation_meteofrance_seamless": [
+       0,
+       0
+      ]
+     }
+    },
+    {
+     "latitude": 52.1875,
+     "longitude": 20.9375,
+     "generationtime_ms": 0.060558319091796875,
+     "utc_offset_seconds": 0,
+     "timezone": "GMT",
+     "timezone_abbreviation": "GMT",
+     "elevation": 108,
+     "location_id": 30,
+     "minutely_15_units": {
+      "time": "unixtime",
+      "precipitation_icon_seamless": "mm",
+      "precipitation_gfs_seamless": "mm",
+      "precipitation_meteofrance_seamless": "mm"
+     },
+     "minutely_15": {
+      "time": [
+       1791873000,
+       1791873900
+      ],
+      "precipitation_icon_seamless": [
+       0,
+       0
+      ],
+      "precipitation_gfs_seamless": [
+       0,
+       0
+      ],
+      "precipitation_meteofrance_seamless": [
+       0,
+       0
+      ]
+     }
+    },
+    {
+     "latitude": 52.1875,
+     "longitude": 21,
+     "generationtime_ms": 0.060677528381347656,
+     "utc_offset_seconds": 0,
+     "timezone": "GMT",
+     "timezone_abbreviation": "GMT",
+     "elevation": 108,
+     "location_id": 31,
+     "minutely_15_units": {
+      "time": "unixtime",
+      "precipitation_icon_seamless": "mm",
+      "precipitation_gfs_seamless": "mm",
+      "precipitation_meteofrance_seamless": "mm"
+     },
+     "minutely_15": {
+      "time": [
+       1791873000,
+       1791873900
+      ],
+      "precipitation_icon_seamless": [
+       0,
+       0
+      ],
+      "precipitation_gfs_seamless": [
+       0,
+       0
+      ],
+      "precipitation_meteofrance_seamless": [
+       0,
+       0
+      ]
+     }
+    },
+    {
+     "latitude": 52.1875,
+     "longitude": 21,
+     "generationtime_ms": 0.04756450653076172,
+     "utc_offset_seconds": 0,
+     "timezone": "GMT",
+     "timezone_abbreviation": "GMT",
+     "elevation": 106,
+     "location_id": 32,
+     "minutely_15_units": {
+      "time": "unixtime",
+      "precipitation_icon_seamless": "mm",
+      "precipitation_gfs_seamless": "mm",
+      "precipitation_meteofrance_seamless": "mm"
+     },
+     "minutely_15": {
+      "time": [
+       1791873000,
+       1791873900
+      ],
+      "precipitation_icon_seamless": [
+       0,
+       0
+      ],
+      "precipitation_gfs_seamless": [
+       0,
+       0
+      ],
+      "precipitation_meteofrance_seamless": [
+       0,
+       0
+      ]
+     }
+    },
+    {
+     "latitude": 52.25,
+     "longitude": 20.8125,
+     "generationtime_ms": 0.049948692321777344,
+     "utc_offset_seconds": 0,
+     "timezone": "GMT",
+     "timezone_abbreviation": "GMT",
+     "elevation": 103,
+     "location_id": 33,
+     "minutely_15_units": {
+      "time": "unixtime",
+      "precipitation_icon_seamless": "mm",
+      "precipitation_gfs_seamless": "mm",
+      "precipitation_meteofrance_seamless": "mm"
+     },
+     "minutely_15": {
+      "time": [
+       1791873000,
+       1791873900
+      ],
+      "precipitation_icon_seamless": [
+       0,
+       0
+      ],
+      "precipitation_gfs_seamless": [
+       0,
+       0
+      ],
+      "precipitation_meteofrance_seamless": [
+       0,
+       0
+      ]
+     }
+    },
+    {
+     "latitude": 52.25,
+     "longitude": 20.875,
+     "generationtime_ms": 0.048041343688964844,
+     "utc_offset_seconds": 0,
+     "timezone": "GMT",
+     "timezone_abbreviation": "GMT",
+     "elevation": 108,
+     "location_id": 34,
+     "minutely_15_units": {
+      "time": "unixtime",
+      "precipitation_icon_seamless": "mm",
+      "precipitation_gfs_seamless": "mm",
+      "precipitation_meteofrance_seamless": "mm"
+     },
+     "minutely_15": {
+      "time": [
+       1791873000,
+       1791873900
+      ],
+      "precipitation_icon_seamless": [
+       0,
+       0
+      ],
+      "precipitation_gfs_seamless": [
+       0,
+       0
+      ],
+      "precipitation_meteofrance_seamless": [
+       0,
+       0
+      ]
+     }
+    },
+    {
+     "latitude": 52.25,
+     "longitude": 20.9375,
+     "generationtime_ms": 0.052094459533691406,
+     "utc_offset_seconds": 0,
+     "timezone": "GMT",
+     "timezone_abbreviation": "GMT",
+     "elevation": 119,
+     "location_id": 35,
+     "minutely_15_units": {
+      "time": "unixtime",
+      "precipitation_icon_seamless": "mm",
+      "precipitation_gfs_seamless": "mm",
+      "precipitation_meteofrance_seamless": "mm"
+     },
+     "minutely_15": {
+      "time": [
+       1791873000,
+       1791873900
+      ],
+      "precipitation_icon_seamless": [
+       0,
+       0
+      ],
+      "precipitation_gfs_seamless": [
+       0,
+       0
+      ],
+      "precipitation_meteofrance_seamless": [
+       0,
+       0
+      ]
+     }
+    },
+    {
+     "latitude": 52.25,
+     "longitude": 21,
+     "generationtime_ms": 0.03802776336669922,
+     "utc_offset_seconds": 0,
+     "timezone": "GMT",
+     "timezone_abbreviation": "GMT",
+     "elevation": 114,
+     "location_id": 36,
+     "minutely_15_units": {
+      "time": "unixtime",
+      "precipitation_icon_seamless": "mm",
+      "precipitation_gfs_seamless": "mm",
+      "precipitation_meteofrance_seamless": "mm"
+     },
+     "minutely_15": {
+      "time": [
+       1791873000,
+       1791873900
+      ],
+      "precipitation_icon_seamless": [
+       0,
+       0
+      ],
+      "precipitation_gfs_seamless": [
+       0,
+       0
+      ],
+      "precipitation_meteofrance_seamless": [
+       0,
+       0
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "provider": "metar",
+   "url": "https://aviationweather.gov/api/data/metar?bbox=44.71,-84.09,45.44,-83.06&format=json",
+   "status": 200,
+   "bytes": 1002,
+   "body": [
+    {
+     "icaoId": "KPZQ",
+     "obsTime": 1791874500,
+     "lat": 45.4085,
+     "lon": -83.812,
+     "wxString": "-RA",
+     "rawOb": "METAR KPZQ 130655Z AUTO 12008KT 10SM -RA OVC005 11/10 A2975 RMK AO2 P0003",
+     "name": "Rogers City/Presque Isle Arpt, MI, US"
+    },
+    {
+     "icaoId": "KAPN",
+     "obsTime": 1791874440,
+     "lat": 45.0716,
+     "lon": -83.5645,
+     "wxString": "-RA",
+     "rawOb": "METAR KAPN 130654Z AUTO 13008KT 10SM -RA OVC004 12/12 A2973 RMK AO2 SLP067 P0014 T01220117",
+     "name": "Alpena Cnty Rgnl, MI, US"
+    }
+   ]
+  },
+  {
+   "provider": "metar",
+   "url": "https://aviationweather.gov/api/data/metar?bbox=44.66,-30.49,45.39,-29.46&format=json",
+   "status": 204,
+   "bytes": 0,
+   "body": []
+  },
+  {
+   "provider": "metar",
+   "url": "https://aviationweather.gov/api/data/metar?bbox=51.96,-3.28,57.59,5.37&format=json",
+   "status": 200,
+   "bytes": 19139,
+   "body": [
+    {
+     "icaoId": "EHAM",
+     "obsTime": 1791874500,
+     "lat": 52.315,
+     "lon": 4.79,
+     "wxString": "DZ",
+     "rawOb": "METAR EHAM 130655Z 18009KT 150V210 4000 DZ SCT003 BKN004 14/13 Q1017 TEMPO 6000",
+     "name": "Amsterdam/Schiphol Arpt, NH, NL"
+    },
+    {
+     "icaoId": "EGNH",
+     "obsTime": 1791874200,
+     "lat": 53.774,
+     "lon": -3.039,
+     "wxString": "VCSH",
+     "rawOb": "METAR EGNH 130650Z 29021G31KT 9999 VCSH SCT014 15/13 Q1007",
+     "name": "Blackpool Arpt, EN, GB"
+    },
+    {
+     "icaoId": "EGGP",
+     "obsTime": 1791874200,
+     "lat": 53.334,
+     "lon": -2.85,
+     "wxString": "VCSH",
+     "rawOb": "METAR EGGP 130650Z 27020KT 9999 VCSH FEW023 SCT033 14/12 Q1009 RESHRA",
+     "name": "Liverpool/Lennon Arpt, EN, GB"
+    },
+    {
+     "icaoId": "EGPD",
+     "obsTime": 1791874200,
+     "lat": 57.205,
+     "lon": -2.205,
+     "rawOb": "METAR EGPD 130650Z AUTO 20009KT 9999 FEW018/// //////TCU 15/14 Q0997 RERA",
+     "name": "Aberdeen Arpt, SC, GB"
+    },
+    {
+     "icaoId": "EGNM",
+     "obsTime": 1791874200,
+     "lat": 53.862,
+     "lon": -1.665,
+     "wxString": "-SHRA",
+     "rawOb": "METAR EGNM 130650Z 20018G29KT 9999 -SHRA BKN017 16/14 Q1006",
+     "name": "Leeds Bradford Intl, EN, GB"
+    },
+    {
+     "icaoId": "EGBB",
+     "obsTime": 1791874200,
+     "lat": 52.46,
+     "lon": -1.758,
+     "wxString": "-RA",
+     "rawOb": "METAR EGBB 130650Z 20009KT 160V230 9999 -RA BKN011 17/16 Q1011",
+     "name": "Birmingham Intl, EN, GB"
+    },
+    {
+     "icaoId": "EGCC",
+     "obsTime": 1791874200,
+     "lat": 53.354,
+     "lon": -2.275,
+     "wxString": "VCSH",
+     "rawOb": "METAR EGCC 130650Z 20011KT 9999 5000NW VCSH BKN013CB 17/15 Q1008 RERA",
+     "name": "Manchester Intl, EN, GB"
+    },
+    {
+     "icaoId": "EGNT",
+     "obsTime": 1791874200,
+     "lat": 55.037,
+     "lon": -1.702,
+     "wxString": "SHRA",
+     "rawOb": "METAR EGNT 130650Z 24008KT 200V270 9000 SHRA SCT013 16/15 Q1003",
+     "name": "Newcastle Intl, SC, GB"
+    },
+    {
+     "icaoId": "EGOS",
+     "obsTime": 1791873480,
+     "lat": 52.795,
+     "lon": -2.665,
+     "rawOb": "SPECI EGOS 130638Z 21019G32KT 9999 FEW006 SCT012 BKN040 17/16 Q1009 RERA RMK GRN",
+     "name": "Shawbury Arpt, EN, GB"
+    },
+    {
+     "icaoId": "EHKD",
+     "obsTime": 1791872700,
+     "lat": 52.927,
+     "lon": 4.781,
+     "rawOb": "METAR EHKD 130625Z AUTO 17012KT 140V200 9999 BKN006 OVC007 14/13 Q1015 YLO TEMPO BKN005",
+     "name": "Den Helder Arpt, NH, NL"
+    },
+    {
+     "icaoId": "EGQM",
+     "obsTime": 1791872400,
+     "lat": 55.421,
+     "lon": -1.601,
+     "wxString": "RA",
+     "rawOb": "METAR EGQM 130620Z AUTO 19016KT 2700 RA FEW029/// BKN038/// 16/15 Q1001",
+     "name": "Boulmer, SC, GB"
+    },
+    {
+     "icaoId": "EGWC",
+     "obsTime": 1791872400,
+     "lat": 52.64,
+     "lon": -2.311,
+     "rawOb": "METAR EGWC 130620Z AUTO 20014G24KT //// ///////// ///// Q////",
+     "name": "Cosford, EN, GB"
+    },
+    {
+     "icaoId": "EGOM",
+     "obsTime": 1791872400,
+     "lat": 55.05,
+     "lon": -2.554,
+     "wxString": "RA",
+     "rawOb": "METAR EGOM 130620Z AUTO 26023G35KT 2000 RA OVC002/// 14/14 Q1003",
+     "name": "Spadeadam, SC, GB"
+    }
+   ]
+  },
+  {
+   "provider": "metar",
+   "url": "https://aviationweather.gov/api/data/metar?bbox=59.51,-2.00,60.74,6.07&format=json",
+   "status": 200,
+   "bytes": 2307,
+   "body": [
+    {
+     "icaoId": "EGPB",
+     "obsTime": 1791874200,
+     "lat": 59.88,
+     "lon": -1.296,
+     "wxString": "+RA",
+     "rawOb": "METAR EGPB 130650Z 18024KT 1200 +RA SCT003 BKN004 OVC012 14/13 Q0991",
+     "name": "Sumburgh Arpt, SC, GB"
+    },
+    {
+     "icaoId": "ENSO",
+     "obsTime": 1791874200,
+     "lat": 59.792,
+     "lon": 5.341,
+     "rawOb": "METAR ENSO 130650Z 15027G40KT 9999 SCT030 BKN042 12/07 Q1008",
+     "name": "Sorstokken/Stord Arpt, HO, NO"
+    },
+    {
+     "icaoId": "ENBR",
+     "obsTime": 1791874200,
+     "lat": 60.29,
+     "lon": 5.222,
+     "rawOb": "METAR ENBR 130650Z 15028G42KT 9999 BKN030 12/06 Q1006 NOSIG RMK WIND 1200FT 14045KT",
+     "name": "Bergen/Flesland Arpt, HO, NO"
+    }
+   ]
+  },
+  {
+   "provider": "metar",
+   "url": "https://aviationweather.gov/api/data/metar?bbox=51.66,20.23,52.59,21.62&format=json",
+   "status": 200,
+   "bytes": 878,
+   "body": [
+    {
+     "icaoId": "EPWA",
+     "obsTime": 1791873000,
+     "lat": 52.163,
+     "lon": 20.961,
+     "rawOb": "METAR EPWA 130630Z 30005KT 270V330 9999 BKN008 BKN012 08/07 Q1024 NOSIG",
+     "name": "Warsaw/Chopin Arpt, MZ, PL"
+    },
+    {
+     "icaoId": "EPMO",
+     "obsTime": 1791873000,
+     "lat": 52.452,
+     "lon": 20.642,
+     "rawOb": "METAR EPMO 130630Z 28006KT 9999 BKN009 08/07 Q1024",
+     "name": "Modlin Arpt, MZ, PL"
+    }
+   ]
+  },
+  {
+   "provider": "metar",
+   "url": "https://aviationweather.gov/api/data/metar?bbox=55.61,36.77,56.34,38.08&format=json",
+   "status": 200,
+   "bytes": 526,
+   "body": [
+    {
+     "icaoId": "UUEE",
+     "obsTime": 1791873000,
+     "lat": 55.973,
+     "lon": 37.415,
+     "wxString": "-SHRA",
+     "rawOb": "METAR UUEE 130630Z 34004MPS 290V020 9000 -SHRA SCT004 BKN040CB 09/08 Q1019 R24L/290145 R24C/290145 NOSIG",
+     "name": "Moscow/Sheremetyevo Intl, MO, RU"
+    }
+   ]
+  },
+  {
+   "provider": "metar",
+   "url": "https://aviationweather.gov/api/data/metar?bbox=10.46,106.30,11.19,107.05&format=json",
+   "status": 200,
+   "bytes": 521,
+   "body": [
+    {
+     "icaoId": "VVTS",
+     "obsTime": 1791873000,
+     "lat": 10.817,
+     "lon": 106.667,
+     "wxString": "TSRA",
+     "rawOb": "METAR VVTS 130630Z 33012KT 7000 TSRA BKN015 FEW018CB 30/28 Q1010 TEMPO TL0700 VRB15G25KT 1200 +TSRA",
+     "name": "Ho Chi Minh/Nhat Intl, 23, VN"
+    }
+   ]
+  },
+  {
+   "provider": "metar",
+   "url": "https://aviationweather.gov/api/data/metar?bbox=-34.29,150.73,-33.56,151.62&format=json",
+   "status": 200,
+   "bytes": 912,
+   "body": [
+    {
+     "icaoId": "YSRI",
+     "obsTime": 1791873000,
+     "lat": -33.601,
+     "lon": 150.777,
+     "rawOb": "METAR YSRI 130630Z AUTO 13009KT 9999 // FEW028 20/16 Q1016",
+     "name": "Richmond, NS, AU"
+    },
+    {
+     "icaoId": "YSSY",
+     "obsTime": 1791873000,
+     "lat": -33.946,
+     "lon": 151.173,
+     "rawOb": "METAR YSSY 130630Z AUTO 16012KT 9999 // FEW020 SCT026 BKN034 19/15 Q1016",
+     "name": "Sydney Intl, NS, AU"
+    }
+   ]
+  },
+  {
+   "provider": "met-norway",
+   "url": "https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=52.225&lon=21.025",
+   "status": 200,
+   "bytes": 38879,
+   "body": {
+    "type": "Feature",
+    "geometry": {
+     "type": "Point",
+     "coordinates": [
+      21.025,
+      52.225,
+      108
+     ]
+    },
+    "properties": {
+     "meta": {
+      "updated_at": "2026-10-13T05:20:01Z",
+      "units": {
+       "air_pressure_at_sea_level": "hPa",
+       "air_temperature": "celsius",
+       "cloud_area_fraction": "%",
+       "precipitation_amount": "mm",
+       "relative_humidity": "%",
+       "wind_from_direction": "degrees",
+       "wind_speed": "m/s"
+      }
+     },
+     "timeseries": [
+      {
+       "time": "2026-10-13T06:00:00Z",
+       "data": {
+        "instant": {
+         "details": {
+          "air_pressure_at_sea_level": 1024.5,
+          "air_temperature": 6.6,
+          "cloud_area_fraction": 100,
+          "relative_humidity": 95.4,
+          "wind_from_direction": 288.9,
+          "wind_speed": 2.7
+         }
+        },
+        "next_12_hours": {
+         "summary": {
+          "symbol_code": "cloudy"
+         },
+         "details": {}
+        },
+        "next_1_hours": {
+         "summary": {
+          "symbol_code": "cloudy"
+         },
+         "details": {
+          "precipitation_amount": 0
+         }
+        },
+        "next_6_hours": {
+         "summary": {
+          "symbol_code": "cloudy"
+         },
+         "details": {
+          "precipitation_amount": 0.1
+         }
+        }
+       }
+      },
+      {
+       "time": "2026-10-13T07:00:00Z",
+       "data": {
+        "instant": {
+         "details": {
+          "air_pressure_at_sea_level": 1024.9,
+          "air_temperature": 6.9,
+          "cloud_area_fraction": 100,
+          "relative_humidity": 92.6,
+          "wind_from_direction": 293.5,
+          "wind_speed": 2.8
+         }
+        },
+        "next_12_hours": {
+         "summary": {
+          "symbol_code": "cloudy"
+         },
+         "details": {}
+        },
+        "next_1_hours": {
+         "summary": {
+          "symbol_code": "cloudy"
+         },
+         "details": {
+          "precipitation_amount": 0
+         }
+        },
+        "next_6_hours": {
+         "summary": {
+          "symbol_code": "cloudy"
+         },
+         "details": {
+          "precipitation_amount": 0.1
+         }
+        }
+       }
+      },
+      {
+       "time": "2026-10-13T08:00:00Z",
+       "data": {
+        "instant": {
+         "details": {
+          "air_pressure_at_sea_level": 1025.3,
+          "air_temperature": 7.3,
+          "cloud_area_fraction": 100,
+          "relative_humidity": 90.2,
+          "wind_from_direction": 295.1,
+          "wind_speed": 3
+         }
+        },
+        "next_12_hours": {
+         "summary": {
+          "symbol_code": "cloudy"
+         },
+         "details": {}
+        },
+        "next_1_hours": {
+         "summary": {
+          "symbol_code": "cloudy"
+         },
+         "details": {
+          "precipitation_amount": 0
+         }
+        },
+        "next_6_hours": {
+         "summary": {
+          "symbol_code": "cloudy"
+         },
+         "details": {
+          "precipitation_amount": 0.1
+         }
+        }
+       }
+      },
+      {
+       "time": "2026-10-13T09:00:00Z",
+       "data": {
+        "instant": {
+         "details": {
+          "air_pressure_at_sea_level": 1025.7,
+          "air_temperature": 8.2,
+          "cloud_area_fraction": 100,
+          "relative_humidity": 85.8,
+          "wind_from_direction": 296,
+          "wind_speed": 2.9
+         }
+        },
+        "next_12_hours": {
+         "summary": {
+          "symbol_code": "cloudy"
+         },
+         "details": {}
+        },
+        "next_1_hours": {
+         "summary": {
+          "symbol_code": "cloudy"
+         },
+         "details": {
+          "precipitation_amount": 0
+         }
+        },
+        "next_6_hours": {
+         "summary": {
+          "symbol_code": "cloudy"
+         },
+         "details": {
+          "precipitation_amount": 0
+         }
+        }
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "provider": "met-norway",
+   "url": "https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=59.875&lon=-1.275",
+   "status": 200,
+   "bytes": 37516,
+   "body": {
+    "type": "Feature",
+    "geometry": {
+     "type": "Point",
+     "coordinates": [
+      -1.275,
+      59.875,
+      0
+     ]
+    },
+    "properties": {
+     "meta": {
+      "updated_at": "2026-10-13T06:30:05Z",
+      "units": {
+       "air_pressure_at_sea_level": "hPa",
+       "air_temperature": "celsius",
+       "cloud_area_fraction": "%",
+       "precipitation_amount": "mm",
+       "relative_humidity": "%",
+       "wind_from_direction": "degrees",
+       "wind_speed": "m/s"
+      }
+     },
+     "timeseries": [
+      {
+       "time": "2026-10-13T06:00:00Z",
+       "data": {
+        "instant": {
+         "details": {
+          "air_pressure_at_sea_level": 992.9,
+          "air_temperature": 12.7,
+          "cloud_area_fraction": 100,
+          "relative_humidity": 97.2,
+          "wind_from_direction": 176,
+          "wind_speed": 15.4
+         }
+        },
+        "next_12_hours": {
+         "summary": {
+          "symbol_code": "lightrainshowers_day"
+         },
+         "details": {}
+        },
+        "next_1_hours": {
+         "summary": {
+          "symbol_code": "heavyrain"
+         },
+         "details": {
+          "precipitation_amount": 3.9
+         }
+        },
+        "next_6_hours": {
+         "summary": {
+          "symbol_code": "heavyrainshowers_day"
+         },
+         "details": {
+          "precipitation_amount": 7.1
+         }
+        }
+       }
+      },
+      {
+       "time": "2026-10-13T07:00:00Z",
+       "data": {
+        "instant": {
+         "details": {
+          "air_pressure_at_sea_level": 992.4,
+          "air_temperature": 12.8,
+          "cloud_area_fraction": 100,
+          "relative_humidity": 97,
+          "wind_from_direction": 183,
+          "wind_speed": 14.4
+         }
+        },
+        "next_12_hours": {
+         "summary": {
+          "symbol_code": "lightrainshowers_day"
+         },
+         "details": {}
+        },
+        "next_1_hours": {
+         "summary": {
+          "symbol_code": "heavyrain"
+         },
+         "details": {
+          "precipitation_amount": 3.3
+         }
+        },
+        "next_6_hours": {
+         "summary": {
+          "symbol_code": "rainshowers_day"
+         },
+         "details": {
+          "precipitation_amount": 3.4
+         }
+        }
+       }
+      },
+      {
+       "time": "2026-10-13T08:00:00Z",
+       "data": {
+        "instant": {
+         "details": {
+          "air_pressure_at_sea_level": 992.3,
+          "air_temperature": 12.9,
+          "cloud_area_fraction": 100,
+          "relative_humidity": 97,
+          "wind_from_direction": 216,
+          "wind_speed": 13.7
+         }
+        },
+        "next_12_hours": {
+         "summary": {
+          "symbol_code": "partlycloudy_day"
+         },
+         "details": {}
+        },
+        "next_1_hours": {
+         "summary": {
+          "symbol_code": "lightrain"
+         },
+         "details": {
+          "precipitation_amount": 0.2
+         }
+        },
+        "next_6_hours": {
+         "summary": {
+          "symbol_code": "partlycloudy_day"
+         },
+         "details": {
+          "precipitation_amount": 0
+         }
+        }
+       }
+      },
+      {
+       "time": "2026-10-13T09:00:00Z",
+       "data": {
+        "instant": {
+         "details": {
+          "air_pressure_at_sea_level": 993.6,
+          "air_temperature": 13,
+          "cloud_area_fraction": 91.9,
+          "relative_humidity": 86.7,
+          "wind_from_direction": 239,
+          "wind_speed": 14.2
+         }
+        },
+        "next_12_hours": {
+         "summary": {
+          "symbol_code": "partlycloudy_day"
+         },
+         "details": {}
+        },
+        "next_1_hours": {
+         "summary": {
+          "symbol_code": "cloudy"
+         },
+         "details": {
+          "precipitation_amount": 0
+         }
+        },
+        "next_6_hours": {
+         "summary": {
+          "symbol_code": "fair_day"
+         },
+         "details": {
+          "precipitation_amount": 0
+         }
+        }
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "provider": "met-norway",
+   "url": "https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=53.375&lon=-2.275",
+   "status": 200,
+   "bytes": 39036,
+   "body": {
+    "type": "Feature",
+    "geometry": {
+     "type": "Point",
+     "coordinates": [
+      -2.275,
+      53.375,
+      72
+     ]
+    },
+    "properties": {
+     "meta": {
+      "updated_at": "2026-10-13T05:21:01Z",
+      "units": {
+       "air_pressure_at_sea_level": "hPa",
+       "air_temperature": "celsius",
+       "cloud_area_fraction": "%",
+       "precipitation_amount": "mm",
+       "relative_humidity": "%",
+       "wind_from_direction": "degrees",
+       "wind_speed": "m/s"
+      }
+     },
+     "timeseries": [
+      {
+       "time": "2026-10-13T06:00:00Z",
+       "data": {
+        "instant": {
+         "details": {
+          "air_pressure_at_sea_level": 1007.4,
+          "air_temperature": 16.5,
+          "cloud_area_fraction": 100,
+          "relative_humidity": 87.7,
+          "wind_from_direction": 196.5,
+          "wind_speed": 7.3
+         }
+        },
+        "next_12_hours": {
+         "summary": {
+          "symbol_code": "lightrainshowers_day"
+         },
+         "details": {}
+        },
+        "next_1_hours": {
+         "summary": {
+          "symbol_code": "heavyrain"
+         },
+         "details": {
+          "precipitation_amount": 2.4
+         }
+        },
+        "next_6_hours": {
+         "summary": {
+          "symbol_code": "rainshowers_day"
+         },
+         "details": {
+          "precipitation_amount": 2.9
+         }
+        }
+       }
+      },
+      {
+       "time": "2026-10-13T07:00:00Z",
+       "data": {
+        "instant": {
+         "details": {
+          "air_pressure_at_sea_level": 1008.8,
+          "air_temperature": 16.5,
+          "cloud_area_fraction": 100,
+          "relative_humidity": 92.7,
+          "wind_from_direction": 230.1,
+          "wind_speed": 7.9
+         }
+        },
+        "next_12_hours": {
+         "summary": {
+          "symbol_code": "lightrainshowers_day"
+         },
+         "details": {}
+        },
+        "next_1_hours": {
+         "summary": {
+          "symbol_code": "lightrain"
+         },
+         "details": {
+          "precipitation_amount": 0.2
+         }
+        },
+        "next_6_hours": {
+         "summary": {
+          "symbol_code": "lightrainshowers_day"
+         },
+         "details": {
+          "precipitation_amount": 0.7
+         }
+        }
+       }
+      },
+      {
+       "time": "2026-10-13T08:00:00Z",
+       "data": {
+        "instant": {
+         "details": {
+          "air_pressure_at_sea_level": 1010.6,
+          "air_temperature": 15.8,
+          "cloud_area_fraction": 67.2,
+          "relative_humidity": 92.4,
+          "wind_from_direction": 267.4,
+          "wind_speed": 6.3
+         }
+        },
+        "next_12_hours": {
+         "summary": {
+          "symbol_code": "lightrainshowers_day"
+         },
+         "details": {}
+        },
+        "next_1_hours": {
+         "summary": {
+          "symbol_code": "lightrainshowers_day"
+         },
+         "details": {
+          "precipitation_amount": 0.2
+         }
+        },
+        "next_6_hours": {
+         "summary": {
+          "symbol_code": "lightrainshowers_day"
+         },
+         "details": {
+          "precipitation_amount": 0.5
+         }
+        }
+       }
+      },
+      {
+       "time": "2026-10-13T09:00:00Z",
+       "data": {
+        "instant": {
+         "details": {
+          "air_pressure_at_sea_level": 1011.9,
+          "air_temperature": 15.5,
+          "cloud_area_fraction": 19.5,
+          "relative_humidity": 85.5,
+          "wind_from_direction": 256.4,
+          "wind_speed": 6.8
+         }
+        },
+        "next_12_hours": {
+         "summary": {
+          "symbol_code": "partlycloudy_day"
+         },
+         "details": {}
+        },
+        "next_1_hours": {
+         "summary": {
+          "symbol_code": "lightrainshowers_day"
+         },
+         "details": {
+          "precipitation_amount": 0.2
+         }
+        },
+        "next_6_hours": {
+         "summary": {
+          "symbol_code": "fair_day"
+         },
+         "details": {
+          "precipitation_amount": 0.4
+         }
+        }
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "provider": "met-norway",
+   "url": "https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=52.775&lon=-2.675",
+   "status": 200,
+   "bytes": 38743,
+   "body": {
+    "type": "Feature",
+    "geometry": {
+     "type": "Point",
+     "coordinates": [
+      -2.675,
+      52.775,
+      70
+     ]
+    },
+    "properties": {
+     "meta": {
+      "updated_at": "2026-10-13T05:21:01Z",
+      "units": {
+       "air_pressure_at_sea_level": "hPa",
+       "air_temperature": "celsius",
+       "cloud_area_fraction": "%",
+       "precipitation_amount": "mm",
+       "relative_humidity": "%",
+       "wind_from_direction": "degrees",
+       "wind_speed": "m/s"
+      }
+     },
+     "timeseries": [
+      {
+       "time": "2026-10-13T06:00:00Z",
+       "data": {
+        "instant": {
+         "details": {
+          "air_pressure_at_sea_level": 1008.7,
+          "air_temperature": 16.9,
+          "cloud_area_fraction": 100,
+          "relative_humidity": 87.6,
+          "wind_from_direction": 210.9,
+          "wind_speed": 7.6
+         }
+        },
+        "next_12_hours": {
+         "summary": {
+          "symbol_code": "lightrainshowers_day"
+         },
+         "details": {}
+        },
+        "next_1_hours": {
+         "summary": {
+          "symbol_code": "rain"
+         },
+         "details": {
+          "precipitation_amount": 0.9
+         }
+        },
+        "next_6_hours": {
+         "summary": {
+          "symbol_code": "rainshowers_day"
+         },
+         "details": {
+          "precipitation_amount": 1
+         }
+        }
+       }
+      },
+      {
+       "time": "2026-10-13T07:00:00Z",
+       "data": {
+        "instant": {
+         "details": {
+          "air_pressure_at_sea_level": 1010.3,
+          "air_temperature": 16.2,
+          "cloud_area_fraction": 73.4,
+          "relative_humidity": 91.6,
+          "wind_from_direction": 245.5,
+          "wind_speed": 7.6
+         }
+        },
+        "next_12_hours": {
+         "summary": {
+          "symbol_code": "fair_day"
+         },
+         "details": {}
+        },
+        "next_1_hours": {
+         "summary": {
+          "symbol_code": "partlycloudy_day"
+         },
+         "details": {
+          "precipitation_amount": 0
+         }
+        },
+        "next_6_hours": {
+         "summary": {
+          "symbol_code": "fair_day"
+         },
+         "details": {
+          "precipitation_amount": 0.1
+         }
+        }
+       }
+      },
+      {
+       "time": "2026-10-13T08:00:00Z",
+       "data": {
+        "instant": {
+         "details": {
+          "air_pressure_at_sea_level": 1012.1,
+          "air_temperature": 15.5,
+          "cloud_area_fraction": 11.7,
+          "relative_humidity": 87.9,
+          "wind_from_direction": 261.4,
+          "wind_speed": 6.9
+         }
+        },
+        "next_12_hours": {
+         "summary": {
+          "symbol_code": "fair_day"
+         },
+         "details": {}
+        },
+        "next_1_hours": {
+         "summary": {
+          "symbol_code": "clearsky_day"
+         },
+         "details": {
+          "precipitation_amount": 0
+         }
+        },
+        "next_6_hours": {
+         "summary": {
+          "symbol_code": "fair_day"
+         },
+         "details": {
+          "precipitation_amount": 0.1
+         }
+        }
+       }
+      },
+      {
+       "time": "2026-10-13T09:00:00Z",
+       "data": {
+        "instant": {
+         "details": {
+          "air_pressure_at_sea_level": 1013.4,
+          "air_temperature": 15.6,
+          "cloud_area_fraction": 10.2,
+          "relative_humidity": 80.4,
+          "wind_from_direction": 259.6,
+          "wind_speed": 7.3
+         }
+        },
+        "next_12_hours": {
+         "summary": {
+          "symbol_code": "partlycloudy_day"
+         },
+         "details": {}
+        },
+        "next_1_hours": {
+         "summary": {
+          "symbol_code": "clearsky_day"
+         },
+         "details": {
+          "precipitation_amount": 0
+         }
+        },
+        "next_6_hours": {
+         "summary": {
+          "symbol_code": "fair_day"
+         },
+         "details": {
+          "precipitation_amount": 0.1
+         }
+        }
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "provider": "met-norway",
+   "url": "https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=57.225&lon=-2.225",
+   "status": 200,
+   "bytes": 38419,
+   "body": {
+    "type": "Feature",
+    "geometry": {
+     "type": "Point",
+     "coordinates": [
+      -2.225,
+      57.225,
+      95
+     ]
+    },
+    "properties": {
+     "meta": {
+      "updated_at": "2026-10-13T05:20:01Z",
+      "units": {
+       "air_pressure_at_sea_level": "hPa",
+       "air_temperature": "celsius",
+       "cloud_area_fraction": "%",
+       "precipitation_amount": "mm",
+       "relative_humidity": "%",
+       "wind_from_direction": "degrees",
+       "wind_speed": "m/s"
+      }
+     },
+     "timeseries": [
+      {
+       "time": "2026-10-13T06:00:00Z",
+       "data": {
+        "instant": {
+         "details": {
+          "air_pressure_at_sea_level": 996,
+          "air_temperature": 15,
+          "cloud_area_fraction": 100,
+          "relative_humidity": 95.6,
+          "wind_from_direction": 199.5,
+          "wind_speed": 10.1
+         }
+        },
+        "next_12_hours": {
+         "summary": {
+          "symbol_code": "fair_day"
+         },
+         "details": {}
+        },
+        "next_1_hours": {
+         "summary": {
+          "symbol_code": "lightrain"
+         },
+         "details": {
+          "precipitation_amount": 0.1
+         }
+        },
+        "next_6_hours": {
+         "summary": {
+          "symbol_code": "fair_day"
+         },
+         "details": {
+          "precipitation_amount": 0.1
+         }
+        }
+       }
+      },
+      {
+       "time": "2026-10-13T07:00:00Z",
+       "data": {
+        "instant": {
+         "details": {
+          "air_pressure_at_sea_level": 997.2,
+          "air_temperature": 14.9,
+          "cloud_area_fraction": 85.9,
+          "relative_humidity": 92.5,
+          "wind_from_direction": 229.6,
+          "wind_speed": 6.9
+         }
+        },
+        "next_12_hours": {
+         "summary": {
+          "symbol_code": "fair_day"
+         },
+         "details": {}
+        },
+        "next_1_hours": {
+         "summary": {
+          "symbol_code": "partlycloudy_day"
+         },
+         "details": {
+          "precipitation_amount": 0
+         }
+        },
+        "next_6_hours": {
+         "summary": {
+          "symbol_code": "fair_day"
+         },
+         "details": {
+          "precipitation_amount": 0
+         }
+        }
+       }
+      },
+      {
+       "time": "2026-10-13T08:00:00Z",
+       "data": {
+        "instant": {
+         "details": {
+          "air_pressure_at_sea_level": 998.7,
+          "air_temperature": 14,
+          "cloud_area_fraction": 3.1,
+          "relative_humidity": 85.8,
+          "wind_from_direction": 247.6,
+          "wind_speed": 5.8
+         }
+        },
+        "next_12_hours": {
+         "summary": {
+          "symbol_code": "fair_day"
+         },
+         "details": {}
+        },
+        "next_1_hours": {
+         "summary": {
+          "symbol_code": "clearsky_day"
+         },
+         "details": {
+          "precipitation_amount": 0
+         }
+        },
+        "next_6_hours": {
+         "summary": {
+          "symbol_code": "fair_day"
+         },
+         "details": {
+          "precipitation_amount": 0
+         }
+        }
+       }
+      },
+      {
+       "time": "2026-10-13T09:00:00Z",
+       "data": {
+        "instant": {
+         "details": {
+          "air_pressure_at_sea_level": 1000.3,
+          "air_temperature": 14.6,
+          "cloud_area_fraction": 7.8,
+          "relative_humidity": 76.4,
+          "wind_from_direction": 244.3,
+          "wind_speed": 5.7
+         }
+        },
+        "next_12_hours": {
+         "summary": {
+          "symbol_code": "fair_day"
+         },
+         "details": {}
+        },
+        "next_1_hours": {
+         "summary": {
+          "symbol_code": "clearsky_day"
+         },
+         "details": {
+          "precipitation_amount": 0
+         }
+        },
+        "next_6_hours": {
+         "summary": {
+          "symbol_code": "fair_day"
+         },
+         "details": {
+          "precipitation_amount": 0.1
+         }
+        }
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "provider": "met-norway",
+   "url": "https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=52.325&lon=4.775",
+   "status": 200,
+   "bytes": 38891,
+   "body": {
+    "type": "Feature",
+    "geometry": {
+     "type": "Point",
+     "coordinates": [
+      4.775,
+      52.325,
+      -3
+     ]
+    },
+    "properties": {
+     "meta": {
+      "updated_at": "2026-10-13T05:20:01Z",
+      "units": {
+       "air_pressure_at_sea_level": "hPa",
+       "air_temperature": "celsius",
+       "cloud_area_fraction": "%",
+       "precipitation_amount": "mm",
+       "relative_humidity": "%",
+       "wind_from_direction": "degrees",
+       "wind_speed": "m/s"
+      }
+     },
+     "timeseries": [
+      {
+       "time": "2026-10-13T06:00:00Z",
+       "data": {
+        "instant": {
+         "details": {
+          "air_pressure_at_sea_level": 1016.9,
+          "air_temperature": 13.4,
+          "cloud_area_fraction": 100,
+          "relative_humidity": 89.2,
+          "wind_from_direction": 180.8,
+          "wind_speed": 4.4
+         }
+        },
+        "next_12_hours": {
+         "summary": {
+          "symbol_code": "partlycloudy_day"
+         },
+         "details": {}
+        },
+        "next_1_hours": {
+         "summary": {
+          "symbol_code": "cloudy"
+         },
+         "details": {
+          "precipitation_amount": 0
+         }
+        },
+        "next_6_hours": {
+         "summary": {
+          "symbol_code": "cloudy"
+         },
+         "details": {
+          "precipitation_amount": 0.4
+         }
+        }
+       }
+      },
+      {
+       "time": "2026-10-13T07:00:00Z",
+       "data": {
+        "instant": {
+         "details": {
+          "air_pressure_at_sea_level": 1017.1,
+          "air_temperature": 14.3,
+          "cloud_area_fraction": 100,
+          "relative_humidity": 90.2,
+          "wind_from_direction": 184.4,
+          "wind_speed": 4.8
+         }
+        },
+        "next_12_hours": {
+         "summary": {
+          "symbol_code": "partlycloudy_day"
+         },
+         "details": {}
+        },
+        "next_1_hours": {
+         "summary": {
+          "symbol_code": "cloudy"
+         },
+         "details": {
+          "precipitation_amount": 0
+         }
+        },
+        "next_6_hours": {
+         "summary": {
+          "symbol_code": "cloudy"
+         },
+         "details": {
+          "precipitation_amount": 0.4
+         }
+        }
+       }
+      },
+      {
+       "time": "2026-10-13T08:00:00Z",
+       "data": {
+        "instant": {
+         "details": {
+          "air_pressure_at_sea_level": 1017.3,
+          "air_temperature": 15.4,
+          "cloud_area_fraction": 99.2,
+          "relative_humidity": 90.9,
+          "wind_from_direction": 195.1,
+          "wind_speed": 4.9
+         }
+        },
+        "next_12_hours": {
+         "summary": {
+          "symbol_code": "lightrainshowers_day"
+         },
+         "details": {}
+        },
+        "next_1_hours": {
+         "summary": {
+          "symbol_code": "cloudy"
+         },
+         "details": {
+          "precipitation_amount": 0
+         }
+        },
+        "next_6_hours": {
+         "summary": {
+          "symbol_code": "lightrain"
+         },
+         "details": {
+          "precipitation_amount": 0.5
+         }
+        }
+       }
+      },
+      {
+       "time": "2026-10-13T09:00:00Z",
+       "data": {
+        "instant": {
+         "details": {
+          "air_pressure_at_sea_level": 1017.2,
+          "air_temperature": 17.1,
+          "cloud_area_fraction": 100,
+          "relative_humidity": 88,
+          "wind_from_direction": 206.2,
+          "wind_speed": 5.1
+         }
+        },
+        "next_12_hours": {
+         "summary": {
+          "symbol_code": "lightrainshowers_day"
+         },
+         "details": {}
+        },
+        "next_1_hours": {
+         "summary": {
+          "symbol_code": "cloudy"
+         },
+         "details": {
+          "precipitation_amount": 0
+         }
+        },
+        "next_6_hours": {
+         "summary": {
+          "symbol_code": "lightrain"
+         },
+         "details": {
+          "precipitation_amount": 0.7
+         }
+        }
+       }
+      }
+     ]
+    }
+   }
+  }
+ ]
+}
