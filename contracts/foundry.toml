@@ -33,3 +33,9 @@ monad_testnet = "https://testnet-rpc.monad.xyz"
 
 [fmt]
 line_length = 120
+
+[lint]
+# Minute-granular windows compare against block.timestamp by design; a report and a batch settlement are atomic,
+# so their loops revert and call out on purpose; the events flagged as following an external call follow only
+# static calls or calls made under a reentrancy guard.
+exclude_lints = ["block-timestamp", "require-revert-in-loop", "calls-loop", "reentrancy-events"]
