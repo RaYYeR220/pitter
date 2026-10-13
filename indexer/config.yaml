@@ -67,17 +67,14 @@ chains:
       - { name: CoverPool, address: "0x80375eB8BE28a7bffb274C2620E9D70Fe7E70B9f" }
       - { name: WeatherIndex, address: "0x55F06d63A97ae82c67383cFB26B82Fda78e58664" }
 
-  # Not deployed yet. Once contracts/deployments/143.json exists: set the start block, add the three addresses
-  # and delete `skip`.
   - id: 143 # Monad mainnet
-    skip: true
-    start_block: 0
+    start_block: 113022718
     rpc:
       - url: ${ENVIO_RPC_URL_143:-https://rpc.monad.xyz}
         for: ${ENVIO_RPC_ROLE:-fallback}
         initial_block_interval: 100
         interval_ceiling: 100
     contracts:
-      - { name: CoverBook }
-      - { name: CoverPool }
-      - { name: WeatherIndex }
+      - { name: CoverBook, address: "0x8C7f6A8b09176c893da3ee4C1cbCd2d8ec26E770" }
+      - { name: CoverPool, address: "0x58d970780565E4C064369AD80eEC2D3581d6d75D" }
+      - { name: WeatherIndex, address: "0x171CFCBAA60C9AfD267474773122293a67FbeD94" }
