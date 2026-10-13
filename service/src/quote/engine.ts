@@ -131,6 +131,12 @@ export class QuoteEngine {
       })
     }
 
+    if (market.maxHorizon !== null && end > BigInt(time + market.maxHorizon)) {
+      throw unprocessable('window_too_far', 'The window ends further ahead than cover is sold for', {
+        latestEnd: Math.floor((time + market.maxHorizon) / MINUTE) * MINUTE,
+      })
+    }
+
     const earliestStart = Math.ceil((time + market.minLead + MIN_QUOTE_LIFETIME_SECONDS) / MINUTE) * MINUTE
     if (start < BigInt(earliestStart)) {
       throw unprocessable('window_too_soon', 'The window starts too soon', { earliestStart })

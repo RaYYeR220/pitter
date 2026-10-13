@@ -7,13 +7,13 @@
  * was taken with. The limits are fixed here on purpose: nothing a caller sends can raise what a relay costs.
  */
 
-/** Snapshot worst case 482,636 (first policy in a new cell). */
+/** Snapshot worst case 485,136 (first policy in a new cell). */
 export const BUY_WITH_AUTHORIZATION_GAS = 650_000n
 
-/** Snapshot 317,705 for an active cell; a new cell adds about 91,000. */
+/** Snapshot 320,117 for an active cell; a new cell adds about 91,000. */
 export const BUY_GAS = 560_000n
 
-/** Snapshot 161,019. */
+/** Snapshot 161,221. */
 export const DEPOSIT_WITH_AUTHORIZATION_GAS = 260_000n
 
 /** A token transfer authorised by signature. */
@@ -27,7 +27,7 @@ export const DRIP_GAS = 130_000n
 export const MAX_RELAY_GAS = 3_000_000n
 
 /**
- * `settleMany` over `count` policies. Snapshot: 218,524 for one payout that closes its policy, 338,760 for
+ * `settleMany` over `count` policies. Snapshot: 218,722 for one payout that closes its policy, 339,112 for
  * three. Each further policy can touch a different holder, cell and timeline, so it is budgeted close to a
  * full settlement rather than at the marginal cost the snapshot's mixed batch shows.
  */

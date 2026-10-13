@@ -392,3 +392,26 @@ describe('capacityOf', () => {
     expect(capacity.available).toBe(0n)
   })
 })
+
+describe('cover horizon', () => {
+  it('refuses a window that ends beyond what the book sells, and signs one that ends on it', async () => {
+    const h = harness()
+    h.reader.marketState = fakeMarket({ maxHorizon: 3_600 })
+    const handler = h.guarded(quoteHandler(h.context))
+
+    const beyond = await handler(get(url({ start: T0 + 3_000, end: T0 + 3_660 })))
+    const within = await handler(get(url({ start: T0 + 3_000, end: T0 + 3_600 })))
+
+    expect(beyond.status).toBe(422)
+    expect((await body(beyond)).error).toMatchObject({ code: 'window_too_far', details: { latestEnd: T0 + 3_600 } })
+    expect(within.status).toBe(200)
+  })
+
+  it('applies no horizon when the book has none', async () => {
+    const h = harness()
+    h.reader.marketState = fakeMarket({ maxHorizon: null })
+    const handler = h.guarded(quoteHandler(h.context))
+
+    expect((await handler(get(url({ start: T0 + 39_600, end: T0 + 82_800 })))).status).toBe(200)
+  })
+})

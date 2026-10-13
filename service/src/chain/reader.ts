@@ -21,6 +21,8 @@ export interface Market {
   minLead: number
   minDuration: number
   maxDuration: number
+  /** Furthest ahead of its purchase a window may end; null when the book sets no horizon. */
+  maxHorizon: number | null
   maxOracleAge: number
   heartbeat: number
   maxActiveCells: number
@@ -93,6 +95,7 @@ export function viemCoverReader(
   const { token, coverBook, coverPool, weatherIndex } = settings.contracts
   const assetsFunction = hasFunction(abis.coverPool, 'activeAssets') ? 'activeAssets' : 'totalAssets'
   const hasMinPremium = hasFunction(abis.coverBook, 'minPremium')
+  const hasMaxHorizon = hasFunction(abis.coverBook, 'maxHorizon')
   let domain: Promise<TokenDomain> | undefined
 
   const read = <T>(address: Address, abi: Abi, functionName: string, args: readonly unknown[], blockNumber?: bigint) =>
@@ -145,6 +148,7 @@ export function viemCoverReader(
         minLead,
         minDuration,
         maxDuration,
+        maxHorizon,
         maxOracleAge,
         maxActiveCells,
         activeCells,
@@ -161,6 +165,7 @@ export function viemCoverReader(
         book<bigint>('minLead', [], n),
         book<bigint>('minDuration', [], n),
         book<bigint>('maxDuration', [], n),
+        hasMaxHorizon ? book<bigint>('maxHorizon', [], n) : Promise.resolve(null),
         book<bigint>('maxOracleAge', [], n),
         book<number>('maxActiveCells', [], n),
         book<readonly bigint[]>('activeCells', [], n),
@@ -179,6 +184,7 @@ export function viemCoverReader(
         minLead: Number(minLead),
         minDuration: Number(minDuration),
         maxDuration: Number(maxDuration),
+        maxHorizon: maxHorizon === null ? null : Number(maxHorizon),
         maxOracleAge: Number(maxOracleAge),
         heartbeat: Number(heartbeat),
         maxActiveCells: Number(maxActiveCells),

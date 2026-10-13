@@ -22,6 +22,7 @@ export function fakeMarket(overrides: Partial<Market> = {}): Market {
     minLead: 0,
     minDuration: 60,
     maxDuration: 43_200,
+    maxHorizon: 45_000,
     maxOracleAge: 1_200,
     heartbeat: T0 - 60,
     maxActiveCells: 64,
