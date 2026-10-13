@@ -1,0 +1,58 @@
+name: cover-indexer
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: testing
+      POSTGRES_DB: envio-dev
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: pg_isready -U postgres -d envio-dev
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  hasura:
+    image: hasura/graphql-engine:v2.43.0
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${HASURA_PORT:-8080}:8080"
+    environment:
+      HASURA_GRAPHQL_DATABASE_URL: postgres://postgres:testing@postgres:5432/envio-dev
+      HASURA_GRAPHQL_ADMIN_SECRET: testing
+      HASURA_GRAPHQL_UNAUTHORIZED_ROLE: public
+      HASURA_GRAPHQL_ENABLE_CONSOLE: "true"
+      HASURA_GRAPHQL_STRINGIFY_NUMERIC_TYPES: "true"
+      HASURA_GRAPHQL_NO_OF_RETRIES: 10
+    healthcheck:
+      test: timeout 1s bash -c ':> /dev/tcp/127.0.0.1/8080' || exit 1
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  indexer:
+    build: .
+    depends_on:
+      hasura:
+        condition: service_healthy
+    environment:
+      ENVIO_API_TOKEN: ${ENVIO_API_TOKEN:-}
+      ENVIO_RPC_ROLE: ${ENVIO_RPC_ROLE:-fallback}
+      ENVIO_RPC_URL_10143: ${ENVIO_RPC_URL_10143:-https://testnet-rpc.monad.xyz}
+      ENVIO_RPC_URL_143: ${ENVIO_RPC_URL_143:-https://rpc.monad.xyz}
+      ENVIO_PG_HOST: postgres
+      ENVIO_PG_PORT: 5432
+      ENVIO_PG_USER: postgres
+      ENVIO_PG_PASSWORD: testing
+      ENVIO_PG_DATABASE: envio-dev
+      HASURA_GRAPHQL_ENDPOINT: http://hasura:8080/v1/metadata
+      HASURA_GRAPHQL_ADMIN_SECRET: testing
+      ENVIO_TUI: "false"
+
+volumes:
+  postgres:
