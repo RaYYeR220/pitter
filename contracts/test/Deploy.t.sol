@@ -77,11 +77,11 @@ contract DeployTest is Signing {
 
     function test_Deploy_AppliesTheRedemptionNoticeAndThePremiumFloor() public {
         Deploy.Params memory p = _params();
-        p.redeemNotice = 2 hours;
+        p.redeemNotice = 1 days;
         p.minPremium = 250_000;
         Deploy.Deployment memory d = script.deploy(p, address(script));
 
-        assertEq(d.pool.redeemNotice(), 2 hours);
+        assertEq(d.pool.redeemNotice(), 1 days);
         assertEq(d.book.minPremium(), 250_000);
     }
 
@@ -183,7 +183,7 @@ contract DeployTest is Signing {
         vm.setEnv("FORWARDERS", string.concat(vm.toString(forwarderA), ",", vm.toString(forwarderB)));
         vm.setEnv("MIN_LEAD", "120");
         vm.setEnv("MAX_POLICY_PAYOUT", "75000000");
-        vm.setEnv("REDEEM_NOTICE", "7200");
+        vm.setEnv("REDEEM_NOTICE", "86400");
         vm.setEnv("MIN_PREMIUM", "250000");
 
         Deploy.Deployment memory d = script.run();
@@ -197,7 +197,7 @@ contract DeployTest is Signing {
         assertEq(d.book.minLead(), 120);
         assertEq(d.book.maxPolicyPayout(), 75e6);
         assertEq(d.book.minPremium(), 250_000);
-        assertEq(d.pool.redeemNotice(), 2 hours);
+        assertEq(d.pool.redeemNotice(), 1 days);
         assertEq(d.book.pendingOwner(), finalOwner);
         assertEq(d.pool.book(), address(d.book));
 
@@ -215,7 +215,7 @@ contract DeployTest is Signing {
         assertEq(vm.parseJsonAddressArray(json, ".forwarders").length, 2);
         assertEq(vm.parseJsonUint(json, ".minLead"), 120);
         assertEq(vm.parseJsonUint(json, ".maxPolicyPayout"), 75e6);
-        assertEq(vm.parseJsonUint(json, ".redeemNotice"), 7200);
+        assertEq(vm.parseJsonUint(json, ".redeemNotice"), 86_400);
         assertEq(vm.parseJsonUint(json, ".minPremium"), 250_000);
         vm.removeFile(path);
 

@@ -139,10 +139,7 @@ contract LiquidityExitTest is CoverFixture {
         assertApproxEqAbs(pool.convertToAssets(whaleShares), 100_000e6 + 950e6, 2);
     }
 
-    function test_AMaturedRequest_WaitsForThePoliciesItStillBacks() public {
-        vm.prank(owner);
-        pool.setRedeemNotice(5 minutes);
-
+    function test_AMaturedRequest_WaitsForPoliciesTheOracleHasNotClosed() public {
         // A policy is sold against the provider's capital, then the provider asks for all of it back.
         Quote memory q = _quote(holder, KEY, _now() + 60, _now() + 60 + 10 minutes, 30e6, 200e6);
         uint256 id = _buy(q);
@@ -150,8 +147,9 @@ contract LiquidityExitTest is CoverFixture {
         vm.prank(lp);
         pool.requestRedeem(shares, lp, lp);
 
-        // The short notice is over while the policy is still open: what it may yet pay stays in the pool.
-        vm.warp(T0 + 5 minutes);
+        // The notice is over and so is the window, but the oracle never reported it: what the policy may yet
+        // pay stays in the pool.
+        vm.warp(T0 + NOTICE);
         assertEq(pool.claimableRedeemRequest(0, lp), shares);
         assertEq(pool.maxWithdraw(lp), pool.freeAssets());
         assertEq(pool.freeAssets(), pool.totalAssets() - 18_000e6);
@@ -160,13 +158,47 @@ contract LiquidityExitTest is CoverFixture {
         vm.expectRevert(CoverPool.ExposureLocked.selector);
         pool.redeem(shares, lp, lp);
 
-        // Once the window is over and dry, the rest can go.
-        vm.warp(q.end);
+        // Once the window is reported dry, the rest can go.
         _report(KEY, q.start, q.end, 0);
         book.settle(id);
         vm.prank(lp);
         uint256 assets = pool.redeem(shares, lp, lp);
         assertApproxEqAbs(assets, POOL_DEPOSIT + 190e6, 2);
         assertEq(pool.lockedExposure(), 0);
+    }
+
+    function test_TheNoticeCannotBeCutBelowTheCoverHorizon() public {
+        vm.startPrank(owner);
+        vm.expectRevert(CoverPool.NoticeInvalid.selector);
+        pool.setRedeemNotice(12 hours + 30 minutes - 1);
+        pool.setRedeemNotice(12 hours + 30 minutes);
+
+        // To shorten the notice further, the book first has to stop selling that far ahead.
+        book.setDurationBounds(60, 1 hours);
+        book.setMaxHorizon(1 hours);
+        pool.setRedeemNotice(1 hours);
+        vm.stopPrank();
+
+        assertEq(pool.redeemNotice(), book.maxHorizon());
+    }
+
+    /// @dev Whatever window the book sells and whenever a provider then asks to leave, the request matures no
+    /// earlier than the window ends.
+    function testFuzz_ARequestMadeAfterASaleMaturesNoEarlierThanTheCoverEnds(
+        uint256 minutesSeed,
+        uint256 leadSeed,
+        uint256 waitSeed
+    ) public {
+        uint64 duration = 60 * uint64(bound(minutesSeed, 1, 12 hours / 60));
+        uint64 start = _now() + 60 * uint64(bound(leadSeed, 0, (book.maxHorizon() - duration) / 60));
+        uint256 id = _buy(_quote(holder, KEY, start, start + duration, 1, PREMIUM));
+
+        vm.warp(_now() + bound(waitSeed, 0, 2 days));
+        uint256 shares = pool.balanceOf(lp);
+        vm.prank(lp);
+        pool.requestRedeem(shares, lp, lp);
+
+        (,, uint64 claimableAt) = pool.redeemRequests(lp);
+        assertGe(claimableAt, _policy(id).end);
     }
 }

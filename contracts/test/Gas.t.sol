@@ -31,7 +31,10 @@ contract GasTest is CoverFixture {
         index.setForwarder(forwarder, true);
         dollar.mint(newcomer, HOLDER_FUNDS);
         dollar.mint(leaver, 2_000e6);
-        pool.setRedeemNotice(10 minutes);
+        // The notice cannot be shorter than the cover horizon, so the book looks no further than these tests do.
+        book.setDurationBounds(60, 10 minutes);
+        book.setMaxHorizon(15 minutes);
+        pool.setRedeemNotice(15 minutes);
         vm.stopPrank();
 
         // A provider whose redemption request will have matured by the time the tests run.

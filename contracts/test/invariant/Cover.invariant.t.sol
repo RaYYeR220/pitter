@@ -9,12 +9,14 @@ contract CoverInvariantTest is CoverFixture {
 
     function setUp() public override {
         super.setUp();
-        // Policies large enough to run into the pool's caps, and a grace period and a redemption notice short
-        // enough to be reached.
+        // Policies large enough to run into the pool's caps, and a grace period, a cover horizon and a
+        // redemption notice short enough to be reached.
         vm.startPrank(owner);
         book.setMaxPolicyPayout(20_000e6);
         book.setExpiryGrace(1 hours);
-        pool.setRedeemNotice(1 hours);
+        book.setDurationBounds(60, 90 minutes);
+        book.setMaxHorizon(2 hours);
+        pool.setRedeemNotice(2 hours);
         vm.stopPrank();
 
         handler = new CoverHandler(dollar, index, pool, book, owner, underwriterKey, reporterKey);

@@ -3,15 +3,16 @@ pragma solidity ^0.8.30;
 
 import {CoverPool} from "../../src/CoverPool.sol";
 import {BlockableDollar} from "../mocks/BlockableDollar.sol";
+import {BookStub} from "../mocks/BookStub.sol";
 import {Signing} from "./Signing.sol";
 
-/// @dev The pool on its own, with a stand-in account as the book and funded liquidity providers.
+/// @dev The pool on its own, with a stand-in contract as the book and funded liquidity providers.
 abstract contract PoolFixture is Signing {
     BlockableDollar internal dollar;
     CoverPool internal pool;
 
     address internal owner = makeAddr("owner");
-    address internal book = makeAddr("book");
+    address internal book;
     address internal relayer = makeAddr("relayer");
     address internal holder = makeAddr("holder");
     address internal attacker = makeAddr("attacker");
@@ -27,6 +28,8 @@ abstract contract PoolFixture is Signing {
     function setUp() public virtual {
         vm.warp(T0);
         (lp, lpKey) = makeAddrAndKey("lp");
+        book = address(new BookStub());
+        vm.label(book, "book");
         dollar = new BlockableDollar(owner);
         pool = new CoverPool(dollar, owner, "Cover Pool Share", "cvUSD");
         vm.prank(owner);

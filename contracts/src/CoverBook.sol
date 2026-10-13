@@ -10,6 +10,7 @@ import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import {ICoverBook} from "./interfaces/ICoverBook.sol";
 import {ICoverPool} from "./interfaces/ICoverPool.sol";
 import {IERC3009} from "./interfaces/IERC3009.sol";
 import {IWeatherIndex} from "./interfaces/IWeatherIndex.sol";
@@ -31,7 +32,7 @@ import {Quote} from "./Types.sol";
 /// - a policy is never paid more than its maximum payout, and never for time the index has not reported;
 /// - `settledUntil` only moves forward and never passes `end`;
 /// - a key is in the active set exactly while it has an open policy.
-contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient {
+contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient, ICoverBook {
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.UintSet;
 

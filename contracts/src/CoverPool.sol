@@ -11,6 +11,7 @@ import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
+import {ICoverBook} from "./interfaces/ICoverBook.sol";
 import {ICoverPool} from "./interfaces/ICoverPool.sol";
 import {IERC3009} from "./interfaces/IERC3009.sol";
 import {IERC7540Redeem} from "./interfaces/IERC7540Redeem.sol";
@@ -423,9 +424,13 @@ contract CoverPool is ERC4626, Ownable2Step, ReentrancyGuardTransient, ICoverPoo
         emit MaxCellSet(bps);
     }
 
-    /// @notice Sets the redemption notice. Requests already made keep the notice they were given.
+    /// @notice Sets the redemption notice. It may not be shorter than the book's cover horizon: capital that
+    /// asks to leave after a sale has to stay until that cover has ended. Requests already made keep the
+    /// notice they were given.
     function setRedeemNotice(uint64 notice) external onlyOwner {
         if (notice < MIN_REDEEM_NOTICE || notice > MAX_REDEEM_NOTICE) revert NoticeInvalid();
+        address book_ = book;
+        if (book_ != address(0) && notice < ICoverBook(book_).maxHorizon()) revert NoticeInvalid();
         redeemNotice = notice;
         emit RedeemNoticeSet(notice);
     }

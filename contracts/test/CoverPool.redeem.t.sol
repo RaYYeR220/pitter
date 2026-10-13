@@ -7,6 +7,7 @@ import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {CoverPool} from "../src/CoverPool.sol";
 import {IERC7540Redeem} from "../src/interfaces/IERC7540Redeem.sol";
+import {BookStub} from "./mocks/BookStub.sol";
 import {PoolFixture} from "./utils/PoolFixture.sol";
 
 /// @dev Leaving the pool: a redemption is requested, waits out the notice in escrow and is then claimed.
@@ -700,6 +701,25 @@ contract CoverPoolRedeemTest is PoolFixture {
         pool.setRedeemNotice(1 minutes);
         pool.setRedeemNotice(7 days);
         vm.stopPrank();
+    }
+
+    function test_SetRedeemNotice_RevertWhen_ShorterThanTheCoverHorizon() public {
+        BookStub(book).setMaxHorizon(2 hours);
+
+        vm.expectRevert(CoverPool.NoticeInvalid.selector);
+        vm.prank(owner);
+        pool.setRedeemNotice(2 hours - 1);
+
+        vm.prank(owner);
+        pool.setRedeemNotice(2 hours);
+        assertEq(pool.redeemNotice(), 2 hours);
+    }
+
+    function test_SetRedeemNotice_BeforeTheBookIsWiredOnlyTheLimitsApply() public {
+        CoverPool fresh = new CoverPool(dollar, owner, "Cover Pool Share", "cvUSD");
+        vm.prank(owner);
+        fresh.setRedeemNotice(1 minutes);
+        assertEq(fresh.redeemNotice(), 1 minutes);
     }
 
     function test_SetRedeemNotice_RevertWhen_CallerIsNotOwner() public {
