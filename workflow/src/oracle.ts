@@ -1,7 +1,9 @@
 import {
+  type CellObservation,
   type CellTarget,
   type HttpResult,
   type ReportDraft,
+  type RequestFailure,
   type SealedReport,
   type SkippedKey,
   type Verdict,
@@ -83,9 +85,21 @@ export function gasLimitFor(settings: OracleSettings, readings: number): bigint 
 }
 
 /**
- * Turns the answers of the planned requests into one verdict per cell. This is the part of a run that sees raw
- * source data; in a decentralised run every node executes it and the nodes agree on its result.
+ * Turns the answers of the planned requests into one observation per cell: what each source said and the
+ * verdict. This is the part of a run that sees raw source data.
  */
+export function observeResponses(
+  cells: readonly CellTarget[],
+  requests: readonly WeatherRequest[],
+  results: readonly HttpResult[],
+  now: number,
+  thresholdMmPerHour: number,
+): { observations: CellObservation[]; failures: RequestFailure[] } {
+  const { observations, failures } = readResponses(cells, requests, results, now)
+  return { observations: aggregateAll(cells, observations, thresholdMmPerHour), failures }
+}
+
+/** The verdict per cell. In a decentralised run every node computes it and the nodes agree on the result. */
 export function judgeResponses(
   cells: readonly CellTarget[],
   requests: readonly WeatherRequest[],
@@ -93,8 +107,7 @@ export function judgeResponses(
   now: number,
   thresholdMmPerHour: number,
 ): Verdict[] {
-  const { observations } = readResponses(cells, requests, results, now)
-  return aggregateAll(cells, observations, thresholdMmPerHour).map((observation) => observation.verdict)
+  return observeResponses(cells, requests, results, now, thresholdMmPerHour).observations.map((observation) => observation.verdict)
 }
 
 const VERDICT_CODES: Record<Verdict, string> = { wet: 'w', dry: 'd', unknown: 'u' }
