@@ -139,6 +139,7 @@ const position = (overrides: Partial<PoolPosition> = {}): PoolPosition => ({
   shares: 0n,
   value: 0n,
   request: null,
+  blockedByCover: false,
   claimableShares: 0n,
   claimableAssets: 0n,
   dollars: 0n,
@@ -151,7 +152,7 @@ describe('leaving the pool', () => {
     expect(leaveState(position(), T0 * 1000)).toEqual({ phase: 'none' })
     expect(leaveState(position({ shares: 5n, value: 7n }), T0 * 1000)).toEqual({ phase: 'in', shares: 5n, value: 7n })
 
-    const request = { shares: 5n, assetsAtRequest: 7n, claimableAt: T0 + 46_800 }
+    const request = { shares: 5n, assetsAtRequest: 7n, claimableAt: T0 + 46_800, lastPolicyAtRequest: 3n }
     expect(leaveState(position({ request }), T0 * 1000)).toEqual({
       phase: 'waiting',
       shares: 5n,
@@ -164,8 +165,21 @@ describe('leaving the pool', () => {
       claimableShares: 5n,
       claimableAssets: 7n,
       partly: false,
+      blockedByCover: false,
     })
     expect(leaveState(position({ request, claimableShares: 2n }), (T0 + 50_000) * 1000)).toMatchObject({ partly: true })
+  })
+
+  it('says when the notice is over but the cover running at the request still holds it back', () => {
+    const request = { shares: 5n, assetsAtRequest: 7n, claimableAt: T0 + 46_800, lastPolicyAtRequest: 3n }
+    expect(leaveState(position({ request, blockedByCover: true }), (T0 + 46_800) * 1000)).toEqual({
+      phase: 'ready',
+      shares: 5n,
+      claimableShares: 0n,
+      claimableAssets: 0n,
+      partly: true,
+      blockedByCover: true,
+    })
   })
 
   it('detects an account that cannot pay the network fee', () => {
@@ -214,11 +228,12 @@ describe('leaving the pool', () => {
   })
 
   it('names the contract’s reason when the step would fail', async () => {
-    const revert = (errorName: 'NoticeNotOver' | 'ExposureLocked' | 'NoRedeemRequest') => async () => {
-      const data = encodeErrorResult({ abi: coverPoolAbi, errorName })
-      const reverted = new ContractFunctionRevertedError({ abi: coverPoolAbi, data, functionName: 'redeem' })
-      throw new BaseError('execution reverted', { cause: reverted })
-    }
+    const revert =
+      (errorName: 'NoticeNotOver' | 'ExposureLocked' | 'NoRedeemRequest' | 'CoverStillOpen') => async () => {
+        const data = encodeErrorResult({ abi: coverPoolAbi, errorName })
+        const reverted = new ContractFunctionRevertedError({ abi: coverPoolAbi, data, functionName: 'redeem' })
+        throw new BaseError('execution reverted', { cause: reverted })
+      }
     const kindFor = async (name: Parameters<typeof revert>[0]) =>
       (
         (await leavePool('take', 5n, context(chainWith(10n ** 18n, revert(name)))).catch(
@@ -228,6 +243,7 @@ describe('leaving the pool', () => {
     expect(await kindFor('NoticeNotOver')).toBe('notice')
     expect(await kindFor('ExposureLocked')).toBe('locked')
     expect(await kindFor('NoRedeemRequest')).toBe('nothing')
+    expect(await kindFor('CoverStillOpen')).toBe('cover')
   })
 })
 

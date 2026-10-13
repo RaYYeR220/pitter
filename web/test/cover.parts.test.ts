@@ -1,4 +1,5 @@
 import { cellFromLatLon, keyFromLatLon } from '@cover/core/cells'
+import { contractRefusal } from '@cover/core/refusals'
 import { describe, expect, it } from 'vitest'
 import { ScopeError } from '@/lib/account'
 import type { AreaWeather, PolicyRow } from '@/lib/chain/reader'
@@ -152,6 +153,11 @@ describe('refusals', () => {
     [new ServiceFailure(422, 'window_too_long', 'x'), 'too_long', 'never'],
     [new ServiceFailure(422, 'policy_too_large', 'x'), 'too_large', 'never'],
     [new ServiceFailure(422, 'rate_too_high', 'x'), 'rate_too_high', 'never'],
+    [new ServiceFailure(422, 'area_not_served', 'x', { reason: 'AreaNotServed' }), 'area_not_served', 'never'],
+    [new ServiceFailure(409, 'would_revert', 'x', { reason: 'AreaNotServed' }), 'area_not_served', 'never'],
+    [new ServiceFailure(422, 'premium_too_small', 'x', { reason: 'PremiumTooSmall' }), 'too_small', 'never'],
+    [new ServiceFailure(409, 'cover_still_open', 'x', { reason: 'CoverStillOpen' }), 'waiting_for_cover', 'later'],
+    [new ServiceFailure(409, 'would_revert', 'x', { reason: 'CoverStillOpen' }), 'waiting_for_cover', 'later'],
     [
       new ServiceFailure(409, 'would_revert', 'x', { reason: 'ERC20InsufficientBalance' }),
       'insufficient_balance',
@@ -234,6 +240,8 @@ describe('refusals', () => {
       'pool_full',
       'no_more_areas',
       'weather_silent',
+      'area_not_served',
+      'waiting_for_cover',
       'quote_expired',
       'too_small',
       'too_far',
@@ -253,6 +261,17 @@ describe('refusals', () => {
       'unknown',
     ]
     for (const kind of kinds) expect(refusal(kind).message, kind).not.toMatch(banned)
+  })
+
+  it('read the codes the service gives contract errors the same way as the errors themselves', () => {
+    for (const name of ['AreaNotServed', 'CoverStillOpen', 'PremiumTooSmall', 'WindowTooFar']) {
+      const code = contractRefusal(name)!.code
+      const byCode = refusalFrom(new ServiceFailure(422, code, 'x', { reason: name }))
+      const byRevert = refusalFrom(new ServiceFailure(409, 'would_revert', 'x', { reason: name }))
+      expect(byCode.kind, name).toBe(byRevert.kind)
+      expect(byCode.kind, name).not.toMatch(/^(failed|invalid|unknown)$/)
+    }
+    expect(refusal('area_not_served').message).toBe('Cover isn’t offered in your area yet.')
   })
 })
 

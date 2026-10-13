@@ -21,6 +21,10 @@ export type RefusalKind =
   | 'no_more_areas'
   /** The weather sources have gone quiet, so sales are paused. */
   | 'weather_silent'
+  /** Cover is sold only in served areas, and this is not one of them yet. */
+  | 'area_not_served'
+  /** A request to leave the pool waits for the cover that was running when it was made. */
+  | 'waiting_for_cover'
   | 'quote_expired'
   | 'too_small'
   | 'too_far'
@@ -68,6 +72,8 @@ const RETRY: Record<RefusalKind, RetryAdvice> = {
   pool_full: 'never',
   no_more_areas: 'never',
   weather_silent: 'never',
+  area_not_served: 'never',
+  waiting_for_cover: 'later',
   quote_expired: 'now',
   too_small: 'never',
   too_far: 'never',
@@ -98,6 +104,8 @@ const REVERTS: Record<string, RefusalKind> = {
   QuoteUsed: 'already_bought',
   AuthorizationAlreadyUsed: 'already_bought',
   PremiumTooSmall: 'too_small',
+  AreaNotServed: 'area_not_served',
+  CoverStillOpen: 'waiting_for_cover',
   WindowInvalid: 'too_small',
   WindowTooFar: 'too_far',
   LeadTooShort: 'too_soon',
@@ -122,6 +130,9 @@ const CODES: Record<string, RefusalKind> = {
   window_too_far: 'too_far',
   window_too_long: 'too_long',
   window_invalid: 'too_small',
+  premium_too_small: 'too_small',
+  area_not_served: 'area_not_served',
+  cover_still_open: 'waiting_for_cover',
   policy_too_large: 'too_large',
   rate_too_high: 'rate_too_high',
   pricing_unavailable: 'price_unavailable',

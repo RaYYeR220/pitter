@@ -79,7 +79,18 @@ export interface PoolPosition {
   /** What the shares held outside a leave request are worth now. */
   value: bigint
   /** The pending request to leave, if any. */
-  request: { shares: bigint; assetsAtRequest: bigint; claimableAt: number } | null
+  request: {
+    shares: bigint
+    assetsAtRequest: bigint
+    claimableAt: number
+    /** The last cover sold before the request; the request waits until all of it has ended. */
+    lastPolicyAtRequest: bigint
+  } | null
+  /**
+   * Whether the request still waits for cover that was sold before it was made. While it does, nothing can be
+   * taken out, even after the notice.
+   */
+  blockedByCover: boolean
   /** What can be taken out right now. */
   claimableShares: bigint
   claimableAssets: bigint
@@ -391,8 +402,8 @@ export function viemChainReader(
     },
 
     async position(owner) {
-      const [time, shares, request, claimableShares, claimableAssets, dollars, wei] = await read<
-        [bigint, bigint, readonly unknown[], bigint, bigint, bigint, bigint]
+      const [time, shares, request, claimableShares, claimableAssets, dollars, wei, blockedByCover] = await read<
+        [bigint, bigint, readonly unknown[], bigint, bigint, bigint, bigint, boolean]
       >([
         clock,
         pool('balanceOf', [owner]),
@@ -401,6 +412,7 @@ export function viemChainReader(
         pool('maxWithdraw', [owner]),
         dollar('balanceOf', [owner]),
         native(owner),
+        pool('claimBlockedByCover', [owner]),
       ])
       const [value] = shares > 0n ? await read<[bigint]>([pool('convertToAssets', [shares])]) : [0n]
       const field = (name: string) =>
@@ -416,8 +428,10 @@ export function viemChainReader(
                 shares: requested,
                 assetsAtRequest: field('assetsAtRequest'),
                 claimableAt: Number(field('claimableAt')),
+                lastPolicyAtRequest: field('lastPolicyAtRequest'),
               }
             : null,
+        blockedByCover: requested > 0n && Boolean(blockedByCover),
         claimableShares,
         claimableAssets,
         dollars,

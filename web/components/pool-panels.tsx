@@ -126,6 +126,8 @@ function actionProblem(problem: PoolActionProblem | null): string | null {
     case 'notice':
     case 'locked':
       return copy.pool.leave.readyPartly
+    case 'cover':
+      return copy.pool.leave.waitingForCover
     case 'nothing':
     case 'failed':
       return copy.pool.leave.failed
@@ -232,8 +234,14 @@ export function PoolPosition() {
           ) : null}
           {leave.phase === 'ready' ? (
             <>
-              <p>{copy.pool.leave.ready(leave.claimableAssets)}</p>
-              {leave.partly ? <p className="muted">{copy.pool.leave.readyPartly}</p> : null}
+              {leave.blockedByCover ? (
+                <p data-testid="leave-blocked">{copy.pool.leave.waitingForCover}</p>
+              ) : (
+                <>
+                  <p>{copy.pool.leave.ready(leave.claimableAssets)}</p>
+                  {leave.partly ? <p className="muted">{copy.pool.leave.readyPartly}</p> : null}
+                </>
+              )}
               <div className="row">
                 <button
                   type="button"

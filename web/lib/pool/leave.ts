@@ -10,9 +10,17 @@ export type LeaveState =
   | { phase: 'waiting'; shares: bigint; claimableAt: number; remainingMs: number }
   /**
    * The notice is over. `partly` when some of it still backs cover that has not ended and can only be taken
-   * out once that cover is settled.
+   * out once that cover is settled. `blockedByCover` when nothing can be taken out until the cover that was
+   * running when the backer asked has ended.
    */
-  | { phase: 'ready'; shares: bigint; claimableShares: bigint; claimableAssets: bigint; partly: boolean }
+  | {
+      phase: 'ready'
+      shares: bigint
+      claimableShares: bigint
+      claimableAssets: bigint
+      partly: boolean
+      blockedByCover: boolean
+    }
 
 /** `nowMs` is unix milliseconds; the countdown runs against the chain's `claimableAt`. */
 export function leaveState(position: PoolPosition, nowMs: number): LeaveState {
@@ -27,6 +35,7 @@ export function leaveState(position: PoolPosition, nowMs: number): LeaveState {
       claimableShares: position.claimableShares,
       claimableAssets: position.claimableAssets,
       partly: position.claimableShares < request.shares,
+      blockedByCover: position.blockedByCover,
     }
   }
   if (position.shares > 0n) return { phase: 'in', shares: position.shares, value: position.value }

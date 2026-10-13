@@ -230,6 +230,8 @@ export const copy = {
     no_more_areas: 'Cover can’t start in a new area right now. Try again in a few minutes.',
     weather_silent:
       'We can’t confirm the weather right now, so new cover is paused. Cover you already have still pays.',
+    area_not_served: 'Cover isn’t offered in your area yet.',
+    waiting_for_cover: 'You can collect once the cover that was running when you asked has ended.',
     quote_expired: 'That price ran out before it was confirmed. Ask for a fresh one.',
     too_small: 'That is too little cover to start. Choose a longer shift or a higher payout.',
     too_far: 'That shift ends too far ahead. Choose a shorter one.',
@@ -396,6 +398,7 @@ export const copy = {
       waiting: (milliseconds: number) => `You can take your money out in ${formatCountdown(milliseconds)}.`,
       ready: (amount: bigint) => `Your notice is over. You can take out up to ${formatDollars(amount)} now.`,
       readyPartly: 'Part of it is still backing cover that hasn’t finished. Take the rest out when that cover ends.',
+      waitingForCover: 'You can collect once the cover that was running when you asked has ended.',
       take: 'Take my money out',
       cancel: 'Stay in the pool after all',
       asked: 'You have asked to leave.',

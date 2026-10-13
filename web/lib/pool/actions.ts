@@ -62,6 +62,8 @@ export type PoolActionProblem =
   | { kind: 'notice' }
   /** The money is still backing cover. */
   | { kind: 'locked' }
+  /** The request waits for the cover that was running when it was made. */
+  | { kind: 'cover' }
   /** There is nothing to leave with, or no request to act on. */
   | { kind: 'nothing' }
   | { kind: 'failed'; reason: string }
@@ -79,6 +81,7 @@ export class PoolActionError extends Error {
 
 const REVERTS: Record<string, PoolActionProblem['kind']> = {
   NoticeNotOver: 'notice',
+  CoverStillOpen: 'cover',
   ExposureLocked: 'locked',
   ERC4626ExceededMaxRedeem: 'locked',
   ERC4626ExceededMaxWithdraw: 'locked',

@@ -265,14 +265,26 @@ describe('the chain reader', () => {
 
   it('reads a leave request by field name', async () => {
     const outputs = getAbiItem({ abi: coverPoolAbi, name: 'redeemRequests' }).outputs
-    const values: Record<string, bigint> = { shares: 7n, assetsAtRequest: 9n, claimableAt: BigInt(T0 + 100) }
+    const values: Record<string, bigint> = {
+      shares: 7n,
+      assetsAtRequest: 9n,
+      claimableAt: BigInt(T0 + 100),
+      lastPolicyAtRequest: 4n,
+    }
     const { client } = fakeClient(({ functionName }) => {
       if (functionName === 'redeemRequests') return outputs.map((output) => values[output.name] ?? 0n)
+      if (functionName === 'claimBlockedByCover') return true
       if (functionName === 'getCurrentBlockTimestamp') return BigInt(T0)
       return 11n
     })
     const position = await viemChainReader(client, config).position('0x000000000000000000000000000000000000dEaD')
-    expect(position.request).toEqual({ shares: 7n, assetsAtRequest: 9n, claimableAt: T0 + 100 })
+    expect(position.request).toEqual({
+      shares: 7n,
+      assetsAtRequest: 9n,
+      claimableAt: T0 + 100,
+      lastPolicyAtRequest: 4n,
+    })
+    expect(position.blockedByCover).toBe(true)
     expect(encodeAbiParameters(outputs, outputs.map((output) => values[output.name] ?? 0n) as never)).toMatch(/^0x/)
   })
 
