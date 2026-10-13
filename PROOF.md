@@ -65,6 +65,8 @@ address.
 | 11:14 to 11:39 | Later CRE reports, covering 11:09 to 11:39 | [`0xbefbf4dc…9b78a`](https://monadvision.com/tx/0xbefbf4dc4be39fdf25f8fb38deb8b4f091b0819fed0986222c8bbaa41169b78a), [`0xa5289681…4849e`](https://monadvision.com/tx/0xa52896815423f302481863a33a28b81eb335365c1f55299b26970b466ac4849e), [`0x39811d9e…51911`](https://monadvision.com/tx/0x39811d9e6bdcac77043c63988a2d4e4378fbe6ca9d1399265d79479c8e951911), [`0xd007acf1…f1698`](https://monadvision.com/tx/0xd007acf1aaecaafc80c49d0aabe5a53f2c941ec07ff16e97c93059e5e2ef1698), [`0x139936a9…8a9a4`](https://monadvision.com/tx/0x139936a938ed845487c8347e21f9b7fc2e29322a98a4c73a03834aaaa4a8a9a4) | Colombo and Davao wet for every second reported; Warsaw 0 |
 | 11:44:44 | CRE report covering 11:39 to 11:44, the end of both windows | [`0xd1e2c414…28ce61`](https://monadvision.com/tx/0xd1e2c414872e6156ce6394a500191fbbe17bed5ca5e8c3da3665392e4228ce61) | Colombo and Davao 300 wet seconds out of 300; Warsaw 0. The windows of #1 and #2 are now fully reported |
 | 11:44:49 | **Payouts: policies #1 and #2 settled and closed** (`settleMany([1, 2])` sent by the relayer) | [`0xfe2ef821…ec18f1d`](https://monadvision.com/tx/0xfe2ef821a04a6fa2ecd0b1f6f5b10700a3708be3912b202dc2b3aaa0fec18f1d) | two `PolicySettled` events, each paying 27,000 (0.027 USDC, the full maximum) with `closed` true; two USDC transfers from the pool to the holder, whose balance goes from 0.026104 to 0.080104 USDC; `ExposureChanged` takes both areas' reservations to zero. Five seconds after the report that completed the windows |
+| 12:08 to 12:29 | CRE reports for the rest of the Warsaw window | [`0xe4c70915…299c16`](https://monadvision.com/tx/0xe4c70915c5d467029031c72a49eaf9062c427f644ccced007a6e76c013299c16), [`0x6fbef541…613c48`](https://monadvision.com/tx/0x6fbef5410beb942080e24547c5c2bbeffbf3b4b4b866983b6ebabb11f7613c48), [`0x6d2fa6f7…8e61f2`](https://monadvision.com/tx/0x6d2fa6f79c90803dd2f4b591f360e446f88873f83d8844c98647ae5d3e8f61f2), [`0x732b4acb…881046`](https://monadvision.com/tx/0x732b4acb715c303d4845c8bc8b6be82b3f5caa62a187138273db814354881046), [`0x16f67419…0d2be3`](https://monadvision.com/tx/0x16f67419861cd7e90c2d9d0be7fd5df40c1eedc9d8ab2ea483f9504cd70d2be3) | Warsaw dry for every second |
+| 12:29 | **Policy #3 closed dry** (`settleMany([3])`) | [`0x2896f645…97db78`](https://monadvision.com/tx/0x2896f64552de223f48c3db54b26ca1300bfb2c86c091335cca5f5843f097db78) | Paid 0, closed; its 0.198 USDC reservation is released back to the pool |
 
 The policies, as `CoverBook.policies(id)` returns them:
 
@@ -87,9 +89,8 @@ The policies, as `CoverBook.policies(id)` returns them:
   the intended outcome. The cover was bought while rain was already being observed, the price treated it as
   certain rain, and the buyer lost money on a sure thing. A rider covering a shift before the
   rain starts pays the forecast's price instead (policy #3).
-- Policy #3 in dry Warsaw cost 3.2% of its maximum payout, an average 2.6% chance of heavy rain per slot. It
-  is still open at the time of writing and will close dry, or by `expire` if its window is never fully
-  reported.
+- Policy #3 in dry Warsaw cost 3.2% of its maximum payout, an average 2.6% chance of heavy rain per slot. Its
+  whole window was reported dry and it closed with no payout, releasing its reservation.
 
 ## 3. The refusal: no area may hold more than a quarter of the pool
 
