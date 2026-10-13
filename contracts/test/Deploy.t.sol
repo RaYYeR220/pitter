@@ -70,19 +70,55 @@ contract DeployTest is Signing {
         assertEq(d.book.minLead(), 600);
         assertEq(d.book.maxPolicyPayout(), 250e6);
 
-        // Left unset, the notice and the premium floor keep their defaults.
+        // Left unset, the notice, the cover horizon and the premium floor keep their defaults.
         assertEq(d.pool.redeemNotice(), 13 hours);
+        assertEq(d.book.maxHorizon(), 12 hours + 30 minutes);
         assertEq(d.book.minPremium(), 0);
     }
 
-    function test_Deploy_AppliesTheRedemptionNoticeAndThePremiumFloor() public {
+    function test_Deploy_AppliesTheNoticeTheHorizonAndThePremiumFloor() public {
         Deploy.Params memory p = _params();
-        p.redeemNotice = 1 days;
+        p.redeemNotice = 2 days;
+        p.maxHorizon = 1 days;
         p.minPremium = 250_000;
         Deploy.Deployment memory d = script.deploy(p, address(script));
 
-        assertEq(d.pool.redeemNotice(), 1 days);
+        assertEq(d.pool.redeemNotice(), 2 days);
+        assertEq(d.book.maxHorizon(), 1 days);
         assertEq(d.book.minPremium(), 250_000);
+    }
+
+    function test_Deploy_ShortensTheHorizonBeforeTheNotice() public {
+        // Both below their defaults: the notice can only follow the horizon down.
+        Deploy.Params memory p = _params();
+        p.redeemNotice = 12 hours;
+        p.maxHorizon = 12 hours;
+        Deploy.Deployment memory d = script.deploy(p, address(script));
+
+        assertEq(d.pool.redeemNotice(), 12 hours);
+        assertEq(d.book.maxHorizon(), 12 hours);
+    }
+
+    function test_Deploy_RevertWhen_TheHorizonOutlastsTheNotice() public {
+        Deploy.Params memory p = _params();
+        p.maxHorizon = 13 hours + 1;
+        vm.expectRevert(CoverBook.ConfigInvalid.selector);
+        script.deploy(p, address(script));
+
+        // A notice shorter than the horizon the book starts with is refused as well.
+        p.maxHorizon = 0;
+        p.redeemNotice = 12 hours;
+        vm.expectRevert(CoverPool.NoticeInvalid.selector);
+        script.deploy(p, address(script));
+    }
+
+    function test_CheckHorizon_RevertWhen_TheNoticeIsShorterThanTheHorizon() public {
+        Deploy.Deployment memory d = script.deploy(_params(), address(script));
+        script.checkHorizon(d.pool, d.book);
+
+        vm.mockCall(address(d.pool), abi.encodeWithSignature("redeemNotice()"), abi.encode(uint64(12 hours)));
+        vm.expectRevert(abi.encodeWithSelector(Deploy.HorizonBeyondNotice.selector, 12 hours + 30 minutes, 12 hours));
+        script.checkHorizon(d.pool, d.book);
     }
 
     function test_Deploy_OffersOwnershipToAnotherOwner() public {
@@ -184,6 +220,7 @@ contract DeployTest is Signing {
         vm.setEnv("MIN_LEAD", "120");
         vm.setEnv("MAX_POLICY_PAYOUT", "75000000");
         vm.setEnv("REDEEM_NOTICE", "86400");
+        vm.setEnv("MAX_HORIZON", "72000");
         vm.setEnv("MIN_PREMIUM", "250000");
 
         Deploy.Deployment memory d = script.run();
@@ -198,6 +235,7 @@ contract DeployTest is Signing {
         assertEq(d.book.maxPolicyPayout(), 75e6);
         assertEq(d.book.minPremium(), 250_000);
         assertEq(d.pool.redeemNotice(), 1 days);
+        assertEq(d.book.maxHorizon(), 20 hours);
         assertEq(d.book.pendingOwner(), finalOwner);
         assertEq(d.pool.book(), address(d.book));
 
@@ -216,6 +254,7 @@ contract DeployTest is Signing {
         assertEq(vm.parseJsonUint(json, ".minLead"), 120);
         assertEq(vm.parseJsonUint(json, ".maxPolicyPayout"), 75e6);
         assertEq(vm.parseJsonUint(json, ".redeemNotice"), 86_400);
+        assertEq(vm.parseJsonUint(json, ".maxHorizon"), 72_000);
         assertEq(vm.parseJsonUint(json, ".minPremium"), 250_000);
         vm.removeFile(path);
 

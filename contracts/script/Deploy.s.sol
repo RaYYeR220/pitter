@@ -25,6 +25,9 @@ import {WeatherIndex} from "../src/WeatherIndex.sol";
 /// - `MIN_PREMIUM`  optional  smallest premium of one policy in token base units; defaults to none
 /// - `REDEEM_NOTICE` optional  seconds a liquidity provider waits between asking to leave and leaving;
 ///                            defaults to the pool's 13 hours
+/// - `MAX_HORIZON`  optional  seconds ahead of its purchase a policy may end: at least the longest window
+///                            (12 hours), at most the redemption notice; defaults to the book's 12 hours 30
+///                            minutes
 /// - `SHARE_NAME`, `SHARE_SYMBOL` optional  pool share token metadata
 ///
 /// The deployer owns the contracts while wiring them. When `OWNER` is another account, ownership is offered
@@ -45,6 +48,7 @@ contract Deploy is Script {
         uint256 maxPolicyPayout;
         uint128 minPremium;
         uint64 redeemNotice;
+        uint64 maxHorizon;
         string shareName;
         string shareSymbol;
     }
@@ -58,6 +62,7 @@ contract Deploy is Script {
     }
 
     error TokenRequired(uint256 chainId);
+    error HorizonBeyondNotice(uint256 maxHorizon, uint256 redeemNotice);
 
     function run() external returns (Deployment memory d) {
         vm.startBroadcast();
@@ -85,6 +90,7 @@ contract Deploy is Script {
         p.maxPolicyPayout = vm.envOr("MAX_POLICY_PAYOUT", uint256(500e6));
         p.minPremium = uint128(vm.envOr("MIN_PREMIUM", uint256(0)));
         p.redeemNotice = uint64(vm.envOr("REDEEM_NOTICE", uint256(0)));
+        p.maxHorizon = uint64(vm.envOr("MAX_HORIZON", uint256(0)));
         p.shareName = vm.envOr("SHARE_NAME", string("Cover Pool Share"));
         p.shareSymbol = vm.envOr("SHARE_SYMBOL", string("cvUSD"));
         if (bytes(vm.envOr("FORWARDERS", string(""))).length != 0) {
@@ -113,7 +119,12 @@ contract Deploy is Script {
             IERC20(d.token), d.pool, d.index, p.underwriter, p.treasury, p.minLead, p.maxPolicyPayout, deployer
         );
         d.pool.setBook(address(d.book));
+        // The horizon and the notice bound each other: the horizon comes down before the notice and goes up
+        // after it.
+        if (p.maxHorizon != 0 && p.maxHorizon < d.book.maxHorizon()) d.book.setMaxHorizon(p.maxHorizon);
         if (p.redeemNotice != 0) d.pool.setRedeemNotice(p.redeemNotice);
+        if (p.maxHorizon > d.book.maxHorizon()) d.book.setMaxHorizon(p.maxHorizon);
+        checkHorizon(d.pool, d.book);
         if (p.minPremium != 0) d.book.setMinPremium(p.minPremium);
 
         if (p.owner != deployer) {
@@ -122,6 +133,13 @@ contract Deploy is Script {
             d.book.transferOwnership(p.owner);
             if (d.testDollar) TestDollar(d.token).transferOwnership(p.owner);
         }
+    }
+
+    /// @notice Fails unless capital that asks to leave stays at least as long as the book sells cover ahead.
+    function checkHorizon(CoverPool pool, CoverBook book) public view {
+        uint256 horizon = book.maxHorizon();
+        uint256 notice = pool.redeemNotice();
+        if (notice < horizon) revert HorizonBeyondNotice(horizon, notice);
     }
 
     function _write(Deployment memory d, Params memory p, address deployer) internal {
@@ -142,6 +160,7 @@ contract Deploy is Script {
         vm.serializeUint(root, "minLead", p.minLead);
         vm.serializeUint(root, "maxPolicyPayout", p.maxPolicyPayout);
         vm.serializeUint(root, "minPremium", p.minPremium);
+        vm.serializeUint(root, "maxHorizon", d.book.maxHorizon());
         string memory json = vm.serializeUint(root, "redeemNotice", d.pool.redeemNotice());
 
         vm.createDir("deployments", true);
