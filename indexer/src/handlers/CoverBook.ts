@@ -143,3 +143,31 @@ indexer.onEvent({ contract: 'CoverBook', event: 'FeeSet' }, async ({ event, cont
   const pool = await loadPool(context)
   context.PoolState.set({ ...pool, feeBps: Number(event.params.feeBps), updatedAt: event.block.timestamp })
 })
+
+// The book emits `ServedSet` only when a key's mark actually changes.
+indexer.onEvent({ contract: 'CoverBook', event: 'ServedSet' }, async ({ event, context }) => {
+  const { key, served } = event.params
+  const [pool, cell] = await Promise.all([loadPool(context), loadCell(context, key)])
+  const change = cell.served === served ? 0 : served ? 1 : -1
+
+  context.Cell.set({ ...cell, served })
+  context.PoolState.set({ ...pool, servedCells: pool.servedCells + change, updatedAt: event.block.timestamp })
+})
+
+indexer.onEvent({ contract: 'CoverBook', event: 'ServedOnlySet' }, async ({ event, context }) => {
+  const pool = await loadPool(context)
+  context.PoolState.set({ ...pool, servedOnly: event.params.servedOnly, updatedAt: event.block.timestamp })
+})
+
+indexer.onEvent({ contract: 'CoverBook', event: 'Rescued' }, async ({ event, context }) => {
+  const { token, to, amount } = event.params
+  context.Recovery.set({
+    id: `${event.transaction.hash}-${event.logIndex}`,
+    contract: 'CoverBook',
+    token,
+    to,
+    amount,
+    txHash: event.transaction.hash,
+    timestamp: event.block.timestamp,
+  })
+})

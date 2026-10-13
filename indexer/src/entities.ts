@@ -31,6 +31,10 @@ export function loadPool(context: Context): Promise<PoolState> {
     totalWithdrawals: 0n,
     escrowedShares: 0n,
     totalDeferred: 0n,
+    totalSurplus: 0n,
+    treasury: undefined,
+    servedOnly: false,
+    servedCells: 0,
     lossRatio: undefined,
     feeBps: INITIAL_FEE_BPS,
     redeemNotice: INITIAL_REDEEM_NOTICE,
@@ -49,6 +53,7 @@ export function loadDay(context: Context, timestamp: number): Promise<PoolDay> {
     payouts: 0n,
     deposits: 0n,
     withdrawals: 0n,
+    surplus: 0n,
     policiesBought: 0,
     settlements: 0,
     lossRatio: undefined,
@@ -74,6 +79,7 @@ export function loadCell(context: Context, key: bigint): Promise<Cell> {
     wetSeconds: 0n,
     lastWetAt: undefined,
     lastReadingAt: undefined,
+    served: false,
   })
 }
 

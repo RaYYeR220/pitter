@@ -1,7 +1,7 @@
 import type { TestIndexer } from 'envio'
 
 export const CHAIN_ID = 10143
-const START_BLOCK = 70_624_410
+const START_BLOCK = 70_653_032
 
 type ChainRun = NonNullable<Parameters<TestIndexer['process']>[0]['chains'][typeof CHAIN_ID]>
 type Simulated = NonNullable<ChainRun['simulate']>[number]
@@ -147,3 +147,45 @@ export const weatherReported =
 export const heartbeat =
   (timestamp: number): Emitted =>
   ({ block }) => ({ contract: 'WeatherIndex', event: 'Heartbeat', block, params: { timestamp: BigInt(timestamp) } })
+
+export const servedSet =
+  (key: bigint, served: boolean): Emitted =>
+  ({ block }) => ({ contract: 'CoverBook', event: 'ServedSet', block, params: { key, served } })
+
+export const servedOnlySet =
+  (servedOnly: boolean): Emitted =>
+  ({ block }) => ({ contract: 'CoverBook', event: 'ServedOnlySet', block, params: { servedOnly } })
+
+export const rescued =
+  (token: `0x${string}`, to: `0x${string}`, amount: bigint): Emitted =>
+  ({ block, transaction }) => ({
+    contract: 'CoverBook',
+    event: 'Rescued',
+    block,
+    transaction,
+    params: { token, to, amount },
+  })
+
+export const treasurySet =
+  (treasury: `0x${string}`): Emitted =>
+  ({ block }) => ({ contract: 'CoverPool', event: 'TreasurySet', block, params: { treasury } })
+
+export const surplusToTreasury =
+  (controller: `0x${string}`, treasury: `0x${string}`, amount: bigint): Emitted =>
+  ({ block, transaction }) => ({
+    contract: 'CoverPool',
+    event: 'SurplusToTreasury',
+    block,
+    transaction,
+    params: { controller, treasury, amount },
+  })
+
+export const sharesRescued =
+  (to: `0x${string}`, shares: bigint): Emitted =>
+  ({ block, transaction }) => ({
+    contract: 'CoverPool',
+    event: 'SharesRescued',
+    block,
+    transaction,
+    params: { to, shares },
+  })

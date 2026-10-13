@@ -119,6 +119,8 @@ type Cell {
   lastWetAt: Int
   "End of the latest reading, unix seconds."
   lastReadingAt: Int
+  "Marked as served by the owner. While the book sells only in served areas, cover is sold only in these cells."
+  served: Boolean! @index
   policies: [Policy!]! @derivedFrom(field: "cell")
   readings: [WeatherReading!]! @derivedFrom(field: "cell")
 }
@@ -158,6 +160,8 @@ type PoolDay {
   deposits: BigInt!
   "Assets claimed by liquidity providers."
   withdrawals: BigInt!
+  "What capped claims sent to the pool's treasury: shares' value above their value at the request."
+  surplus: BigInt!
   policiesBought: Int!
   settlements: Int!
   "payouts / premiums of the day. Null when no premium was paid."
@@ -189,8 +193,16 @@ type PoolState {
   totalWithdrawals: BigInt!
   "Shares waiting in redemption escrow."
   escrowedShares: BigInt!
-  "Payouts set aside because the token refused the transfer."
+  "Payouts set aside because the token refused the transfer, the treasury's surplus included."
   totalDeferred: BigInt!
+  "What capped claims sent to the pool's treasury: shares' value above their value at the request."
+  totalSurplus: BigInt!
+  "The pool's treasury, which receives that surplus. Null before the pool's deployment is indexed."
+  treasury: String
+  "Whether the book sells cover only in served cells."
+  servedOnly: Boolean!
+  "Cells marked as served."
+  servedCells: Int!
   "totalPayouts / totalPremiums. Null when no premium was paid."
   lossRatio: Float
   "Share of every premium that goes to the treasury, in basis points."
@@ -215,9 +227,32 @@ type RedeemRequest {
   claimedAssets: BigInt!
   "When shares were last added. Adding restarts the notice for the whole request."
   requestedAt: Int!
-  "From when the request can be claimed, unix seconds."
+  "When the notice is over, unix seconds. The request can be claimed from then on, once no older cover is open."
   claimableAt: Int!
+  """
+  The book's policy count when shares were last added. The request waits until every policy up to this id has
+  closed (the pool's `claimBlockedByCover` says whether it still does); zero waits for nothing.
+  """
+  lastPolicyAtRequest: BigInt!
+  "What the claims of this request sent to the pool's treasury instead of the controller."
+  surplus: BigInt!
   status: RedeemRequestStatus! @index
   closedAt: Int
   txHash: String!
+}
+
+"""
+Tokens or pool shares the owner sent back after they reached a contract by mistake.
+"""
+type Recovery {
+  "Transaction hash and log index."
+  id: ID!
+  "`CoverBook` for tokens sent to the book (`Rescued`), `CoverPool` for its own shares sent to the pool (`SharesRescued`)."
+  contract: String!
+  "The token sent back; the pool's address for pool shares."
+  token: String!
+  to: String!
+  amount: BigInt!
+  txHash: String!
+  timestamp: Int!
 }

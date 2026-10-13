@@ -32,6 +32,9 @@ indexer.onEvent({ contract: 'CoverPool', event: 'RedeemRequest' }, async ({ even
     claimedAssets: current?.claimedAssets ?? 0n,
     requestedAt: now,
     claimableAt: now + pool.redeemNotice,
+    // The pool records the book's policy count; every policy bought so far has been indexed before this event.
+    lastPolicyAtRequest: BigInt(pool.policyCount),
+    surplus: current?.surplus ?? 0n,
     status: 'OPEN',
     closedAt: undefined,
     txHash: event.transaction.hash,
@@ -110,6 +113,39 @@ indexer.onEvent({ contract: 'CoverPool', event: 'PayoutDeferred' }, async ({ eve
 
   context.Holder.set({ ...account, deferred: account.deferred + amount, lastActivityAt: now })
   context.PoolState.set({ ...pool, totalDeferred: pool.totalDeferred + amount, updatedAt: now })
+})
+
+indexer.onEvent({ contract: 'CoverPool', event: 'TreasurySet' }, async ({ event, context }) => {
+  const pool = await loadPool(context)
+  context.PoolState.set({ ...pool, treasury: event.params.treasury, updatedAt: event.block.timestamp })
+})
+
+// Emitted right after the claim's `Withdraw`, so the request row is already there.
+indexer.onEvent({ contract: 'CoverPool', event: 'SurplusToTreasury' }, async ({ event, context }) => {
+  const { controller, amount } = event.params
+  const now = event.block.timestamp
+  const [pool, day, request] = await Promise.all([
+    loadPool(context),
+    loadDay(context, now),
+    context.RedeemRequest.get(controller),
+  ])
+
+  if (request) context.RedeemRequest.set({ ...request, surplus: request.surplus + amount })
+  context.PoolDay.set({ ...day, surplus: day.surplus + amount })
+  context.PoolState.set({ ...pool, totalSurplus: pool.totalSurplus + amount, updatedAt: now })
+})
+
+indexer.onEvent({ contract: 'CoverPool', event: 'SharesRescued' }, async ({ event, context }) => {
+  const { to, shares } = event.params
+  context.Recovery.set({
+    id: `${event.transaction.hash}-${event.logIndex}`,
+    contract: 'CoverPool',
+    token: event.srcAddress,
+    to,
+    amount: shares,
+    txHash: event.transaction.hash,
+    timestamp: event.block.timestamp,
+  })
 })
 
 indexer.onEvent({ contract: 'CoverPool', event: 'DeferredClaimed' }, async ({ event, context }) => {

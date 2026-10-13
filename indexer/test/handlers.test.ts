@@ -7,6 +7,12 @@ import {
   exposureChanged,
   feeSet,
   heartbeat,
+  rescued,
+  servedOnlySet,
+  servedSet,
+  sharesRescued,
+  surplusToTreasury,
+  treasurySet,
   payoutDeferred,
   redeemNoticeSet,
   redeemRequestCancelled,
@@ -30,6 +36,10 @@ const LISBON = 18446755128955374937n
 const NEW_YORK = 18446755300754065479n
 const ALICE = '0x00000000000000000000000000000000000a11ce'
 const BOB = '0x0000000000000000000000000000000000000b0b'
+const TREASURY = '0x00000000000000000000000000000000000ca5e5'
+/** The pool's address on the test network, as config.yaml records it. */
+const COVER_POOL = '0x80375eb8be28a7bffb274c2620e9d70fe7e70b9f'
+const SHARE_UNIT = 1_000_000_000_000n
 
 /** Ten minutes of cover over Lisbon at 1000 units a second: at most 600 000, for a premium of 60 000. */
 const tenMinutes = (overrides: Partial<Purchase> = {}): Purchase => ({
@@ -364,6 +374,8 @@ describe.skipIf(process.platform === 'win32')('handlers', () => {
         claimedAssets: 0n,
         requestedAt: T0,
         claimableAt: T0 + NOTICE,
+        lastPolicyAtRequest: 0n,
+        surplus: 0n,
         status: 'OPEN',
         closedAt: undefined,
         txHash: hash,
@@ -435,6 +447,42 @@ describe.skipIf(process.platform === 'win32')('handlers', () => {
       })
     })
 
+    it('remembers the cover a request waits for: every policy bought before it', async () => {
+      const { indexer, mine } = await startChain()
+      await mine(T0, bought(tenMinutes()))
+      await mine(T0 + 60, bought(tenMinutes({ id: 2n })), redeemRequested(BOB, 400n * SHARE))
+      expect((await indexer.RedeemRequest.getOrThrow(BOB)).lastPolicyAtRequest).toBe(2n)
+
+      await mine(T0 + 120, bought(tenMinutes({ id: 3n })))
+      expect((await indexer.RedeemRequest.getOrThrow(BOB)).lastPolicyAtRequest).toBe(2n)
+
+      // Adding to the request makes all of it wait for the cover sold until then.
+      await mine(T0 + 180, redeemRequested(BOB, 100n * SHARE))
+      expect((await indexer.RedeemRequest.getOrThrow(BOB)).lastPolicyAtRequest).toBe(3n)
+    })
+
+    it('counts what a capped claim sends to the treasury, for the request, the day and the pool', async () => {
+      const { indexer, mine } = await startChain()
+      const matured = T0 + NOTICE
+      await mine(T0, redeemRequested(BOB, 400n * SHARE))
+      await mine(matured, withdrawn(BOB, 400_000_000n, 400n * SHARE), surplusToTreasury(BOB, TREASURY, 7_000n))
+
+      expect(await indexer.RedeemRequest.getOrThrow(BOB)).toMatchObject({
+        status: 'CLAIMED',
+        claimedAssets: 400_000_000n,
+        surplus: 7_000n,
+      })
+      expect((await indexer.PoolDay.getOrThrow('2026-10-12')).surplus).toBe(7_000n)
+      expect(await indexer.PoolState.getOrThrow('pool')).toMatchObject({
+        totalWithdrawals: 400_000_000n,
+        totalSurplus: 7_000n,
+      })
+
+      // A new request starts its own count.
+      await mine(matured + HOUR, redeemRequested(BOB, 10n * SHARE))
+      expect((await indexer.RedeemRequest.getOrThrow(BOB)).surplus).toBe(0n)
+    })
+
     it('returns the shares on a cancellation and starts over on the next request', async () => {
       const { indexer, mine } = await startChain()
       await mine(T0, redeemRequested(BOB, 400n * SHARE))
@@ -488,6 +536,90 @@ describe.skipIf(process.platform === 'win32')('handlers', () => {
     })
   })
 
+  describe('served areas', () => {
+    it('marks the cells the owner serves and counts them', async () => {
+      const { indexer, mine } = await startChain()
+      await mine(T0, servedSet(LISBON, true), servedSet(NEW_YORK, true), servedOnlySet(true))
+
+      expect(await indexer.Cell.getOrThrow(LISBON.toString())).toMatchObject({
+        served: true,
+        lat: 38.725,
+        lon: -9.125,
+        openPolicies: 0,
+      })
+      expect(await indexer.PoolState.getOrThrow('pool')).toMatchObject({ servedOnly: true, servedCells: 2 })
+
+      await mine(T0 + 60, servedSet(NEW_YORK, false), servedOnlySet(false))
+      expect((await indexer.Cell.getOrThrow(NEW_YORK.toString())).served).toBe(false)
+      expect(await indexer.PoolState.getOrThrow('pool')).toMatchObject({ servedOnly: false, servedCells: 1 })
+    })
+
+    it('keeps the open cover of a cell that stops being served', async () => {
+      const { indexer, mine } = await startChain()
+      await mine(T0, servedSet(LISBON, true), bought(tenMinutes()))
+      await mine(T0 + 60, servedSet(LISBON, false))
+
+      expect(await indexer.Cell.getOrThrow(LISBON.toString())).toMatchObject({ served: false, openPolicies: 1 })
+    })
+
+    it('starts every cell unserved', async () => {
+      const { indexer, mine } = await startChain()
+      await mine(T0, bought(tenMinutes()))
+
+      expect((await indexer.Cell.getOrThrow(LISBON.toString())).served).toBe(false)
+      expect(await indexer.PoolState.getOrThrow('pool')).toMatchObject({ servedOnly: false, servedCells: 0 })
+    })
+  })
+
+  describe('the treasury and recoveries', () => {
+    it('follows the pool treasury', async () => {
+      const { indexer, mine } = await startChain()
+      await mine(T0, treasurySet(TREASURY))
+      expect((await indexer.PoolState.getOrThrow('pool')).treasury).toBe(TREASURY)
+
+      await mine(T0 + 60, treasurySet(BOB))
+      expect((await indexer.PoolState.getOrThrow('pool')).treasury).toBe(BOB)
+    })
+
+    it('sets aside a surplus the token refused the treasury, like a payout', async () => {
+      const { indexer, mine } = await startChain()
+      await mine(T0, redeemRequested(BOB, 400n * SHARE_UNIT))
+      await mine(
+        T0 + NOTICE,
+        withdrawn(BOB, 400_000_000n, 400n * SHARE_UNIT),
+        surplusToTreasury(BOB, TREASURY, 7_000n),
+        payoutDeferred(TREASURY, 7_000n),
+      )
+
+      expect(await indexer.PoolState.getOrThrow('pool')).toMatchObject({ totalSurplus: 7_000n, totalDeferred: 7_000n })
+      expect((await indexer.Holder.getOrThrow(TREASURY)).deferred).toBe(7_000n)
+    })
+
+    it('records tokens and shares the owner sent back', async () => {
+      const { indexer, mine } = await startChain()
+      const book = await mine(T0, rescued(ALICE, BOB, 5_000n))
+      const pool = await mine(T0 + 60, sharesRescued(BOB, 3n * SHARE_UNIT))
+
+      expect(await indexer.Recovery.getOrThrow(`${book}-0`)).toEqual({
+        id: `${book}-0`,
+        contract: 'CoverBook',
+        token: ALICE,
+        to: BOB,
+        amount: 5_000n,
+        txHash: book,
+        timestamp: T0,
+        chainId: CHAIN_ID,
+      })
+      expect(await indexer.Recovery.getOrThrow(`${pool}-0`)).toMatchObject({
+        contract: 'CoverPool',
+        token: COVER_POOL,
+        to: BOB,
+        amount: 3n * SHARE_UNIT,
+        timestamp: T0 + 60,
+      })
+    })
+  })
+
   describe('the daily roll-up', () => {
     it('splits premiums, fees, payouts and liquidity by UTC day', async () => {
       const { indexer, mine } = await startChain()
@@ -521,6 +653,7 @@ describe.skipIf(process.platform === 'win32')('handlers', () => {
           payouts: 90_000n,
           deposits: 5_000_000n,
           withdrawals: 0n,
+          surplus: 0n,
           policiesBought: 1,
           settlements: 1,
           lossRatio: 1.5,
@@ -534,6 +667,7 @@ describe.skipIf(process.platform === 'win32')('handlers', () => {
           payouts: 0n,
           deposits: 0n,
           withdrawals: 2_000_000n,
+          surplus: 0n,
           policiesBought: 1,
           settlements: 0,
           lossRatio: 0,
@@ -547,6 +681,7 @@ describe.skipIf(process.platform === 'win32')('handlers', () => {
           payouts: 30_000n,
           deposits: 0n,
           withdrawals: 0n,
+          surplus: 0n,
           policiesBought: 0,
           settlements: 1,
           lossRatio: undefined,

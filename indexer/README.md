@@ -10,8 +10,8 @@ The queries the app runs are in [queries.md](./queries.md).
 
 | Contract | Events | Rows they write |
 |---|---|---|
-| `CoverBook` | `PolicyBought`, `PolicySettled`, `FeeSet` | `Policy`, `Settlement`, totals on `Holder`, `Cell`, `PoolDay`, `PoolState` |
-| `CoverPool` | `ExposureChanged`, `Deposit`, `Withdraw`, `RedeemRequest`, `RedeemRequestCancelled`, `RedeemNoticeSet`, `PayoutDeferred`, `DeferredClaimed` | exposure on `Cell` and `PoolState`, liquidity on `PoolDay`, `RedeemRequest`, deferred payouts on `Holder` |
+| `CoverBook` | `PolicyBought`, `PolicySettled`, `FeeSet`, `ServedSet`, `ServedOnlySet`, `Rescued` | `Policy`, `Settlement`, totals on `Holder`, `Cell`, `PoolDay`, `PoolState`, served areas on `Cell` and `PoolState`, `Recovery` |
+| `CoverPool` | `ExposureChanged`, `Deposit`, `Withdraw`, `RedeemRequest`, `RedeemRequestCancelled`, `RedeemNoticeSet`, `PayoutDeferred`, `DeferredClaimed`, `TreasurySet`, `SurplusToTreasury`, `SharesRescued` | exposure on `Cell` and `PoolState`, liquidity and the treasury's surplus on `PoolDay` and `PoolState`, `RedeemRequest`, deferred payouts on `Holder`, `Recovery` |
 | `WeatherIndex` | `WeatherReported`, `Heartbeat` | `WeatherReading`, last wet and last reading on `Cell`, the heartbeat on `PoolState` |
 
 - `schema.graphql` describes every entity and field; the descriptions show up in the API.
@@ -21,6 +21,15 @@ The queries the app runs are in [queries.md](./queries.md).
 - The events do not carry the protocol fee or the redemption notice. `PoolState` starts from the values the
   contracts are deployed with (500 basis points, 13 hours) and follows `FeeSet` and `RedeemNoticeSet`.
 - A settlement of a policy the indexer never saw bought stops it: the start block is wrong.
+- `RedeemRequest.lastPolicyAtRequest` is the number of policies indexed when shares were last added, which is
+  the `policyCount` the pool records. Whether older cover still holds the request back depends on the book's
+  `oldestOpenId`, which no event carries: read `claimBlockedByCover(controller)` from the pool.
+- A served area is a `Cell` with `served: true`; marking a key creates its row even before any cover is sold
+  there. `PoolState.servedOnly` says whether the book sells only there.
+- A surplus the token refused the treasury is a deferred payout like any other: it shows on the `Holder` row
+  of the treasury's address and in `PoolState.totalDeferred`.
+- The book's own `TreasurySet` (where fees go) is not indexed: the book does not emit it at deployment, so
+  the indexer could not know the first one.
 
 ```
 config.yaml        contracts, events and one entry per chain

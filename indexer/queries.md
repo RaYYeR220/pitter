@@ -201,6 +201,10 @@ query Pool($chainId: Int!, $days: Int = 30) {
     totalWithdrawals
     escrowedShares
     totalDeferred
+    totalSurplus
+    treasury
+    servedOnly
+    servedCells
     lossRatio
     feeBps
     redeemNotice
@@ -214,6 +218,7 @@ query Pool($chainId: Int!, $days: Int = 30) {
     payouts
     deposits
     withdrawals
+    surplus
     policiesBought
     settlements
     lossRatio
@@ -230,6 +235,31 @@ without activity have no row, so fill the gaps on the client. `premiums` include
 received `premiums - fees`. `lossRatio` is `payouts / premiums` and is `null` when no premium was paid. Payouts
 are counted on the day they are settled, which can be a later day than the premium. Balances the events do not
 carry (total assets, share price, free assets) come from the pool contract.
+
+## Served areas
+
+While the book sells only in served areas (`servedOnly`), cover is sold only in the cells marked `served`.
+
+```graphql
+query ServedAreas($chainId: Int!) {
+  Cell(where: { chainId: { _eq: $chainId }, served: { _eq: true } }, limit: 1000) {
+    id
+    lat
+    lon
+    openPolicies
+  }
+  PoolState_by_pk(chainId: $chainId, id: "pool") {
+    servedOnly
+    servedCells
+  }
+}
+```
+
+```json
+{ "chainId": 10143 }
+```
+
+With `servedOnly` false every cell is on sale and the list only says where the owner intends to sell.
 
 ## Latest weather readings for a cell
 
@@ -281,6 +311,8 @@ query RedeemRequests($chainId: Int!, $controller: String!) {
     claimedAssets
     requestedAt
     claimableAt
+    lastPolicyAtRequest
+    surplus
     status
     txHash
   }
@@ -296,7 +328,9 @@ query RedeemRequests($chainId: Int!, $controller: String!) {
 { "chainId": 10143, "controller": "0x0000000000000000000000000000000000000b0b" }
 ```
 
-The request can be claimed once the clock passes `claimableAt`; until then it is pending. `shares` are the shares
+The request can be claimed once the clock passes `claimableAt` and every policy up to `lastPolicyAtRequest` has
+closed; until then it is pending. The second condition depends on the book's `oldestOpenId`, which no event
+carries, so ask the pool: `claimBlockedByCover(controller)` is true while older cover holds the request back. `shares` are the shares
 still in escrow. What they are worth is priced at the claim, so read `maxWithdraw(controller)` from the pool for
 the amount. Drop the `id` filter to list every open request, for example ordered by `claimableAt`.
 
