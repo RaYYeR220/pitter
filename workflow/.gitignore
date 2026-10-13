@@ -1,0 +1,5 @@
+binary.wasm
+*.wasm
+.cre_build_tmp.*
+.workflow-temp-*
+.env
