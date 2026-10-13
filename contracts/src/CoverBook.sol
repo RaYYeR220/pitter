@@ -6,6 +6,7 @@ import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
@@ -224,7 +225,7 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient {
         IERC3009(address(token)).receiveWithAuthorization(
             q.holder, address(this), q.premium, validAfter, validBefore, digest, v, r, s
         );
-        if (token.balanceOf(address(this)) - balanceBefore != q.premium) revert PremiumNotReceived();
+        if (token.balanceOf(address(this)) < balanceBefore + q.premium) revert PremiumNotReceived();
 
         (uint256 fee, uint256 net) = _split(q.premium);
         if (fee != 0) token.safeTransfer(treasury, fee);
@@ -399,6 +400,7 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient {
         if (block.timestamp > q.expiry) revert QuoteExpired();
         if (!SignatureChecker.isValidSignatureNowCalldata(underwriter, digest, quoteSig)) revert BadQuoteSignature();
         if (quoteUsed[digest]) revert QuoteUsed();
+        if (q.holder == address(0)) revert ZeroAddress();
 
         if (q.start % MINUTE != 0 || q.end % MINUTE != 0 || q.end <= q.start) revert WindowInvalid();
         uint64 duration = q.end - q.start;
@@ -456,7 +458,7 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient {
             paid = _payout(p, settledUntil, upTo, remaining);
             settledUntil = upTo;
             p.settledUntil = upTo;
-            if (paid != 0) p.paid += uint128(paid);
+            if (paid != 0) p.paid += SafeCast.toUint128(paid);
         } else if (!expiring) {
             return 0;
         }
@@ -478,7 +480,7 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient {
     function _confirmedUntil(uint256 key, uint64 end) private view returns (uint64 upTo) {
         upTo = index.lastTo(key);
         if (upTo > end) upTo = end;
-        if (upTo > block.timestamp) upTo = uint64(block.timestamp);
+        if (upTo > block.timestamp) upTo = SafeCast.toUint64(block.timestamp);
     }
 
     /// @dev Payout for the wet seconds confirmed in `[from, to]`, never more than `remaining`. The index

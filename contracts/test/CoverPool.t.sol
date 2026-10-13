@@ -199,6 +199,8 @@ contract CoverPoolTest is Signing {
 
         _lock(KEY, 200e6);
         _lock(OTHER_KEY, 50e6);
+        vm.expectEmit(address(pool));
+        emit CoverPool.ExposureChanged(KEY, 250e6, 300e6);
         _lock(KEY, 50e6);
 
         assertEq(pool.lockedExposure(), 300e6);
@@ -302,6 +304,8 @@ contract CoverPoolTest is Signing {
         _deposit(lp, 1_000e6);
         _lock(KEY, 200e6);
 
+        vm.expectEmit(address(pool));
+        emit CoverPool.ExposureChanged(KEY, 50e6, 50e6);
         vm.prank(book);
         pool.release(KEY, 150e6);
 
@@ -332,6 +336,8 @@ contract CoverPoolTest is Signing {
         _deposit(lp, 1_000e6);
         _lock(KEY, 200e6);
 
+        vm.expectEmit(address(pool));
+        emit CoverPool.ExposureChanged(KEY, 80e6, 80e6);
         vm.prank(book);
         pool.pay(holder, KEY, 120e6);
 
@@ -340,6 +346,18 @@ contract CoverPoolTest is Signing {
         assertEq(pool.cellExposure(KEY), 80e6);
         assertEq(pool.totalAssets(), 880e6);
         assertEq(pool.freeAssets(), 800e6);
+    }
+
+    function test_Pay_ZeroAmountMovesNothing() public {
+        _deposit(lp, 1_000e6);
+        _lock(KEY, 200e6);
+
+        vm.prank(book);
+        pool.pay(holder, KEY, 0);
+
+        assertEq(dollar.balanceOf(holder), 0);
+        assertEq(pool.lockedExposure(), 200e6);
+        assertEq(pool.deferred(holder), 0);
     }
 
     function test_Pay_RevertWhen_CallerIsNotTheBook() public {

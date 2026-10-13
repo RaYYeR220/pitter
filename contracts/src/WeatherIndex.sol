@@ -7,6 +7,7 @@ import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {IReceiver} from "./interfaces/IReceiver.sol";
 import {IWeatherIndex} from "./interfaces/IWeatherIndex.sol";
 import {Reading} from "./Types.sol";
@@ -88,7 +89,9 @@ contract WeatherIndex is IReceiver, IWeatherIndex, EIP712, Ownable2Step {
     error MaxReportAgeInvalid();
 
     /// @param initialOwner Account that manages forwarders, the reporter key and the report limits.
-    /// @param reporter_ Key whose signature authenticates reports.
+    /// @param reporter_ Key whose signature authenticates reports. Zero leaves every signed path closed until
+    /// the owner sets one.
+    // forge-lint: disable-next-line(missing-zero-check)
     constructor(address initialOwner, address reporter_) EIP712("WeatherIndex", "1") Ownable(initialOwner) {
         reporter = reporter_;
         emit ReporterSet(reporter_);
@@ -166,11 +169,14 @@ contract WeatherIndex is IReceiver, IWeatherIndex, EIP712, Ownable2Step {
 
     /// @notice Allows or removes a forwarder for `onReport`.
     function setForwarder(address forwarder, bool allowed) external onlyOwner {
+        // forge-lint: disable-next-line(missing-events-access-control)
         isForwarder[forwarder] = allowed;
         emit ForwarderSet(forwarder, allowed);
     }
 
-    /// @notice Replaces the reporter key. Reports signed by the previous key stop being accepted.
+    /// @notice Replaces the reporter key. Reports signed by the previous key stop being accepted. Setting the
+    /// zero address closes every signed path, which is the way to stop a leaked key before a new one exists.
+    // forge-lint: disable-next-line(missing-zero-check)
     function setReporter(address reporter_) external onlyOwner {
         reporter = reporter_;
         emit ReporterSet(reporter_);
@@ -212,7 +218,7 @@ contract WeatherIndex is IReceiver, IWeatherIndex, EIP712, Ownable2Step {
         }
 
         lastIssuedAt = issuedAt;
-        heartbeat = uint64(block.timestamp);
+        heartbeat = SafeCast.toUint64(block.timestamp);
 
         uint256 count = readings.length;
         for (uint256 i = 0; i < count; ++i) {
@@ -226,8 +232,8 @@ contract WeatherIndex is IReceiver, IWeatherIndex, EIP712, Ownable2Step {
     function _record(Reading memory reading) private {
         Checkpoint[] storage timeline = _checkpoints[reading.key];
         uint256 n = timeline.length;
-        uint64 last;
-        uint192 cumulative;
+        uint64 last = 0;
+        uint192 cumulative = 0;
         if (n != 0) {
             Checkpoint storage tip = timeline[n - 1];
             last = tip.timestamp;

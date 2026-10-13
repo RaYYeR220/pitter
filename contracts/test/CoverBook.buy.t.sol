@@ -260,6 +260,15 @@ contract CoverBookBuyTest is CoverFixture {
         assertEq(book.policyCount(), 1);
     }
 
+    function test_Buy_RevertWhen_HolderIsZero() public {
+        Quote memory q = _quote(address(0), KEY, _now(), _now() + 10 minutes, RATE, PREMIUM);
+        bytes memory signature = _signQuote(q);
+
+        vm.expectRevert(CoverBook.ZeroAddress.selector);
+        vm.prank(holder);
+        book.buy(q, signature);
+    }
+
     function test_Buy_IdenticalTermsWithAnotherSaltAreANewQuote() public {
         Quote memory first = _standardQuote(60);
         Quote memory second = _copy(first);

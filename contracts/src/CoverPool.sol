@@ -54,6 +54,9 @@ contract CoverPool is ERC4626, Ownable2Step, ReentrancyGuardTransient, ICoverPoo
     /// @notice Sum of all deferred payouts. Excluded from `totalAssets`.
     uint256 public totalDeferred;
 
+    /// @notice The exposure reserved for `key` changed. Carries the new per-cell and global totals.
+    event ExposureChanged(uint256 indexed key, uint256 cellExposure, uint256 lockedExposure);
+
     event BookSet(address indexed book);
     event MaxUtilizationSet(uint256 bps);
     event MaxCellSet(uint256 bps);
@@ -102,6 +105,7 @@ contract CoverPool is ERC4626, Ownable2Step, ReentrancyGuardTransient, ICoverPoo
         if (cell > assets * maxCellBps / BPS) revert CellCapExceeded();
         lockedExposure = locked;
         cellExposure[key] = cell;
+        emit ExposureChanged(key, cell, locked);
     }
 
     /// @inheritdoc ICoverPool
@@ -116,7 +120,7 @@ contract CoverPool is ERC4626, Ownable2Step, ReentrancyGuardTransient, ICoverPoo
     ///
     /// A caller cannot force the deferral by starving the transfer of gas: the call receives 63/64 of the
     /// remaining gas, and the 1/64 left after an out-of-gas transfer cannot pay for the storage writes below.
-    function pay(address to, uint256 key, uint256 amount) external onlyBook nonReentrant {
+    function pay(address to, uint256 key, uint256 amount) external nonReentrant onlyBook {
         _reduceExposure(key, amount);
         if (amount == 0) return;
         if (!IERC20(asset()).trySafeTransfer(to, amount)) {
@@ -209,12 +213,15 @@ contract CoverPool is ERC4626, Ownable2Step, ReentrancyGuardTransient, ICoverPoo
     ) external nonReentrant returns (uint256 shares) {
         shares = previewDeposit(assets);
 
+        // Assets in before shares out, as in a plain deposit; the reentrancy guard covers the token call.
         IERC20 token = IERC20(asset());
         uint256 balanceBefore = token.balanceOf(address(this));
+        // forge-lint: disable-start(reentrancy-no-eth)
         IERC3009(address(token)).receiveWithAuthorization(
             receiver, address(this), assets, validAfter, validBefore, nonce, v, r, s
         );
-        if (token.balanceOf(address(this)) - balanceBefore != assets) revert DepositNotReceived();
+        // forge-lint: disable-end(reentrancy-no-eth)
+        if (token.balanceOf(address(this)) < balanceBefore + assets) revert DepositNotReceived();
 
         _mint(receiver, shares);
         emit Deposit(msg.sender, receiver, assets, shares);
@@ -251,9 +258,12 @@ contract CoverPool is ERC4626, Ownable2Step, ReentrancyGuardTransient, ICoverPoo
         uint256 locked = lockedExposure;
         if (amount > cell || amount > locked) revert ExposureUnderflow();
         unchecked {
-            cellExposure[key] = cell - amount;
-            lockedExposure = locked - amount;
+            cell -= amount;
+            locked -= amount;
         }
+        cellExposure[key] = cell;
+        lockedExposure = locked;
+        emit ExposureChanged(key, cell, locked);
     }
 
     function _decimalsOffset() internal pure override returns (uint8) {
