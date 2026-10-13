@@ -1,4 +1,5 @@
 import { coverBookAbi, coverPoolAbi } from '@cover/core/abi'
+import { contractRefusal } from '@cover/core/refusals'
 import {
   HttpRequestError,
   decodeFunctionData,
@@ -14,6 +15,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { quoteToJson, type SignedQuote } from '../../src/quote/engine'
 import { relayHandlers } from '../../src/relay/handlers'
 import { InclusionUnknown } from '../../src/relayer/errors'
+import { MAX_RELAY_GAS, settleManyGas } from '../../src/relayer/gas'
 import { selectorOf } from '../../src/relayer/allowlist'
 import type { RelayLog } from '../../src/relayer/rpc'
 import { T0, fakePolicy } from '../helpers/fakes'
@@ -239,6 +241,28 @@ describe('POST /relay/buy', () => {
     h.rpc.revertWith = null
     expect((await buy(payload)).status).toBe(200)
     expect(h.rpc.sent).toHaveLength(1)
+  })
+
+  it('answers the refusals a buyer can act on under codes of their own', async () => {
+    const payload = await buyBody()
+    const cases = [
+      ['AreaNotServed', 422, 'area_not_served'],
+      ['PremiumTooSmall', 422, 'premium_too_small'],
+      ['WindowTooFar', 422, 'window_too_far'],
+    ] as const
+    for (const [errorName, status, code] of cases) {
+      h.rpc.revertWith = encodeErrorResult({ abi: coverBookAbi, errorName })
+
+      const response = await buy(payload)
+      const { error } = await body(response)
+
+      expect(response.status, errorName).toBe(status)
+      expect(error.code, errorName).toBe(code)
+      // The same code the shared package gives the error, and the contract's name for it.
+      expect(error.code, errorName).toBe(contractRefusal(errorName)?.code)
+      expect(error.details.reason, errorName).toBe(errorName)
+    }
+    expect(h.rpc.sent).toHaveLength(0)
   })
 
   it('reports a used quote as a refusal, not as a payment', async () => {
@@ -620,6 +644,31 @@ describe('POST /relay/settle', () => {
 
     expect(await body(response)).toEqual({ transactionHash: null, settled: [], skipped: ['1'] })
     expect(h.rpc.sent).toHaveLength(0)
+  })
+
+  it('settles in one transaction only as many closes as fit its gas, and skips the rest', async () => {
+    for (let id = 1n; id <= 10n; id++) {
+      h.reader.policyRows.set(id, fakePolicy(id, { key }))
+      h.reader.claimableAmounts.set(id, 1_000n)
+    }
+
+    const result = await body(await settle({ ids: Array.from({ length: 10 }, (_, i) => i + 1) }))
+
+    const call = h.rpc.simulated[0]!
+    const decoded = decodeFunctionData({ abi: coverBookAbi, data: call.data })
+    expect(decoded.args?.[0]).toEqual([1n, 2n, 3n, 4n, 5n, 6n])
+    expect(call.gas).toBe(settleManyGas(6, 6))
+    expect(call.gas).toBeLessThanOrEqual(MAX_RELAY_GAS)
+    expect(result.skipped).toEqual(['7', '8', '9', '10'])
+  })
+
+  it('budgets a payout that cannot close yet without the walk of a close', async () => {
+    h.reader.policyRows.set(1n, fakePolicy(1n, { key, start: T0 + 600, end: T0 + 1_800, settledUntil: T0 + 600 }))
+    h.reader.claimableAmounts.set(1n, 1_000n)
+
+    await settle({ ids: [1] })
+
+    expect(h.rpc.simulated[0]!.gas).toBe(settleManyGas(1, 0))
   })
 
   it('answers 404 for a policy that does not exist', async () => {

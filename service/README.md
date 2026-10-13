@@ -28,7 +28,7 @@ each handler for hosts that route themselves.
 | `POST` | `/relay/buy` | holder's signature | `{ quote, quoteSig, validAfter, validBefore, v, r, s }` → `buyWithAuthorization`. Returns the transaction and the policy id. |
 | `POST` | `/relay/deposit` | provider's signature | `{ assets, receiver, nonce, validAfter, validBefore, v, r, s }` → pool `depositWithAuthorization`. |
 | `POST` | `/relay/transfer` | sender's signature | `{ from, to, value, nonce, validAfter, validBefore, v, r, s }` → token `transferWithAuthorization` (cash-out). |
-| `POST` | `/relay/settle` | open, rate-limited | `{ ids }` (at most 10) → `settleMany` for the policies with something to settle; sends nothing otherwise. |
+| `POST` | `/relay/settle` | open, rate-limited | `{ ids }` (at most 10) → one `settleMany` for the policies with something to settle, as many as fit one transaction's gas (six that close); the rest come back in `skipped` and can be asked for again. Sends nothing when nothing is due. |
 | `POST`, `GET` | `/cron/tick` | `x-cron-secret` or bearer token | One keeper run: weather report, then settlements. |
 | `POST` | `/v1/cover` | x402 payment | `{ lat, lon, start, end, rate, holder }`. Answers 402 with the price; with a `PAYMENT-SIGNATURE` header it settles the payment and buys the policy for `holder`. |
 | `PUT`, `GET` | `/blobs/:address/:name` | owner's EIP-712 signature | Stores and returns opaque bytes. |
@@ -43,10 +43,11 @@ expected to handle:
 |---|---|---|
 | `invalid_request`, `invalid_json` | 400 | The request failed validation; `details.issues` lists the fields. |
 | `authorization_invalid`, `authorization_expired`, `quote_signature_invalid` | 400 | A signature does not match the terms it is presented with. |
-| `window_invalid`, `window_too_soon`, `window_too_long`, `window_too_far`, `rate_too_high`, `policy_too_large` | 422 | The cover asked for is not on offer. |
+| `window_invalid`, `window_too_soon`, `window_too_long`, `window_too_far`, `rate_too_high`, `policy_too_large`, `premium_too_small` | 422 | The cover asked for is not on offer. |
+| `area_not_served` | 422 | The book sells only in served areas and this cell is not one of them (`AreaNotServed`). |
 | `capacity_exhausted`, `too_many_cells` | 409 | The pool cannot back it now; `details.capacity` says how much room there is. |
 | `oracle_stale` | 503 | The weather index has not reported recently; sales are paused. |
-| `would_revert` | 409 | The transaction would fail on chain; `details.reason` is the contract's error. Nothing was sent. |
+| `would_revert` | 409 | The transaction would fail on chain; `details.reason` is the contract's error. Nothing was sent. `AreaNotServed`, `PremiumTooSmall`, `WindowTooFar` and `CoverStillOpen` come back under their own codes instead (`area_not_served`, `premium_too_small`, `window_too_far`, `cover_still_open`), with the same `details.reason`. |
 | `quote_expired`, `in_progress`, `reverted` | 409 | Ask for a new quote; wait for the first request; or the transaction was included and failed. |
 | `relay_pending` | 504 | Sent, not confirmed in time; `details.transactionHash` can be checked later. |
 | `relayer_unfunded`, `relayer_busy`, `gas_price_too_high`, `rpc_unavailable` | 502/503 | The relayer cannot send right now. A user with gas can call the contracts directly. |
@@ -60,11 +61,14 @@ the contracts offer no signed variant, so a liquidity provider sends those trans
 ## How the pieces work
 
 **Quotes.** A quote is signed only if the book would accept it at that moment: minute-aligned window, within
-the duration bounds and the cover horizon, starting after the lead time, rate under `QUOTE_MAX_RATE_PER_SECOND`,
-maximum payout within the policy limit and within what the pool has free in total and in the cell (measured on
-`activeAssets`), and a fresh oracle heartbeat. The premium comes from the pricing model in `@cover/core` and is
-floored at the book's `minPremium` and at `QUOTE_MIN_PREMIUM_BPS` of the maximum payout. A quote expires after
-`QUOTE_TTL_SECONDS`, and never later than the last moment the book would still take it.
+the duration bounds and the cover horizon, starting after the lead time, in a served area while the book sells
+only there (`area_not_served` otherwise), rate under `QUOTE_MAX_RATE_PER_SECOND`, maximum payout within the
+policy limit and within what the pool has free in total and in the cell (measured on `activeAssets`), and a
+fresh oracle heartbeat. The premium comes from the pricing model in `@cover/core` and is floored at the book's
+`minPremium` and at `QUOTE_MIN_PREMIUM_BPS` of the maximum payout. A quote expires after `QUOTE_TTL_SECONDS`, and
+never later than the last moment the book would still take it. The book's `servedOnly` switch and its served
+keys are read at most once a minute, so an area the owner has just added or removed can be judged by the old
+list for that long; the book itself has the last word.
 
 The pricing model reads the cell's forecast and what the settlement sources report there right now, both through
 the same `@cover/core` helpers the keeper uses. While a source reports rain, the slots of the coming hour are
@@ -92,8 +96,9 @@ the chain and open a gap.
 |---|---|---|---|
 | `buyWithAuthorization` | cover book | 700,000 | 520,278 (first policy of a new cell) |
 | `buy` (paid cover only) | cover book | 640,000 | 454,680 |
-| `settleMany(n)` | cover book | 90,000 + 190,000 n | 189,525 for one payout |
-| `expire` | cover book | 500,000 | 137,993 with nothing to pay; allows for the close walking `oldestOpenId` |
+| `settleMany(n)` | cover book | 160,000 + 150,000 n + 272,000 per policy that may close | 498,113 for one payout that closes, frees its cell and walks `oldestOpenId` 32 steps; 2,398,416 for six of them; 167,930 for a payout that does not close |
+| `expire` | cover book | 560,000 | 485,764 for a payout, a close and a walk of 32 steps |
+| `syncOldestOpen(steps)` | cover book | 50,000 + 8,500 per step, at most 320 steps | 30,732 with nothing to walk, 166,566 for 16 steps, 432,294 for 48 |
 | `depositWithAuthorization` | cover pool | 280,000 | 178,777 |
 | `transferWithAuthorization` | token | 160,000 | 103,023 |
 | `approve` (paid cover only, spender must be the book) | token | 90,000 | 52,103 |
@@ -104,21 +109,33 @@ Monad charges for the limit, not for the gas used, so the limits are measured wo
 native USDC rather than round numbers. The measurements are from the integration tests below and agree with
 `contracts/snapshots/Gas.json`.
 
+Closing a policy walks the book's `oldestOpenId` forward over up to 32 closed policies, a cold storage read
+(8,304 gas) each, so every policy that may close (its window is over, or ends within two minutes) is budgeted
+272,000 for that walk. Six such closes fit under the 3,000,000 a relay may ask for; a longer batch is cut into
+several transactions, so no batch is refused on every tick for its gas. `test/integration/gas.test.ts` builds
+the worst case on a local Monad chain (every close walks 32 steps, pays an address that held nothing and
+frees its cell) and checks it against these limits; `GAS_REPORT=<file>` writes the measurements out. Leaving
+the pool is not relayed; for reference, `requestRedeem` measures 181,266, a claim (`redeem`) 121,557,
+`cancelRedeemRequest` 70,641, and the reads behind it 30,806 to 58,544 (`claimBlockedByCover` the most).
+
 **Keeper.** A tick reads the cells with open cover, asks the weather module in `@cover/core` about them and
 about one reference cell, and submits readings only for cells on which enough sources agreed, chained from
 each cell's last reported minute and signed by the reporter key. With no answer from any source it submits
-nothing, the heartbeat ages and the book stops selling. It then settles the policies that have a payout due or
-a fully reported window, in batches, and closes with `expire` the policies whose window ended more than the
-book's `expiryGrace` ago without the oracle reporting all of it (`expire` pays what was reported, then
-releases the rest of the exposure). Schedule it every five minutes; `KEEPER_FIRST_READING_SECONDS` should
-equal the interval.
+nothing, the heartbeat ages and the book stops selling. Then, when policies closed out of order have left the
+book's `oldestOpenId` behind the oldest policy the keeper has seen open, it walks the mark up with
+`syncOldestOpen` (at most `KEEPER_SYNC_STEPS` steps per tick): a provider's exit waits for that mark to pass the
+cover sold before the request. It then settles the policies that have a payout due or a fully reported window,
+in batches, and closes with `expire` the policies whose window ended more than the book's `expiryGrace` ago
+without the oracle reporting all of it (`expire` pays what was reported, then releases the rest of the
+exposure). Schedule it every five minutes; `KEEPER_FIRST_READING_SECONDS` should equal the interval.
 
 The keeper walks the book with a cursor kept in the state store: every policy below its low mark is closed,
 and each tick reads the next `KEEPER_SCAN_LIMIT` ids, wrapping back to the low mark at the end. A policy that
 stays open holds the low mark back but not the walk, so every open policy is read at least once every
 `ceil((policyCount - low + 1) / KEEPER_SCAN_LIMIT)` ticks. Per tick the keeper reads at most
-`KEEPER_SCAN_LIMIT` policies and sends one report per `KEEPER_MAX_READINGS_PER_REPORT` readings, one
-`settleMany` per `KEEPER_SETTLE_BATCH` due policies, and at most `KEEPER_EXPIRE_PER_TICK` expiries.
+`KEEPER_SCAN_LIMIT` policies and sends one report per `KEEPER_MAX_READINGS_PER_REPORT` readings, at most one
+`syncOldestOpen`, one `settleMany` per `KEEPER_SETTLE_BATCH` due policies (fewer when their closes would not fit
+one transaction's gas), and at most `KEEPER_EXPIRE_PER_TICK` expiries.
 
 **Paid cover (x402).** `exact` scheme on `eip155:<chainId>` in the dollar token, paid to the relayer address.
 The order is: price → verify with the facilitator → check the book would sell → settle → buy. A payment is
@@ -199,7 +216,10 @@ The integration tests start `anvil --network monad`, deploy the contracts with `
 (test dollar included) and run the service in-process against it: faucet → gasless deposit → heartbeat → quote
 → relayed purchase → signed weather report → payouts and close, checking every balance; the over-cap sale and
 the stale heartbeat are refused; and a cover purchase is paid with the x402 client and settled by the x402
-facilitator logic running locally. Weather and pricing are stand-ins there; nothing touches a public network.
+facilitator logic running locally. A third suite builds a book of about 400 policies whose oldest-open mark
+lags far behind, measures the worst-case settlement, expiry and catch-up against the gas limits, has the keeper
+catch the mark up, measures leaving the pool, and turns on served areas to see a quote refused and a purchase
+made in one. Weather and pricing are stand-ins there; nothing touches a public network.
 `anvil` is looked up on `PATH` and under `~/.foundry`; set `ANVIL_BIN` or `FORGE_BIN` to choose one.
 
 ## Security notes

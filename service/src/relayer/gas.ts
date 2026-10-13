@@ -4,9 +4,10 @@
  * Monad charges for the gas limit, not for the gas used, so a limit is a price. Each one is the worst case
  * measured for the call plus headroom, and none is higher than it has to be. The measurements come from two
  * places that agree: `contracts/snapshots/Gas.json` (isolated transactions under the Monad gas schedule,
- * intrinsic cost included) and the receipts of the service's integration tests on a local Monad chain, which
- * also see the very first use of each storage slot. Both use the test dollar; native USDC adds a proxy hop
- * and its own checks to every token call, which the headroom allows for.
+ * intrinsic cost included) and the service's integration tests on a local Monad chain (`test/integration`),
+ * which also see the very first use of each storage slot and build the worst cases on purpose. Both use the
+ * test dollar; native USDC adds a proxy hop and its own checks to every token call, which the headroom allows
+ * for.
  *
  * The limits are fixed here on purpose: nothing a caller sends can raise what a relay costs.
  */
@@ -29,25 +30,78 @@ export const APPROVE_GAS = 90_000n
 /** Measured 109,468 for the first drip, 92,468 afterwards. */
 export const DRIP_GAS = 150_000n
 
-/**
- * `expire` of one policy: pays what was reported, closes it and releases the rest of its exposure. Measured
- * 137,993 with nothing to pay; a payout and close is 218,722 in the snapshot. Closing also walks the book's
- * `oldestOpenId` over up to 32 closed policies, one cold storage read each, which the limit allows for. Expiry
- * is rare, and the relayer simulates at this limit, so a budget that falls short is refused before it is sent.
- */
-export const EXPIRE_GAS = 500_000n
-
 /** No relayed call may ask for more than this. */
 export const MAX_RELAY_GAS = 3_000_000n
 
 /**
- * `settleMany` over `count` policies. Measured 189,525 for one payout; snapshot 218,722 for a payout that
- * closes its policy and 339,112 for a mixed batch of three. Each further policy can touch a different
- * holder, cell and timeline, so it is budgeted close to a full settlement rather than at the marginal cost
- * the mixed batch shows.
+ * Closing a policy walks the book's `oldestOpenId` forward over the policies that closed before it, at most
+ * this many (`OLDEST_OPEN_STEPS` in the book).
  */
-export function settleManyGas(count: number): bigint {
-  return 90_000n + 190_000n * BigInt(count)
+export const OLDEST_OPEN_STEPS_PER_CLOSE = 32
+
+/** One step of that walk: a cold read of the next policy. Measured 8,304 per step under the Monad schedule. */
+export const OLDEST_OPEN_STEP_GAS = 8_500n
+
+/** What one close may spend walking the mark: 32 cold steps, 272,000. */
+export const CLOSE_WALK_GAS = OLDEST_OPEN_STEP_GAS * BigInt(OLDEST_OPEN_STEPS_PER_CLOSE)
+
+/**
+ * `expire` of one policy: pays what was reported, closes it, frees the last slot of its cell, releases the rest
+ * of its exposure and walks the mark 32 steps. Measured 473,970 for exactly that.
+ */
+export const EXPIRE_GAS = 560_000n
+
+const SETTLE_BASE_GAS = 160_000n
+const SETTLE_POLICY_GAS = 150_000n
+
+/**
+ * `settleMany` over `count` policies, `closing` of which may close. Every policy is budgeted as a payout to an
+ * address that held nothing in a cell of its own, and every close as one that frees its cell and walks the
+ * mark the full 32 steps. Measured: 498,113 for one such policy, 378,686 for each further one (3,527,599 for
+ * nine); a payout that does not close is the same less the walk.
+ *
+ * Closing policies are not cheap to budget: more than six of them do not fit under `MAX_RELAY_GAS`, so a
+ * batch has to be cut to size with `settlementBatches` before it is sent.
+ */
+export function settleManyGas(count: number, closing: number = count): bigint {
+  const closes = Math.min(Math.max(closing, 0), count)
+  return SETTLE_BASE_GAS + SETTLE_POLICY_GAS * BigInt(count) + CLOSE_WALK_GAS * BigInt(closes)
+}
+
+/**
+ * Cuts settlements into `settleMany` batches, in order: at most `maxCount` each, and never one whose gas limit
+ * is above `MAX_RELAY_GAS`, which the relayer would refuse on every tick.
+ */
+export function settlementBatches<T>(items: readonly T[], mayClose: (item: T) => boolean, maxCount: number): T[][] {
+  const batches: T[][] = []
+  let batch: T[] = []
+  let closing = 0
+  for (const item of items) {
+    const closes = mayClose(item) ? 1 : 0
+    if (
+      batch.length > 0 &&
+      (batch.length >= maxCount || settleManyGas(batch.length + 1, closing + closes) > MAX_RELAY_GAS)
+    ) {
+      batches.push(batch)
+      batch = []
+      closing = 0
+    }
+    batch.push(item)
+    closing += closes
+  }
+  if (batch.length > 0) batches.push(batch)
+  return batches
+}
+
+/** Most steps one `syncOldestOpen` may be asked to walk: what fits under `MAX_RELAY_GAS`. */
+export const MAX_SYNC_STEPS = 320
+
+/**
+ * `syncOldestOpen(steps)`: one cold read per step and one write of the mark. Measured 30,732 with nothing to
+ * walk, 166,566 for 16 steps and 432,294 for 48.
+ */
+export function syncOldestOpenGas(steps: number): bigint {
+  return 50_000n + OLDEST_OPEN_STEP_GAS * BigInt(Math.max(steps, 0))
 }
 
 /**

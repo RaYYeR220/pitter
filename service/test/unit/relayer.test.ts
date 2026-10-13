@@ -25,7 +25,17 @@ import {
   RelayerUnavailable,
   SimulationReverted,
 } from '../../src/relayer/errors'
-import { MAX_RELAY_GAS, settleManyGas, submitGas } from '../../src/relayer/gas'
+import {
+  CLOSE_WALK_GAS,
+  EXPIRE_GAS,
+  MAX_RELAY_GAS,
+  MAX_SYNC_STEPS,
+  settleManyGas,
+  settlementBatches,
+  submitGas,
+  syncOldestOpenGas,
+} from '../../src/relayer/gas'
+import { MAX_SETTLE_IDS } from '../../src/validation'
 import { MemoryNonceStore } from '../../src/relayer/nonces'
 import { Relayer } from '../../src/relayer/relayer'
 import { FakeRpc, T0, nonceTooLow } from '../helpers/fakes'
@@ -88,6 +98,7 @@ describe('allow-list', () => {
       buy: coverBookAbi as Abi,
       settleMany: coverBookAbi as Abi,
       expire: coverBookAbi as Abi,
+      syncOldestOpen: coverBookAbi as Abi,
       depositWithAuthorization: coverPoolAbi as Abi,
       transferWithAuthorization: testDollarAbi as Abi,
       approve: testDollarAbi as Abi,
@@ -143,9 +154,33 @@ describe('allow-list', () => {
         'expire',
         'settleMany',
         'submit',
+        'syncOldestOpen',
         'transferWithAuthorization',
       ].sort(),
     )
+  })
+
+  it('lets the keeper walk the oldest-open mark only as far as one relay can pay for', () => {
+    const { calls } = setup()
+    const allowlist = buildAllowlist({
+      contracts,
+      x402: { enabled: false, facilitatorUrl: '', maxTimeoutSeconds: 120 },
+      sandbox: { enabled: false, simulatorKey: null },
+    })
+
+    for (const steps of [1, 32, MAX_SYNC_STEPS]) {
+      const call = calls.syncOldestOpen(steps)
+      expect(allowlist.check(call.to, call.data).name).toBe('syncOldestOpen')
+      expect(call.gas).toBe(syncOldestOpenGas(steps))
+      expect(call.gas).toBeLessThanOrEqual(MAX_RELAY_GAS)
+    }
+    // Asked for more, it walks what fits.
+    expect(calls.syncOldestOpen(10_000).gas).toBe(syncOldestOpenGas(MAX_SYNC_STEPS))
+    const tooFar = encodeFunctionData({
+      abi: parseAbi(['function syncOldestOpen(uint256 maxSteps)']),
+      args: [BigInt(MAX_SYNC_STEPS + 1)],
+    })
+    expect(() => allowlist.check(contracts.coverBook, tooFar)).toThrow(/arguments_not_allowed/)
   })
 
   it('only allows approving the cover book', () => {
@@ -166,12 +201,47 @@ describe('allow-list', () => {
 })
 
 describe('gas limits', () => {
-  it('grow with the batch and stay under the relay maximum', () => {
-    expect(settleManyGas(1)).toBe(280_000n)
-    expect(settleManyGas(10)).toBeLessThanOrEqual(MAX_RELAY_GAS)
+  it('budget every close for a walk of the oldest-open mark over 32 closed policies', () => {
+    // Measured on a local Monad chain (test/integration/gas.test.ts): 498,113 for one payout that closes,
+    // frees its cell and walks 32 steps; 378,686 for each further one; 473,970 for such an expiry.
+    expect(settleManyGas(1)).toBe(582_000n)
+    expect(settleManyGas(1)).toBeGreaterThan(498_113n)
+    expect(settleManyGas(9)).toBeGreaterThan(498_113n + 8n * 378_686n)
+    expect(settleManyGas(1, 0)).toBe(310_000n)
+    expect(settleManyGas(3, 1)).toBe(settleManyGas(3, 0) + CLOSE_WALK_GAS)
+    expect(settleManyGas(2, 5)).toBe(settleManyGas(2, 2))
+    expect(CLOSE_WALK_GAS).toBeGreaterThan(32n * 8_304n)
+    expect(EXPIRE_GAS).toBeGreaterThan(473_970n)
+    expect(syncOldestOpenGas(48)).toBeGreaterThan(432_294n)
+    expect(syncOldestOpenGas(MAX_SYNC_STEPS)).toBeLessThanOrEqual(MAX_RELAY_GAS)
+    expect(settleManyGas(10, 0)).toBeLessThanOrEqual(MAX_RELAY_GAS)
     expect(submitGas({ known: 0, fresh: 0 })).toBe(75_000n)
     expect(submitGas({ known: 0, fresh: 20 })).toBeLessThanOrEqual(MAX_RELAY_GAS)
     expect(submitGas({ known: 20, fresh: 0 })).toBeLessThan(submitGas({ known: 0, fresh: 20 }))
+  })
+
+  it('cut any batch the keeper or a client can ask for into transactions the relayer accepts', () => {
+    // Ten closes do not fit one transaction: sent as one, they would be refused on every tick.
+    expect(settleManyGas(10, 10)).toBeGreaterThan(MAX_RELAY_GAS)
+
+    for (let count = 1; count <= MAX_SETTLE_IDS; count++) {
+      for (let closing = 0; closing <= count; closing++) {
+        const items = Array.from({ length: count }, (_, i) => ({ id: i, closes: i < closing }))
+        const batches = settlementBatches(items, (item) => item.closes, MAX_SETTLE_IDS)
+        expect(batches.flat()).toEqual(items)
+        for (const batch of batches) {
+          expect(batch.length).toBeGreaterThan(0)
+          expect(settleManyGas(batch.length, batch.filter((item) => item.closes).length)).toBeLessThanOrEqual(
+            MAX_RELAY_GAS,
+          )
+        }
+      }
+    }
+    const closes = Array.from({ length: 10 }, (_, i) => i)
+    expect(settlementBatches(closes, () => true, 10).map((batch) => batch.length)).toEqual([6, 4])
+    expect(settlementBatches(closes, () => false, 10).map((batch) => batch.length)).toEqual([10])
+    expect(settlementBatches(closes, () => false, 4).map((batch) => batch.length)).toEqual([4, 4, 2])
+    expect(settlementBatches([], () => true, 4)).toEqual([])
   })
 })
 

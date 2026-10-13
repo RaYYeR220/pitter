@@ -53,6 +53,14 @@ export interface Oracle {
   lastIssuedAt: bigint
 }
 
+/** Where the book sells cover. */
+export interface ServedAreas {
+  /** Whether cover is sold only for served keys. */
+  servedOnly: boolean
+  /** The served keys; read only while `servedOnly` is on, empty otherwise. */
+  keys: ReadonlySet<bigint>
+}
+
 export interface TokenDomain {
   name: string
   version: string
@@ -65,6 +73,10 @@ export interface CoverReader {
   head(): Promise<Head>
   market(key: bigint): Promise<Market>
   policyCount(): Promise<bigint>
+  /** The book's `oldestOpenId`: every policy below it is closed. Null for a book without the mark. */
+  oldestOpenId(): Promise<bigint | null>
+  /** Whether the book sells only in served areas, and which ones those are. */
+  servedAreas(): Promise<ServedAreas>
   /** Seconds after the end of its window at which a policy may be expired. */
   expiryGrace(): Promise<number>
   policies(ids: readonly bigint[]): Promise<Policy[]>
@@ -98,6 +110,8 @@ export function viemCoverReader(
   const assetsFunction = hasFunction(abis.coverPool, 'activeAssets') ? 'activeAssets' : 'totalAssets'
   const hasMinPremium = hasFunction(abis.coverBook, 'minPremium')
   const hasMaxHorizon = hasFunction(abis.coverBook, 'maxHorizon')
+  const hasOldestOpen = hasFunction(abis.coverBook, 'oldestOpenId')
+  const hasServedAreas = hasFunction(abis.coverBook, 'servedOnly') && hasFunction(abis.coverBook, 'servedKeys')
   let domain: Promise<TokenDomain> | undefined
 
   const read = <T>(address: Address, abi: Abi, functionName: string, args: readonly unknown[], blockNumber?: bigint) =>
@@ -196,6 +210,17 @@ export function viemCoverReader(
     },
 
     policyCount: () => book<bigint>('policyCount'),
+
+    oldestOpenId: async () => (hasOldestOpen ? BigInt(await book<bigint>('oldestOpenId')) : null),
+
+    async servedAreas() {
+      if (!hasServedAreas) return { servedOnly: false, keys: new Set() }
+      const at = await head()
+      const servedOnly = await book<boolean>('servedOnly', [], at.number)
+      // While it is on the book holds no more served keys than cell slots, so the list stays short.
+      const keys = servedOnly ? await book<readonly bigint[]>('servedKeys', [], at.number) : []
+      return { servedOnly, keys: new Set(keys.map((key) => BigInt(key))) }
+    },
 
     expiryGrace: async () => Number(await book<bigint>('expiryGrace')),
 

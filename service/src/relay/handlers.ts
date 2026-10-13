@@ -5,10 +5,17 @@ import { readJson } from '../http/body'
 import { ServiceError, badRequest, conflict, notFound } from '../http/errors'
 import { limitByAddress, limitByIp, perWindow, requireMethod } from '../http/request'
 import { json, type Handler } from '../http/respond'
+import { settlementBatches } from '../relayer/gas'
 import type { RelayResult } from '../relayer/relayer'
 import type { Json } from '../stores/ledger'
 import { enforceLimits } from '../stores/rateLimiter'
-import { relayBuySchema, relayDepositSchema, relaySettleSchema, relayTransferSchema } from '../validation'
+import {
+  MAX_SETTLE_IDS,
+  relayBuySchema,
+  relayDepositSchema,
+  relaySettleSchema,
+  relayTransferSchema,
+} from '../validation'
 import { assertAuthorization } from './erc3009'
 import { relayFailure } from './reverts'
 import { NothingToSettle, findSettleable } from './settleable'
@@ -181,11 +188,14 @@ export function relayHandlers(context: Context): RelayHandlers {
       const nothing = () => json({ transactionHash: null, settled: [], skipped: ids.map(String) })
       const settleable = await findSettleable(reader, await reader.policies(ids))
       if (settleable.length === 0) return nothing()
-      const due = settleable.map((entry) => entry.policy.id)
+      // One transaction: the first policies that fit its gas; the rest are skipped and can be asked for again.
+      const [batch = []] = settlementBatches(settleable, (entry) => entry.mayClose, MAX_SETTLE_IDS)
+      const due = batch.map((entry) => entry.policy.id)
+      const closing = batch.filter((entry) => entry.mayClose).length
 
       let receipt: RelayResult
       try {
-        receipt = await relayer.execute(calls.settleMany(due), {
+        receipt = await relayer.execute(calls.settleMany(due, closing), {
           before: async () => {
             const still = await findSettleable(reader, await reader.policies(due))
             if (still.length === 0) throw new NothingToSettle()

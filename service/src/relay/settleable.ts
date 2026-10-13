@@ -6,7 +6,15 @@ export interface Settleable {
   claimable: bigint
   /** Whether the settlement would also close the policy. */
   closes: boolean
+  /**
+   * Whether a settlement sent now could close it: it would, or its window is over (or about to be) and a report
+   * landing first would finish it. A close walks the book's oldest-open mark and is budgeted for that.
+   */
+  mayClose: boolean
 }
+
+/** How far ahead of the chain clock a window's end counts as over, for budgeting a close. */
+const CLOSE_SLACK_SECONDS = 120
 
 /**
  * Of the given policies, those a settlement would change: there is a payout to push, or the whole window has
@@ -30,7 +38,8 @@ export async function findSettleable(reader: CoverReader, policies: readonly Pol
     if (confirmedUntil <= policy.settledUntil) return
     const amount = claimable[i] ?? 0n
     const closes = confirmedUntil === policy.end
-    if (amount > 0n || closes) result.push({ policy, claimable: amount, closes })
+    const mayClose = closes || policy.end <= head.timestamp + CLOSE_SLACK_SECONDS
+    if (amount > 0n || closes) result.push({ policy, claimable: amount, closes, mayClose })
   })
   return result
 }

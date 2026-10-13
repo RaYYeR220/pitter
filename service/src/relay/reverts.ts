@@ -31,6 +31,24 @@ function sanitize(reason: string): string {
   return reason.replace(/[^A-Za-z0-9 :._-]/g, '').slice(0, 96)
 }
 
+/**
+ * Contract errors a client can act on, answered under a code of their own instead of `would_revert`; the
+ * contract's error stays in `details.reason`. The codes are the ones `@cover/core/refusals` gives them.
+ */
+const REVERT_REFUSALS: Record<string, [status: number, code: string, message: string]> = {
+  AreaNotServed: [422, 'area_not_served', 'Cover is not sold in this area yet'],
+  PremiumTooSmall: [422, 'premium_too_small', 'The premium is below the smallest the book accepts'],
+  WindowTooFar: [422, 'window_too_far', 'The window ends further ahead than cover is sold for'],
+  CoverStillOpen: [409, 'cover_still_open', 'The request can be collected once the cover sold before it has ended'],
+}
+
+/** The answer for a call that would revert with `reason`: its own code when it has one, else `would_revert`. */
+export function revertRefusal(reason: string, message = 'The transaction would fail'): ServiceError {
+  const known = Object.prototype.hasOwnProperty.call(REVERT_REFUSALS, reason) ? REVERT_REFUSALS[reason] : undefined
+  if (known) return new ServiceError(known[0], known[1], known[2], { details: { reason } })
+  return conflict('would_revert', `${message}: ${reason}`, { reason })
+}
+
 const UNAVAILABLE: Record<RelayerUnavailable['reason'], [code: string, message: string]> = {
   chain_mismatch: ['relayer_misconfigured', 'The relayer is not available'],
   unfunded: ['relayer_unfunded', 'The relayer is out of funds; transactions can still be sent directly'],
@@ -45,8 +63,7 @@ const UNAVAILABLE: Record<RelayerUnavailable['reason'], [code: string, message: 
 export function relayFailure(error: unknown, abis: ContractAbis): unknown {
   if (error instanceof ServiceError) return error
   if (error instanceof SimulationReverted) {
-    const reason = describeRevert(error.data, abis)
-    return conflict('would_revert', `The transaction would fail: ${reason}`, { reason })
+    return revertRefusal(describeRevert(error.data, abis))
   }
   if (error instanceof RelayRefused) return forbidden('relay_refused', 'The relayer does not pay for this call')
   if (error instanceof RelayerUnavailable) {

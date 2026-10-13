@@ -19,9 +19,11 @@ import {
   DEPOSIT_WITH_AUTHORIZATION_GAS,
   DRIP_GAS,
   EXPIRE_GAS,
+  MAX_SYNC_STEPS,
   TRANSFER_WITH_AUTHORIZATION_GAS,
   settleManyGas,
   submitGas,
+  syncOldestOpenGas,
 } from '../relayer/gas'
 import type { RelayCall } from '../relayer/relayer'
 import type { Authorization, Quote } from '../types'
@@ -33,6 +35,7 @@ const HOME: Record<RelayedFunction, keyof ContractAbis> = {
   buy: 'coverBook',
   settleMany: 'coverBook',
   expire: 'coverBook',
+  syncOldestOpen: 'coverBook',
   depositWithAuthorization: 'coverPool',
   transferWithAuthorization: 'token',
   approve: 'token',
@@ -41,6 +44,7 @@ const HOME: Record<RelayedFunction, keyof ContractAbis> = {
 }
 
 const approveAbi = parseAbi(['function approve(address spender, uint256 amount)'])
+const syncAbi = parseAbi(['function syncOldestOpen(uint256 maxSteps)'])
 
 /**
  * The relayer's allow-list for this deployment. Purchases paid by the relayer itself and the token approval
@@ -52,6 +56,10 @@ export function buildAllowlist(settings: Pick<Settings, 'contracts' | 'x402' | '
     .allow(coverBook, 'buyWithAuthorization')
     .allow(coverBook, 'settleMany')
     .allow(coverBook, 'expire')
+    .allow(coverBook, 'syncOldestOpen', (data) => {
+      const { args } = decodeFunctionData({ abi: syncAbi, data })
+      return args[0] >= 1n && args[0] <= BigInt(MAX_SYNC_STEPS)
+    })
     .allow(coverPool, 'depositWithAuthorization')
     .allow(token, 'transferWithAuthorization')
     .allow(weatherIndex, 'submit')
@@ -109,11 +117,25 @@ export class Calls {
     return { to: this.contracts.coverBook, data: this.encode('buy', [quote, quoteSig]), gas: BUY_GAS }
   }
 
-  settleMany(ids: readonly bigint[]): RelayCall {
+  /**
+   * `settleMany` over `ids`, budgeted for `closing` of them to close (all of them unless told otherwise). Cut a
+   * longer list with `settlementBatches` first: past `MAX_RELAY_GAS` the relayer refuses the call.
+   */
+  settleMany(ids: readonly bigint[], closing: number = ids.length): RelayCall {
     return {
       to: this.contracts.coverBook,
       data: this.encode('settleMany', [ids]),
-      gas: settleManyGas(ids.length),
+      gas: settleManyGas(ids.length, closing),
+    }
+  }
+
+  /** Walks the book's `oldestOpenId` forward over closed policies, at most `steps` of them. */
+  syncOldestOpen(steps: number): RelayCall {
+    const bounded = Math.min(Math.max(Math.floor(steps), 1), MAX_SYNC_STEPS)
+    return {
+      to: this.contracts.coverBook,
+      data: this.encode('syncOldestOpen', [BigInt(bounded)]),
+      gas: syncOldestOpenGas(bounded),
     }
   }
 

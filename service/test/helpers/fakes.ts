@@ -1,6 +1,6 @@
 import type { Address, Hex } from 'viem'
 import { parseEther, parseGwei, zeroAddress } from 'viem'
-import type { CoverReader, Head, Market, Oracle, Policy, TokenDomain } from '../../src/chain/reader'
+import type { CoverReader, Head, Market, Oracle, Policy, ServedAreas, TokenDomain } from '../../src/chain/reader'
 import type { Logger } from '../../src/http/respond'
 import type { Price, PriceRequest, Pricing, ReadingsRequest, WeatherReporter } from '../../src/ports'
 import { BroadcastRejected, SimulationReverted } from '../../src/relayer/errors'
@@ -59,6 +59,23 @@ export class FakeReader implements CoverReader {
 
   async policyCount(): Promise<bigint> {
     return [...this.policyRows.keys()].reduce((a, b) => (b > a ? b : a), 0n)
+  }
+
+  /** The book's oldest-open mark; null stands for a book without one. */
+  oldestOpen: bigint | null = null
+
+  async oldestOpenId(): Promise<bigint | null> {
+    return this.oldestOpen
+  }
+
+  served: ServedAreas = { servedOnly: false, keys: new Set() }
+  servedReads = 0
+  servedFailure: Error | undefined
+
+  async servedAreas(): Promise<ServedAreas> {
+    this.servedReads++
+    if (this.servedFailure) throw this.servedFailure
+    return this.served
   }
 
   async policies(ids: readonly bigint[]): Promise<Policy[]> {

@@ -306,6 +306,58 @@ describe('GET /quote', () => {
     })
   })
 
+  describe('served areas', () => {
+    const key = () => h.context.core.cells.keyAt(52.2297, 21.0122)
+
+    it('sells anywhere while the book is not limited to served areas', async () => {
+      h.reader.served = { servedOnly: false, keys: new Set() }
+
+      expect((await quote()).status).toBe(200)
+    })
+
+    it('refuses an area the book does not serve, before pricing and before the oracle', async () => {
+      h.reader.served = { servedOnly: true, keys: new Set([key() + 1n]) }
+      h.reader.marketState = fakeMarket({ heartbeat: 0 })
+
+      const response = await quote()
+      const { error } = await body(response)
+
+      expect(response.status).toBe(422)
+      expect(error.code).toBe('area_not_served')
+      expect(error.details).toEqual({ key: key().toString() })
+      expect(h.pricing.requests).toHaveLength(0)
+    })
+
+    it('sells in a served area', async () => {
+      h.reader.served = { servedOnly: true, keys: new Set([key()]) }
+
+      expect((await quote()).status).toBe(200)
+    })
+
+    it('reads the served areas once a minute, not once a quote', async () => {
+      h.reader.served = { servedOnly: true, keys: new Set([key()]) }
+      expect((await quote()).status).toBe(200)
+      h.reader.served = { servedOnly: true, keys: new Set() }
+
+      h.clock.time += 59
+      expect((await quote(url({ start: START + 60, end: END + 60 }))).status).toBe(200)
+      expect(h.reader.servedReads).toBe(1)
+
+      h.clock.time += 1
+      expect((await quote(url({ start: START + 60, end: END + 60 }))).status).toBe(422)
+      expect(h.reader.servedReads).toBe(2)
+    })
+
+    it('does not keep a failed read', async () => {
+      h.reader.servedFailure = new Error('node down')
+      expect((await quote()).status).toBe(500)
+
+      h.reader.servedFailure = undefined
+      expect((await quote()).status).toBe(200)
+      expect(h.reader.servedReads).toBe(2)
+    })
+  })
+
   describe('validation', () => {
     it.each([
       ['lat', undefined],

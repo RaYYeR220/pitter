@@ -13,7 +13,7 @@ import {
 import { beforeEach, describe, expect, it } from 'vitest'
 import { coreCells } from '../../src/adapters/core'
 import { CRON_SECRET_HEADER, cronTickHandler } from '../../src/keeper/handler'
-import { EXPIRE_GAS, submitGas } from '../../src/relayer/gas'
+import { EXPIRE_GAS, MAX_RELAY_GAS, settleManyGas, submitGas, syncOldestOpenGas } from '../../src/relayer/gas'
 import { selectorOf } from '../../src/relayer/allowlist'
 import type { RelayLog } from '../../src/relayer/rpc'
 import { writeStorm } from '../../src/sandbox/storm'
@@ -406,6 +406,123 @@ describe('keeper tick', () => {
 
       expect(result.settlement.failures).toEqual(['would_revert:PolicyUnknown'])
       expect(result.settlement.transactions).toHaveLength(1)
+    })
+
+    it('cuts a batch whose closes would not fit one transaction, so none is refused for its gas', async () => {
+      start({ KEEPER_SETTLE_BATCH: '10' })
+      h.weather.verdicts.set(WARSAW, false)
+      h.reader.oracleState = { heartbeat: T0 - 30, lastIssuedAt: BigInt(T0 - 30) }
+      h.reader.marketState.head = { number: 9n, timestamp: T0 + 900 }
+      h.clock.time = T0 + 900
+      h.reader.lastToValues.set(CELL_A, BigInt(T0 + 900))
+      for (let id = 1n; id <= 10n; id++) h.reader.policyRows.set(id, fakePolicy(id, { key: CELL_A }))
+
+      const result = await body(await tick())
+
+      const batches = settles().map((call) => decodeFunctionData({ abi: coverBookAbi, data: call.data }).args?.[0])
+      expect(batches).toEqual([
+        [1n, 2n, 3n, 4n, 5n, 6n],
+        [7n, 8n, 9n, 10n],
+      ])
+      expect(settles().map((call) => call.gas)).toEqual([settleManyGas(6, 6), settleManyGas(4, 4)])
+      for (const call of settles()) expect(call.gas).toBeLessThanOrEqual(MAX_RELAY_GAS)
+      expect(result.settlement.failures).toEqual([])
+    })
+
+    it('budgets the walk of the oldest-open mark only for policies that can close', async () => {
+      h.reader.policyRows.set(1n, fakePolicy(1n, { key: CELL_A }))
+      h.reader.policyRows.set(2n, fakePolicy(2n, { key: CELL_A, end: T0 + 1_800 }))
+      h.reader.claimableAmounts.set(2n, 1_000n)
+
+      await tick()
+
+      expect(settles().map((call) => call.gas)).toEqual([settleManyGas(2, 1)])
+    })
+  })
+
+  describe('oldest-open mark', () => {
+    const syncs = () => h.rpc.simulated.filter((call) => call.data.startsWith(selectorOf('syncOldestOpen')))
+    const stepsOf = (call: { data: Hex }) =>
+      decodeFunctionData({ abi: coverBookAbi, data: call.data }).args?.[0] as bigint
+
+    function closedUpTo(last: bigint, env: Record<string, string> = {}) {
+      start(env)
+      h.weather.verdicts.set(WARSAW, false)
+      h.reader.oracleState = { heartbeat: T0 + 870, lastIssuedAt: BigInt(T0 + 870) }
+      h.reader.marketState.head = { number: 9n, timestamp: T0 + 900 }
+      h.clock.time = T0 + 900
+      for (let id = 1n; id <= last; id++) h.reader.policyRows.set(id, fakePolicy(id, { key: CELL_A, closed: true }))
+      h.reader.policyRows.set(last + 1n, fakePolicy(last + 1n, { key: CELL_B, end: T0 + 1_800 }))
+    }
+
+    it('walks the mark up to the oldest policy it has seen open when closes out of order left it behind', async () => {
+      closedUpTo(40n)
+      h.reader.oldestOpen = 1n
+      h.rpc.onSend = () => {
+        h.reader.oldestOpen = 41n
+        return undefined
+      }
+
+      const result = await body(await tick())
+
+      expect(syncs()).toHaveLength(1)
+      expect(stepsOf(syncs()[0]!)).toBe(40n)
+      expect(syncs()[0]!.gas).toBe(syncOldestOpenGas(40))
+      expect(result.settlement.synced).toEqual({ from: '1', to: '41' })
+      expect(result.settlement.failures).toEqual([])
+    })
+
+    it('walks at most the configured number of steps in one tick', async () => {
+      closedUpTo(40n, { KEEPER_SYNC_STEPS: '16' })
+      h.reader.oldestOpen = 1n
+
+      await tick()
+
+      expect(stepsOf(syncs()[0]!)).toBe(16n)
+    })
+
+    it('leaves a mark that is not behind alone', async () => {
+      closedUpTo(40n)
+      h.reader.oldestOpen = 41n
+
+      const result = await body(await tick())
+
+      expect(syncs()).toHaveLength(0)
+      expect(result.settlement.synced).toBeNull()
+    })
+
+    it('catches up also when every policy it knows of is closed', async () => {
+      closedUpTo(3n)
+      h.reader.policyRows.delete(4n)
+      await h.stores.state.set('keeper:cursor', { low: '4', next: '4' })
+      h.reader.oldestOpen = 2n
+
+      const result = await body(await tick())
+
+      expect(result.settlement.range).toBeNull()
+      expect(stepsOf(syncs()[0]!)).toBe(2n)
+    })
+
+    it('sends nothing when someone else caught the mark up first', async () => {
+      closedUpTo(40n)
+      let reads = 0
+      h.reader.oldestOpenId = async () => (++reads === 1 ? 1n : 41n)
+
+      const result = await body(await tick())
+
+      expect(h.rpc.sent).toHaveLength(0)
+      expect(syncs()).toHaveLength(0)
+      expect(result.settlement.synced).toBeNull()
+      expect(result.settlement.failures).toEqual([])
+    })
+
+    it('can be turned off', async () => {
+      closedUpTo(40n, { KEEPER_SYNC_STEPS: '0' })
+      h.reader.oldestOpen = 1n
+
+      await tick()
+
+      expect(syncs()).toHaveLength(0)
     })
   })
 

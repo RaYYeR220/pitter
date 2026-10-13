@@ -1,5 +1,5 @@
 import { toHex, type Hex } from 'viem'
-import type { CoverReader, Market } from '../chain/reader'
+import type { CoverReader, Market, ServedAreas } from '../chain/reader'
 import type { Settings } from '../config'
 import { ServiceError, conflict, unavailable, unprocessable } from '../http/errors'
 import type { Logger } from '../http/respond'
@@ -15,6 +15,9 @@ const MAX_AHEAD_SECONDS = 7 * 86_400
 
 /** A quote that would expire sooner than this is not worth handing out. */
 const MIN_QUOTE_LIFETIME_SECONDS = 10
+
+/** The book's served areas change by hand and rarely; they are read again after this long. */
+export const SERVED_AREAS_TTL_SECONDS = 60
 
 export interface Capacity {
   /** Assets the caps are measured against. */
@@ -95,13 +98,28 @@ export function capacityOf(market: Market): Capacity {
 /**
  * Prices cover and signs the quote with the underwriter key. A signature commits pool capital, so nothing is
  * signed unless the book would accept it right now: the window is in the future and within bounds, the rate
- * is under the configured maximum, the pool has room in total and in the cell, and the oracle is reporting.
+ * is under the configured maximum, the area is one the book sells in, the pool has room in total and in the
+ * cell, and the oracle is reporting.
  */
 export class QuoteEngine {
   private readonly deps: QuoteEngineDeps
+  private served: { value: Promise<ServedAreas>; at: number } | undefined
 
   constructor(deps: QuoteEngineDeps) {
     this.deps = deps
+  }
+
+  /** The book's served areas, read at most once per `SERVED_AREAS_TTL_SECONDS`. A failed read is not kept. */
+  private servedAreas(): Promise<ServedAreas> {
+    const time = this.deps.now()
+    const cached = this.served
+    if (cached && time >= cached.at && time - cached.at < SERVED_AREAS_TTL_SECONDS) return cached.value
+    const value = this.deps.reader.servedAreas()
+    this.served = { value, at: time }
+    value.catch(() => {
+      if (this.served?.value === value) this.served = undefined
+    })
+    return value
   }
 
   /**
@@ -128,7 +146,7 @@ export class QuoteEngine {
     }
 
     const key = cells.keyAt(lat, lon)
-    const market = await reader.market(key)
+    const [market, served] = await Promise.all([reader.market(key), this.servedAreas()])
     const time = Math.max(now(), market.head.timestamp)
 
     if (duration < BigInt(market.minDuration) || duration > BigInt(market.maxDuration)) {
@@ -148,6 +166,11 @@ export class QuoteEngine {
     const earliestStart = Math.ceil((time + market.minLead + MIN_QUOTE_LIFETIME_SECONDS) / MINUTE) * MINUTE
     if (start < BigInt(earliestStart)) {
       throw unprocessable('window_too_soon', 'The window starts too soon', { earliestStart })
+    }
+
+    // The book checks this after the window and before the oracle (`AreaNotServed`).
+    if (served.servedOnly && !served.keys.has(key)) {
+      throw unprocessable('area_not_served', 'Cover is not sold in this area yet', { key: key.toString() })
     }
 
     const oracleFreshUntil = market.heartbeat + market.maxOracleAge

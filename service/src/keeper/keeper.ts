@@ -2,7 +2,8 @@ import type { Hex } from 'viem'
 import { eventsOf } from '../chain/events'
 import type { Policy } from '../chain/reader'
 import type { Context } from '../context'
-import type { RelayCall } from '../relayer/relayer'
+import { settlementBatches } from '../relayer/gas'
+import type { RelayCall, RelayResult } from '../relayer/relayer'
 import { ServiceError, conflict } from '../http/errors'
 import { relayFailure } from '../relay/reverts'
 import { NothingToSettle, findSettleable } from '../relay/settleable'
@@ -46,6 +47,8 @@ export interface SettlementOutcome {
   expired: Array<{ id: string; paid: string }>
   /** Policies in the range that could be expired, including those left for a later tick. */
   expirable: number
+  /** The book's oldest-open mark, when this run moved it forward with `syncOldestOpen`. */
+  synced: { from: string; to: string } | null
   transactions: Hex[]
   failures: string[]
 }
@@ -166,9 +169,11 @@ export class Keeper {
   }
 
   /**
-   * Reads one stretch of the book (see `ScanCursor`), settles what is due there and expires what the oracle
-   * never finished. Per tick: at most `KEEPER_SCAN_LIMIT` policies read, one `settleMany` per
-   * `KEEPER_SETTLE_BATCH` of them, and at most `KEEPER_EXPIRE_PER_TICK` `expire` transactions.
+   * Reads one stretch of the book (see `ScanCursor`), catches the book's oldest-open mark up with what the
+   * keeper knows to be closed, settles what is due there and expires what the oracle never finished. Per tick:
+   * at most `KEEPER_SCAN_LIMIT` policies read, one `syncOldestOpen` of at most `KEEPER_SYNC_STEPS`, one
+   * `settleMany` per `KEEPER_SETTLE_BATCH` of them (fewer when their closes would not fit one transaction's
+   * gas), and at most `KEEPER_EXPIRE_PER_TICK` `expire` transactions.
    */
   private async settle(): Promise<SettlementOutcome> {
     const { settings, reader, calls, stores } = this.context
@@ -178,6 +183,7 @@ export class Keeper {
       settled: [],
       expired: [],
       expirable: 0,
+      synced: null,
       transactions: [],
       failures: [],
     }
@@ -185,7 +191,10 @@ export class Keeper {
     const count = await reader.policyCount()
     const cursor = parseCursor(await stores.state.get(CURSOR_KEY))
     const scan = planScan(cursor, count, settings.keeper.scanLimit)
-    if (!scan) return outcome
+    if (!scan) {
+      await this.syncOldestOpen(outcome, cursor.low)
+      return outcome
+    }
 
     const ids: bigint[] = []
     for (let id = scan.from; id <= scan.to; id++) ids.push(id)
@@ -197,6 +206,7 @@ export class Keeper {
     const firstOpen = policies.find((policy) => !policy.closed)?.id ?? null
     const next = advanceCursor(cursor, scan, firstOpen, count)
     if (next.low !== cursor.low || next.next !== cursor.next) await stores.state.set(CURSOR_KEY, cursorToJson(next))
+    await this.syncOldestOpen(outcome, next.low)
 
     const [head, grace, settleable] = await Promise.all([
       reader.head(),
@@ -213,45 +223,76 @@ export class Keeper {
     const expiringIds = new Set(expiring.map((policy) => policy.id))
     outcome.expirable = expirable.length
 
-    const due = settleable.map((entry) => entry.policy.id).filter((id) => !expiringIds.has(id))
-    for (const batch of chunks(due, settings.keeper.settleBatch)) {
-      const events = await this.send(outcome, calls.settleMany(batch), async () => {
-        const still = await findSettleable(reader, await reader.policies(batch))
+    const due = settleable.filter((entry) => !expiringIds.has(entry.policy.id))
+    for (const batch of settlementBatches(due, (entry) => entry.mayClose, settings.keeper.settleBatch)) {
+      const ids = batch.map((entry) => entry.policy.id)
+      const closing = batch.filter((entry) => entry.mayClose).length
+      const sent = await this.send(outcome, calls.settleMany(ids, closing), async () => {
+        const still = await findSettleable(reader, await reader.policies(ids))
         if (still.length === 0) throw new NothingToSettle()
       })
-      for (const event of events) {
+      for (const event of this.settledEvents(sent)) {
         outcome.settled.push({ id: String(event.id), paid: String(event.paid), closed: Boolean(event.closed) })
       }
     }
 
     for (const policy of expiring) {
-      const events = await this.send(outcome, calls.expire(policy.id), async () => {
+      const sent = await this.send(outcome, calls.expire(policy.id), async () => {
         const [current] = await reader.policies([policy.id])
         if (!current || current.closed) throw new NothingToSettle()
       })
-      for (const event of events) outcome.expired.push({ id: String(event.id), paid: String(event.paid) })
+      for (const event of this.settledEvents(sent)) {
+        outcome.expired.push({ id: String(event.id), paid: String(event.paid) })
+      }
     }
     return outcome
   }
 
-  /** Relays one settlement transaction and returns the `PolicySettled` events it emitted. */
+  /**
+   * Walks the book's `oldestOpenId` up to `low`, the oldest policy the keeper does not know to be closed, when
+   * closes out of order have left it behind: each close carries the mark over at most 32 closed policies, and
+   * a provider's exit waits until the mark passes the cover sold before the request.
+   */
+  private async syncOldestOpen(outcome: SettlementOutcome, low: bigint): Promise<void> {
+    const { settings, reader, calls } = this.context
+    if (settings.keeper.syncSteps < 1) return
+    const mark = await reader.oldestOpenId()
+    if (mark === null || mark >= low) return
+
+    const lag = low - mark
+    const steps = lag < BigInt(settings.keeper.syncSteps) ? Number(lag) : settings.keeper.syncSteps
+    const sent = await this.send(outcome, calls.syncOldestOpen(steps), async () => {
+      const current = await reader.oldestOpenId()
+      if (current === null || current >= low) throw new NothingToSettle()
+    })
+    if (sent) outcome.synced = { from: mark.toString(), to: String((await reader.oldestOpenId()) ?? mark) }
+  }
+
+  /** The `PolicySettled` events of a settlement that was sent. */
+  private settledEvents(receipt: RelayResult | null): Array<Record<string, unknown>> {
+    if (!receipt) return []
+    const { settings, core } = this.context
+    return eventsOf(core.abis.coverBook, settings.contracts.coverBook, receipt.logs, 'PolicySettled')
+  }
+
+  /** Relays one keeper transaction; null when it was not sent, failed or turned out to be pointless. */
   private async send(
     outcome: SettlementOutcome,
     call: RelayCall,
     before: () => Promise<void>,
-  ): Promise<Array<Record<string, unknown>>> {
-    const { settings, relayer, core } = this.context
+  ): Promise<RelayResult | null> {
+    const { relayer } = this.context
     try {
       const receipt = await relayer.execute(call, { before })
       if (receipt.status !== 'success') {
         outcome.failures.push('reverted')
-        return []
+        return null
       }
       outcome.transactions.push(receipt.transactionHash)
-      return eventsOf(core.abis.coverBook, settings.contracts.coverBook, receipt.logs, 'PolicySettled')
+      return receipt
     } catch (error) {
       if (!(error instanceof NothingToSettle)) outcome.failures.push(this.describe(error))
-      return []
+      return null
     }
   }
 

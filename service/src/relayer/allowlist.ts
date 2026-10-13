@@ -11,6 +11,7 @@ export const RELAYED_FUNCTIONS = {
   buy: 'buy((address,uint256,uint64,uint64,uint128,uint128,uint64,bytes32),bytes)',
   settleMany: 'settleMany(uint256[])',
   expire: 'expire(uint256)',
+  syncOldestOpen: 'syncOldestOpen(uint256)',
   depositWithAuthorization: 'depositWithAuthorization(uint256,address,uint256,uint256,bytes32,uint8,bytes32,bytes32)',
   transferWithAuthorization:
     'transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)',

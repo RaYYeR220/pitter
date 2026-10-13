@@ -1,6 +1,7 @@
 import { getAddress, isAddress, parseEther, parseGwei, type Address, type Hex } from 'viem'
 import { z } from 'zod'
 import type { ClientIpSettings } from './http/client'
+import { MAX_SYNC_STEPS } from './relayer/gas'
 import { MAX_SETTLE_IDS } from './validation'
 
 export const MONAD_MAINNET = 143
@@ -46,6 +47,8 @@ export interface Settings {
     settleBatch: number
     scanLimit: number
     expirePerTick: number
+    /** Most steps one `syncOldestOpen` per tick may walk the book's mark; 0 never sends one. */
+    syncSteps: number
     firstReadingSeconds: number
     heartbeatCell: { lat: number; lon: number }
   }
@@ -171,6 +174,7 @@ const environment = z.object({
   KEEPER_SETTLE_BATCH: integer(1, MAX_SETTLE_IDS, 8),
   KEEPER_SCAN_LIMIT: integer(1, 5_000, 500),
   KEEPER_EXPIRE_PER_TICK: integer(0, 20, 4),
+  KEEPER_SYNC_STEPS: integer(0, MAX_SYNC_STEPS, 256),
   KEEPER_FIRST_READING_SECONDS: integer(60, 1_800, 300),
   KEEPER_HEARTBEAT_LAT: z.coerce.number().min(-90).max(90).default(52.2297),
   KEEPER_HEARTBEAT_LON: z.coerce.number().min(-180).max(180).default(21.0122),
@@ -294,6 +298,7 @@ export function loadConfig(source: Record<string, string | undefined>): Config {
       settleBatch: env.KEEPER_SETTLE_BATCH,
       scanLimit: env.KEEPER_SCAN_LIMIT,
       expirePerTick: env.KEEPER_EXPIRE_PER_TICK,
+      syncSteps: env.KEEPER_SYNC_STEPS,
       firstReadingSeconds: env.KEEPER_FIRST_READING_SECONDS,
       heartbeatCell: { lat: env.KEEPER_HEARTBEAT_LAT, lon: env.KEEPER_HEARTBEAT_LON },
     },

@@ -9,7 +9,7 @@ import { ServiceError, badRequest, conflict, unavailable } from '../http/errors'
 import { limitByAddress, limitByIp, requireMethod } from '../http/request'
 import { json, type Handler } from '../http/respond'
 import { quoteToJson, stringifyCapacity, type Offer } from '../quote/engine'
-import { describeRevert, relayFailure } from '../relay/reverts'
+import { describeRevert, relayFailure, revertRefusal } from '../relay/reverts'
 import { SimulationReverted } from '../relayer/errors'
 import type { Json } from '../stores/ledger'
 import type { Quote } from '../types'
@@ -178,7 +178,7 @@ export function coverHandler(context: Context): Handler {
       if (!(error instanceof SimulationReverted)) throw error
       const reason = describeRevert(error.data, core.abis)
       if (/InsufficientBalance|exceeds balance/.test(reason)) return
-      throw conflict('would_revert', `The purchase would fail: ${reason}`, { reason })
+      throw revertRefusal(reason, 'The purchase would fail')
     }
   }
 
