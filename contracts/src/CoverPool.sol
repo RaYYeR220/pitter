@@ -473,7 +473,7 @@ contract CoverPool is ERC4626, Ownable2Step, ReentrancyGuardTransient, ICoverPoo
 
     /// @notice Sends `shares` held by the pool beyond the redemption escrow to `to`: shares transferred to the
     /// pool by mistake, which are neither a request nor anyone's claim. The escrow cannot be touched.
-    function rescueShares(address to, uint256 shares) external onlyOwner nonReentrant {
+    function rescueShares(address to, uint256 shares) external nonReentrant onlyOwner {
         if (to == address(0)) revert ZeroAddress();
         if (shares > balanceOf(address(this)) - escrowedShares) revert ExceedsStrayShares();
         _transfer(address(this), to, shares);

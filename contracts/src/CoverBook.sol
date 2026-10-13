@@ -419,13 +419,13 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient, ICoverBook
         emit DurationBoundsSet(minDuration_, maxDuration_);
     }
 
-    /// @notice Sends `amount` of `token` held by the book to `to`. The book holds nothing at rest: a premium
+    /// @notice Sends `amount` of `token_` held by the book to `to`. The book holds nothing at rest: a premium
     /// only passes through it inside a purchase, which this cannot interrupt. What it can find here was sent by
     /// mistake.
-    function rescue(address token, address to, uint256 amount) external onlyOwner nonReentrant {
+    function rescue(address token_, address to, uint256 amount) external nonReentrant onlyOwner {
         if (to == address(0)) revert ZeroAddress();
-        emit Rescued(token, to, amount);
-        IERC20(token).safeTransfer(to, amount);
+        emit Rescued(token_, to, amount);
+        IERC20(token_).safeTransfer(to, amount);
     }
 
     /// @notice Sets how far ahead of its purchase a window may end. The horizon has to span the longest window
