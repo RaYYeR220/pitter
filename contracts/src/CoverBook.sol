@@ -123,6 +123,9 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient {
         uint256 maxPayout
     );
 
+    /// @notice A policy was settled up to `settledUntil`, paying `paid`. `closed` is set on the last settlement.
+    event PolicySettled(uint256 indexed id, address indexed holder, uint256 paid, uint64 settledUntil, bool closed);
+
     event UnderwriterSet(address indexed underwriter);
     event TreasurySet(address indexed treasury);
     event FeeSet(uint256 feeBps);
@@ -142,6 +145,7 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient {
     error OracleStale();
     error TooManyCells();
     error PremiumNotReceived();
+    error PolicyUnknown();
     error ZeroAddress();
     error ConfigInvalid();
 
@@ -226,7 +230,35 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient {
         if (net != 0) token.safeTransfer(address(pool), net);
     }
 
+    // ───────────────────────────── settlement ─────────────────────────────
+
+    /// @notice Pays the holder of policy `id` for the wet seconds the index has confirmed since the last
+    /// settlement, and closes the policy once its whole window is settled. Anyone may call.
+    /// @dev Does nothing and returns zero when there is no newly reported time or the policy is closed.
+    /// @return paid Amount paid to the holder by this call.
+    function settle(uint256 id) external nonReentrant returns (uint256 paid) {
+        return _settle(id);
+    }
+
+    /// @notice Settles several policies in one transaction. Closed policies are skipped.
+    function settleMany(uint256[] calldata ids) external nonReentrant {
+        uint256 count = ids.length;
+        for (uint256 i = 0; i < count; ++i) {
+            _settle(ids[i]);
+        }
+    }
+
     // ───────────────────────────── views ─────────────────────────────
+
+    /// @notice Amount `settle(id)` would pay right now.
+    function claimable(uint256 id) external view returns (uint256) {
+        Policy storage p = _policies[id];
+        if (p.closed) return 0;
+        uint64 settledUntil = p.settledUntil;
+        uint64 upTo = _confirmedUntil(p.key, p.end);
+        if (upTo <= settledUntil) return 0;
+        return _payout(p, settledUntil, upTo, _maxPayout(p) - p.paid);
+    }
 
     /// @notice The policy with the given id. All fields are zero for an id that was never sold.
     /// @return holder Recipient of the payouts.
@@ -392,6 +424,51 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient {
         emit PolicyBought(id, q.holder, q.key, q.start, q.end, q.ratePerSecond, q.premium, maxPayout);
 
         pool.lock(q.key, maxPayout);
+    }
+
+    /// @dev Effects first, then the pool calls: by the time money moves the policy already reflects it.
+    function _settle(uint256 id) private returns (uint256 paid) {
+        if (id == 0 || id > policyCount) revert PolicyUnknown();
+        Policy storage p = _policies[id];
+        if (p.closed) return 0;
+
+        uint256 key = p.key;
+        uint64 end = p.end;
+        uint64 settledUntil = p.settledUntil;
+        uint64 upTo = _confirmedUntil(key, end);
+        if (upTo <= settledUntil) return 0;
+
+        uint256 remaining = _maxPayout(p) - p.paid;
+        paid = _payout(p, settledUntil, upTo, remaining);
+        bool closing = upTo == end;
+
+        p.settledUntil = upTo;
+        if (paid != 0) p.paid += uint128(paid);
+        if (closing) {
+            p.closed = true;
+            if (--openPolicies[key] == 0) _activeCells.remove(key);
+        }
+        address holder = p.holder;
+        emit PolicySettled(id, holder, paid, upTo, closing);
+
+        if (paid != 0) pool.pay(holder, key, paid);
+        if (closing && remaining != paid) pool.release(key, remaining - paid);
+    }
+
+    /// @dev Latest timestamp a policy for `key` ending at `end` can be settled to: time that has passed, is
+    /// inside the window and has been reported by the index.
+    function _confirmedUntil(uint256 key, uint64 end) private view returns (uint64 upTo) {
+        upTo = index.lastTo(key);
+        if (upTo > end) upTo = end;
+        if (upTo > block.timestamp) upTo = uint64(block.timestamp);
+    }
+
+    /// @dev Payout for the wet seconds confirmed in `[from, to]`, never more than `remaining`. The index
+    /// rounds wet seconds down, and cannot report more than elapsed time, so the cap only binds if the index
+    /// misbehaves.
+    function _payout(Policy storage p, uint64 from, uint64 to, uint256 remaining) private view returns (uint256) {
+        uint256 amount = index.wetSeconds(p.key, from, to) * p.ratePerSecond;
+        return amount > remaining ? remaining : amount;
     }
 
     /// @dev Splits a premium into the treasury fee and the pool's part. The fee rounds down.
