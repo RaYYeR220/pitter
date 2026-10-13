@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import type { AreaWeather } from '@/lib/chain/reader'
+import type { PoolView } from '@/lib/pool'
 import { useRuntime } from './runtime'
 
 const INTERVAL_MS = 30_000
@@ -38,4 +39,14 @@ export function useAreaWeather(keys: readonly bigint[]): Map<bigint, AreaWeather
   }, [reader, signature])
 
   return weather
+}
+
+/**
+ * The last weather check of each area with cover in the pool: as the indexer listed it with the areas, or read
+ * from the weather index when the pool came from the chain alone.
+ */
+export function usePoolAreaWeather(pool: PoolView | null): ReadonlyMap<bigint, AreaWeather> | null {
+  const indexed = pool?.areaWeather ?? null
+  const read = useAreaWeather(indexed || !pool ? [] : pool.state.areas.map((area) => area.key))
+  return indexed ?? (pool ? read : null)
 }

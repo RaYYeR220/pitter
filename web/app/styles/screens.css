@@ -1433,6 +1433,10 @@
   margin-top: 16px;
 }
 
+.totals__net + .h-block {
+  margin: var(--s-6) 0 var(--s-3);
+}
+
 .hbars {
   border-top: 1px solid var(--line-2);
 }

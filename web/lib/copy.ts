@@ -43,6 +43,12 @@ export const copy = {
     working: 'Working…',
   },
 
+  /** Where the history and pool figures were read from. Shown small, under what they describe. */
+  source: {
+    indexer: 'History via Envio',
+    behind: 'History may be a moment behind.',
+  },
+
   account: {
     heading: 'Start in one step',
     intro:
@@ -267,6 +273,7 @@ export const copy = {
       closed: 'finished',
     },
     totals: (cost: bigint, paid: bigint) => `In all: cost ${formatDollars(cost)}, paid you ${formatDollars(paid)}.`,
+    payoutRecord: 'payout record',
   },
 
   money: {
@@ -373,6 +380,8 @@ export const copy = {
     recentRange: (blocks: number, seconds: number) =>
       `Covers the last ${blocks} blocks of the public record, about ${formatDuration(seconds)}. Older activity isn’t shown here.`,
     recentNone: 'Nothing in that time.',
+    recentIndexed: 'The newest sales, payouts and weather checks on the public record.',
+    recentEmpty: 'Nothing yet.',
     recentUnavailable: 'Latest activity can’t be loaded right now.',
     bought: (premium: bigint) => `Cover sold for ${formatDollars(premium)}`,
     settled: (paid: bigint) => `Payout of ${formatDollars(paid)}`,
@@ -799,6 +808,17 @@ export const copy = {
       net: (net: bigint) => `Kept by the pool so far: ${formatDollars(net, { sign: true })}`,
       boughtLabel: 'Cover sold',
       settledLabel: 'Payout to a rider',
+      weatherLabel: (wetSeconds: number) =>
+        wetSeconds > 0 ? `Weather check: ${formatDuration(wetSeconds)} of heavy rain` : 'Weather check: no heavy rain',
+      daysHeading: 'Day by day',
+      daysCaption: 'Premiums, payouts and money added to the pool on each of the last seven days, in UTC',
+      colDay: 'Day',
+      colPremiums: 'Premiums',
+      colPayouts: 'Payouts',
+      colAdded: 'Added',
+      colRatio: 'Paid out',
+      ratio: (lossRatio: number | null) => (lossRatio === null ? '–' : `${Math.round(lossRatio * 100)}%`),
+      ratioLabel: 'Payouts as a share of the day’s premiums',
       eventWhen: (id: bigint) => `cover number ${id}`,
       addAsks: 'Asks for Face ID or fingerprint, every time',
       leaveAsks: 'Asks for Face ID or fingerprint, every time',

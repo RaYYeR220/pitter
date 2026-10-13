@@ -71,12 +71,16 @@ export function formatClock(unixSeconds: number, timeZone?: string): string {
   )
 }
 
-/** Day and time of a unix timestamp: "13 Oct, 14:05". */
-export function formatDayAndClock(unixSeconds: number, timeZone?: string): string {
-  const day = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone }).format(
+/** The calendar day of a unix timestamp: "13 Oct". */
+export function formatDay(unixSeconds: number, timeZone?: string): string {
+  return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone }).format(
     new Date(unixSeconds * 1000),
   )
-  return `${day}, ${formatClock(unixSeconds, timeZone)}`
+}
+
+/** Day and time of a unix timestamp: "13 Oct, 14:05". */
+export function formatDayAndClock(unixSeconds: number, timeZone?: string): string {
+  return `${formatDay(unixSeconds, timeZone)}, ${formatClock(unixSeconds, timeZone)}`
 }
 
 /** An account number cut down to its ends. */

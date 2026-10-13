@@ -8,14 +8,7 @@ import {
   type PaymentTerms,
 } from './account'
 import { createChainClient } from './chain/client'
-import {
-  viemChainReader,
-  type AccountBalances,
-  type ChainReader,
-  type PoolPosition,
-  type PoolState,
-  type RecentActivity,
-} from './chain/reader'
+import { viemChainReader, type AccountBalances, type ChainReader, type PoolPosition } from './chain/reader'
 import {
   COVER_DEFAULTS,
   PRODUCT_NAME,
@@ -35,7 +28,8 @@ import {
 import { CoverSelection } from './cover/selection'
 import { copy } from './copy'
 import { Feed, FeedFamily } from './feed'
-import { poolTotals, type PoolTotals } from './pool/totals'
+import { IndexerCoverHistorySource, IndexerGate, createIndexerClient, poolIndexReader, reuseFor } from './indexer'
+import { loadActivity, loadPoolView, type LatestActivity, type PoolView } from './pool'
 import { createServiceClient, type PracticeRain, type ServiceClient } from './service/client'
 import { ShiftLogManager, ShiftLogStore } from './shiftlog'
 
@@ -51,6 +45,7 @@ export interface Runtime {
   reader: ChainReader
   /** Every row of the cover book seen so far, shared by the cover history and the pool totals. */
   policies: PolicyTable
+  /** The holder's cover for the screens: from the indexer when one is configured and fresh, else the chain. */
   history: CoverHistorySource
   account: AccountManager
   shiftLog: ShiftLogManager
@@ -60,11 +55,7 @@ export interface Runtime {
   feeds: Feeds
 }
 
-/** The pool and every sale it has backed. */
-export interface PoolView {
-  state: PoolState
-  totals: PoolTotals
-}
+export type { PoolView } from './pool'
 
 /** Values read on a timer while a page shows them. */
 export interface Feeds {
@@ -72,7 +63,7 @@ export interface Feeds {
   balance: FeedFamily<Address, AccountBalances>
   history: FeedFamily<Address, CoverSnapshot>
   pool: Feed<PoolView>
-  recent: Feed<RecentActivity>
+  recent: Feed<LatestActivity>
   position: FeedFamily<Address, PoolPosition>
   /** Null outside practice mode. */
   rain: Feed<PracticeRain> | null
@@ -87,11 +78,26 @@ function passkeyLabel(): string {
 
 export async function createRuntime(service: ServiceClient = createServiceClient()): Promise<Runtime> {
   const health = await service.health()
-  const config = configFromHealth(health, process.env.NEXT_PUBLIC_RPC_URL)
+  const config = configFromHealth(health, process.env.NEXT_PUBLIC_RPC_URL, process.env.NEXT_PUBLIC_INDEXER_URL)
   const chain = createChainClient(config)
   const reader = viemChainReader(chain, config)
   const policies = new PolicyTable(reader)
-  const history = new RpcCoverHistorySource(reader, policies)
+  const chainHistory = new RpcCoverHistorySource(reader, policies)
+
+  const indexer = config.indexerUrl
+    ? {
+        client: createIndexerClient(config.indexerUrl),
+        gate: new IndexerGate({ head: () => chain.getBlockNumber() }),
+      }
+    : null
+  const history: CoverHistorySource = indexer
+    ? new IndexerCoverHistorySource({ ...indexer, chainId: config.chainId, reader, fallback: chainHistory })
+    : chainHistory
+  const poolIndex = indexer ? poolIndexReader(indexer.client, config.chainId, indexer.gate) : null
+  // The indexer is polled no faster than every 15 seconds; without it the chain reads keep their own pace.
+  const pace = (indexed: number, chainOnly: number) => (indexer ? indexed : chainOnly)
+  // While the indexer is down, the chain's logs are searched no more often than they are without one.
+  const chainActivity = reuseFor(pace(45_000, 0), () => reader.recentActivity())
   const passkeys = meraPasskeys(() => pageRelyingParty(PRODUCT_NAME))
 
   const terms = async (): Promise<PaymentTerms> => ({
@@ -137,8 +143,9 @@ export async function createRuntime(service: ServiceClient = createServiceClient
           })
         return minLead
       },
+      // Deciding where new cover starts must see a purchase made seconds ago, so it reads the chain, not the index.
       async coveredUntil(holder, key) {
-        return coveredUntil(await history.snapshot(holder), key, unixSeconds())
+        return coveredUntil(await chainHistory.snapshot(holder), key, unixSeconds())
       },
       deployment: { chainId: config.chainId, coverBook: config.contracts.coverBook },
       keepAwake: (awake) => account.keepAwake(awake),
@@ -154,15 +161,11 @@ export async function createRuntime(service: ServiceClient = createServiceClient
   const feeds: Feeds = {
     health: new Feed(() => service.health(), { intervalMs: 60_000 }),
     balance: new FeedFamily((holder) => new Feed(() => reader.balances(holder), { intervalMs: 10_000 })),
-    history: new FeedFamily((holder) => new Feed(() => history.snapshot(holder), { intervalMs: 10_000 })),
-    pool: new Feed(
-      async () => {
-        const [state, rows] = await Promise.all([reader.pool(), policies.refresh()])
-        return { state, totals: poolTotals(rows, state.feeBps) }
-      },
-      { intervalMs: 20_000 },
-    ),
-    recent: new Feed(() => reader.recentActivity(), { intervalMs: 60_000 }),
+    history: new FeedFamily((holder) => new Feed(() => history.snapshot(holder), { intervalMs: pace(15_000, 10_000) })),
+    pool: new Feed(() => loadPoolView({ reader, policies, index: poolIndex }), { intervalMs: pace(15_000, 20_000) }),
+    recent: new Feed(() => loadActivity({ chain: chainActivity, index: poolIndex }), {
+      intervalMs: pace(15_000, 60_000),
+    }),
     position: new FeedFamily((owner) => new Feed(() => reader.position(owner), { intervalMs: 15_000 })),
     rain: config.practice ? new Feed(() => service.practiceRain(), { intervalMs: 15_000 }) : null,
   }

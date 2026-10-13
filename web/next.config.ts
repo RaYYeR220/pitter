@@ -17,10 +17,21 @@ function nodeOrigins(): string[] {
   return [...new Set(origins)]
 }
 
+/** The indexer the browser reads history from, when one is configured. */
+function indexerOrigins(): string[] {
+  const configured = process.env.NEXT_PUBLIC_INDEXER_URL?.trim()
+  if (!configured) return []
+  try {
+    return [new URL(configured).origin]
+  } catch {
+    throw new Error('NEXT_PUBLIC_INDEXER_URL is not a URL')
+  }
+}
+
 /**
  * The signing key of a signed-in account lives in page memory, so no script from another origin may ever run
- * here: scripts, styles and frames are same-origin only, and the page can talk to this host and the chain
- * nodes, nothing else.
+ * here: scripts, styles and frames are same-origin only, and the page can talk to this host, the chain nodes and
+ * the indexer, nothing else.
  */
 const contentSecurityPolicy = [
   "default-src 'self'",
@@ -28,7 +39,7 @@ const contentSecurityPolicy = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self'",
-  `connect-src 'self' ${nodeOrigins().join(' ')}`,
+  `connect-src 'self' ${[...nodeOrigins(), ...indexerOrigins()].join(' ')}`,
   "worker-src 'self'",
   "manifest-src 'self'",
   "frame-ancestors 'none'",

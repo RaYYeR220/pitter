@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   formatClock,
   formatCountdown,
+  formatDay,
   formatDayAndClock,
   formatDollars,
   formatDuration,
@@ -73,6 +74,7 @@ describe('time', () => {
   it('writes the time of day in a given zone', () => {
     expect(formatClock(1_791_878_700, 'UTC')).toBe('08:05')
     expect(formatDayAndClock(1_791_878_700, 'UTC')).toBe('13 Oct, 08:05')
+    expect(formatDay(1_791_849_600, 'UTC')).toBe('13 Oct')
   })
 })
 

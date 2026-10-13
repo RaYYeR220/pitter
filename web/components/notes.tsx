@@ -6,6 +6,7 @@ import { transactionUrl } from '@/lib/config'
 import { copy } from '@/lib/copy'
 import type { Refusal } from '@/lib/cover/refusals'
 import { formatDollars } from '@/lib/format'
+import type { DataOrigin } from '@/lib/indexer'
 import { useRuntime } from '@/hooks/runtime'
 import { Banner } from './ui/notice'
 
@@ -61,7 +62,7 @@ export function ProblemNote({ problem }: { problem: AccountProblem | null }) {
 }
 
 /** Link to the public record of a transaction. */
-export function RecordLink({ hash }: { hash: string }) {
+export function RecordLink({ hash, label = copy.status.publicRecord }: { hash: string; label?: string }) {
   const { config } = useRuntime()
   return (
     <a
@@ -71,9 +72,16 @@ export function RecordLink({ hash }: { hash: string }) {
       rel="noreferrer"
       data-testid="record-link"
     >
-      {copy.status.publicRecord}
+      {label}
     </a>
   )
+}
+
+/** Where the history on screen was read from, said quietly: the indexer, or the chain while the indexer is behind. */
+export function SourceNote({ origin }: { origin: DataOrigin | undefined }) {
+  if (origin === 'indexer') return <p className="mono dim source-note">{copy.source.indexer}</p>
+  if (origin === 'fallback') return <p className="mono dim source-note">{copy.source.behind}</p>
+  return null
 }
 
 export function Dollars({ units, sign = false }: { units: bigint; sign?: boolean }) {

@@ -65,6 +65,8 @@ export interface AppConfig {
   explorerUrl: string
   /** Node the browser reads from. Public by definition. */
   rpcUrl: string
+  /** GraphQL endpoint of the indexer the history and pool figures are read from; null to read the chain alone. */
+  indexerUrl: string | null
   multicall3: Address
   contracts: ContractAddresses
   /** Null outside practice mode. */
@@ -143,8 +145,9 @@ export function parseHealth(body: unknown): HealthReport {
  * are always the ones the service signs and relays for.
  *
  * @param publicRpcUrl A node chosen at build time. Without one the chain's public node is used.
+ * @param publicIndexerUrl The indexer's GraphQL endpoint, chosen at build time. Without one the chain is read.
  */
-export function configFromHealth(health: HealthReport, publicRpcUrl?: string): AppConfig {
+export function configFromHealth(health: HealthReport, publicRpcUrl?: string, publicIndexerUrl?: string): AppConfig {
   if (!isSupportedChainId(health.chainId)) throw new ConfigProblem(`chain ${health.chainId} is not supported`)
   const chain = getChain(health.chainId)
   const simulator = health.practice.enabled && !chain.testnet ? null : health.practice.simulator
@@ -153,6 +156,7 @@ export function configFromHealth(health: HealthReport, publicRpcUrl?: string): A
     chainId: chain.id,
     explorerUrl: chain.explorerUrl,
     rpcUrl: publicRpcUrl?.trim() || chain.rpcUrl,
+    indexerUrl: publicIndexerUrl?.trim() || null,
     multicall3: chain.multicall3,
     contracts: health.contracts,
     practice: health.practice.enabled && simulator ? { simulator: simulatorArea(BigInt(simulator.key)) } : null,

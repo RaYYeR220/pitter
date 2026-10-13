@@ -3,15 +3,15 @@
 import { useState, type CSSProperties } from 'react'
 import { CITIES, areaFromKey, cityArea } from '@/lib/cover/area'
 import { copy } from '@/lib/copy'
-import { formatCountdown, formatDollars, formatPercent } from '@/lib/format'
-import type { PoolActionProblem } from '@/lib/pool'
+import { formatCountdown, formatDay, formatDollars, formatPercent } from '@/lib/format'
+import type { ActivityLine, PoolActionProblem, PoolDay } from '@/lib/pool'
 import { useAccount } from '@/hooks/account'
-import { useAreaWeather } from '@/hooks/area-weather'
+import { usePoolAreaWeather } from '@/hooks/area-weather'
 import { useWeather } from '@/hooks/money'
 import { usePool, usePoolPosition } from '@/hooks/pool'
 import { useRuntime } from '@/hooks/runtime'
 import { AccountPanel } from './account-panel'
-import { ProblemNote, RecordLink, RefusalNote } from './notes'
+import { ProblemNote, RecordLink, RefusalNote, SourceNote } from './notes'
 import { Figure } from './ui/figure'
 import { Hairline } from './ui/hairline'
 import { Meter, MeterCaps } from './ui/meter'
@@ -40,7 +40,7 @@ export function PoolOverview() {
   const pool = usePool()
   const weather = useWeather()
   const meters = pool.meters
-  const areaWeather = useAreaWeather(meters?.areas.map((area) => area.key) ?? [])
+  const areaWeather = usePoolAreaWeather(pool.data)
   const wet = meters?.areas.filter((area) => areaWeather?.get(area.key)?.raining) ?? []
 
   let state: string = copy.pool.intro
@@ -132,7 +132,7 @@ export function PoolAreas() {
   const pool = usePool()
   const meters = pool.meters
   const nameOf = useAreaName()
-  const areaWeather = useAreaWeather(meters?.areas.map((area) => area.key) ?? [])
+  const areaWeather = usePoolAreaWeather(pool.data)
   return (
     <section className="psec" data-testid="pool-areas" aria-labelledby="areas-h" id="areas">
       <h2 className="h-section" id="areas-h">
@@ -255,8 +255,73 @@ function TotalsBars({ premiums, fees, payouts }: { premiums: bigint; fees: bigin
   )
 }
 
+function ActivityReceipt({ line, nameOf }: { line: ActivityLine; nameOf: (key: bigint) => string }) {
+  if (line.kind === 'weather') {
+    return (
+      <Receipt
+        rain={line.wetSeconds > 0}
+        what={copy.screen.pool.weatherLabel(line.wetSeconds)}
+        when={nameOf(line.key)}
+        record={<RecordLink hash={line.transactionHash} />}
+      />
+    )
+  }
+  return (
+    <Receipt
+      rain={line.kind === 'settled'}
+      what={line.kind === 'bought' ? copy.screen.pool.boughtLabel : copy.screen.pool.settledLabel}
+      amount={formatDollars(line.amount)}
+      when={copy.screen.pool.eventWhen(line.id)}
+      record={<RecordLink hash={line.transactionHash} />}
+    />
+  )
+}
+
+/** The last days of premiums, payouts and money added, newest first. */
+function DailyTable({ days }: { days: readonly PoolDay[] }) {
+  return (
+    <div className="scroll">
+      <table className="grid" data-testid="pool-days">
+        <caption className="vh">{copy.screen.pool.daysCaption}</caption>
+        <thead>
+          <tr>
+            <th scope="col">{copy.screen.pool.colDay}</th>
+            <th scope="col" className="r">
+              {copy.screen.pool.colPremiums}
+            </th>
+            <th scope="col" className="r">
+              {copy.screen.pool.colPayouts}
+            </th>
+            <th scope="col" className="r grid__opt">
+              {copy.screen.pool.colAdded}
+            </th>
+            <th scope="col" className="r" title={copy.screen.pool.ratioLabel}>
+              {copy.screen.pool.colRatio}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {days.map((day) => (
+            <tr key={day.date} className={day.payouts > 0n ? 'grid__wet' : undefined}>
+              <th scope="row">
+                <time dateTime={day.date}>{formatDay(day.startsAt, 'UTC')}</time>
+              </th>
+              <td className="r">{formatDollars(day.premiums)}</td>
+              <td className="r">{formatDollars(day.payouts)}</td>
+              <td className="r grid__opt">{formatDollars(day.deposits)}</td>
+              <td className="r">{copy.screen.pool.ratio(day.lossRatio)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 export function PoolTotals() {
   const pool = usePool()
+  const nameOf = useAreaName()
+  const recent = pool.recent.data
   return (
     <section className="psec" data-testid="pool-totals" aria-labelledby="totals-h" id="totals">
       <h2 className="h-section" id="totals-h">
@@ -274,6 +339,12 @@ export function PoolTotals() {
                 payouts={pool.data.totals.payouts}
               />
               <p className="mono totals__net">{copy.screen.pool.net(pool.data.totals.net)}</p>
+              {pool.data.days ? (
+                <>
+                  <h3 className="h-block">{copy.screen.pool.daysHeading}</h3>
+                  <DailyTable days={pool.data.days} />
+                </>
+              ) : null}
             </>
           ) : (
             <p className="mono">{copy.status.loading}</p>
@@ -281,21 +352,22 @@ export function PoolTotals() {
         </div>
         <div>
           <h3 className="h-block">{copy.pool.recent}</h3>
-          {pool.recent.data ? (
+          {recent ? (
             <>
               <p className="mono recent__range">
-                {copy.pool.recentRange(pool.recent.data.blocks, Math.round(pool.recent.data.blocks * 0.4))}
+                {recent.blocks === null
+                  ? copy.pool.recentIndexed
+                  : copy.pool.recentRange(recent.blocks, Math.round(recent.blocks * 0.4))}
               </p>
-              {pool.recent.data.events.length === 0 ? <p className="small dim">{copy.pool.recentNone}</p> : null}
+              {recent.lines.length === 0 ? (
+                <p className="small dim">{recent.blocks === null ? copy.pool.recentEmpty : copy.pool.recentNone}</p>
+              ) : null}
               <Receipts>
-                {pool.recent.data.events.map((event) => (
-                  <Receipt
-                    key={`${event.transactionHash}-${event.kind}-${event.id}`}
-                    rain={event.kind === 'settled'}
-                    what={event.kind === 'bought' ? copy.screen.pool.boughtLabel : copy.screen.pool.settledLabel}
-                    amount={formatDollars(event.amount)}
-                    when={copy.screen.pool.eventWhen(event.id)}
-                    record={<RecordLink hash={event.transactionHash} />}
+                {recent.lines.map((line) => (
+                  <ActivityReceipt
+                    key={`${line.transactionHash}-${line.kind}-${line.kind === 'weather' ? line.key : line.id}`}
+                    line={line}
+                    nameOf={nameOf}
                   />
                 ))}
               </Receipts>
@@ -307,6 +379,7 @@ export function PoolTotals() {
           )}
         </div>
       </div>
+      <SourceNote origin={pool.data?.origin} />
     </section>
   )
 }

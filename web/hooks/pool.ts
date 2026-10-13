@@ -13,13 +13,12 @@ import {
   leavePool,
   leaveState,
   poolMeters,
-  recentTotals,
   type FeeCheck,
+  type LatestActivity,
   type LeaveState,
   type LeaveStep,
   type PoolActionProblem,
   type PoolMeters,
-  type RecentTotals,
 } from '@/lib/pool'
 import type { PoolView } from '@/lib/runtime'
 import type { DepositReceipt } from '@/lib/service/client'
@@ -28,8 +27,8 @@ import { useNow, useRuntime, useStore } from './runtime'
 
 export interface UsePool extends FeedState<PoolView> {
   meters: PoolMeters | null
-  /** Sales and payouts in the most recent blocks, within what the public node will search. */
-  recent: FeedState<RecentTotals>
+  /** The latest sales, payouts and weather checks: the indexer's newest, or what the latest blocks hold. */
+  recent: FeedState<LatestActivity>
   refresh(): Promise<void>
 }
 
@@ -40,7 +39,7 @@ export function usePool(): UsePool {
   return {
     ...pool,
     meters: pool.data ? poolMeters(pool.data.state) : null,
-    recent: { ...recent, data: recent.data ? recentTotals(recent.data) : null },
+    recent,
     refresh: useCallback(async () => {
       await Promise.all([feeds.pool.refresh(), feeds.recent.refresh()])
     }, [feeds]),

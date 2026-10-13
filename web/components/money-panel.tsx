@@ -9,7 +9,7 @@ import { useAccount } from '@/hooks/account'
 import { useBalance, useCoverHistory } from '@/hooks/cover'
 import { useCashOut, usePractice } from '@/hooks/money'
 import { useNow, useRuntime } from '@/hooks/runtime'
-import { ProblemNote, RecordLink, RefusalNote } from './notes'
+import { ProblemNote, RecordLink, RefusalNote, SourceNote } from './notes'
 import { Figure } from './ui/figure'
 import { AsksAgain, Banner, Block } from './ui/notice'
 import { Receipt, Receipts } from './ui/receipt'
@@ -164,11 +164,12 @@ export function HistoryPanel() {
   if (account.status !== 'signed_in') return null
   const records = history.data?.records ?? []
   const shifts = groupShifts(records)
-  const cost = records.reduce((sum, record) => sum + record.premium, 0n)
-  const paid = records.reduce((sum, record) => sum + record.paid, 0n)
+  const cost = history.data?.totals?.cost ?? records.reduce((sum, record) => sum + record.premium, 0n)
+  const paid = history.data?.totals?.paid ?? records.reduce((sum, record) => sum + record.paid, 0n)
 
   return (
     <Block id="history" title={copy.history.heading} testId="history" data={{ 'data-count': String(records.length) }}>
+      <SourceNote origin={history.data?.origin} />
       {history.error && !history.data ? <p className="mono">{copy.history.unavailable}</p> : null}
       {!history.data && !history.error ? <p className="mono">{copy.status.loading}</p> : null}
       {history.data && records.length === 0 ? <p className="small dim">{copy.history.empty}</p> : null}
@@ -194,8 +195,17 @@ export function HistoryPanel() {
                 what={copy.history.row(record.start, record.end)}
                 when={copy.history.status[phaseOf(record, now)]}
                 amount={record.paid > 0n ? formatDollars(record.paid, { sign: true }) : formatDollars(-record.premium)}
-                paid={record.paid > 0n ? copy.screen.history.paidAgainst(record.premium) : copy.history.cost(record.premium)}
-                record={record.purchase ? <RecordLink hash={record.purchase} /> : null}
+                paid={
+                  record.paid > 0n ? copy.screen.history.paidAgainst(record.premium) : copy.history.cost(record.premium)
+                }
+                record={
+                  <>
+                    {record.purchase ? <RecordLink hash={record.purchase} /> : null}
+                    {record.lastPayout ? (
+                      <RecordLink hash={record.lastPayout} label={copy.history.payoutRecord} />
+                    ) : null}
+                  </>
+                }
               />
             ))}
           </Receipts>

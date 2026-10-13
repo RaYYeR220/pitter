@@ -126,7 +126,8 @@ export interface ChainReader {
   policies(ids: readonly bigint[]): Promise<PolicyRow[]>
   claimable(ids: readonly bigint[]): Promise<bigint[]>
   weather(keys: readonly bigint[]): Promise<Map<bigint, AreaWeather>>
-  pool(): Promise<PoolState>
+  /** @param options.areas False skips the per-area reads and returns no areas, for a caller that has them. */
+  pool(options?: { areas?: boolean }): Promise<PoolState>
   position(owner: Address): Promise<PoolPosition>
   recentActivity(options?: { chunks?: number; chunkBlocks?: number }): Promise<RecentActivity>
 }
@@ -331,7 +332,7 @@ export function viemChainReader(
       return result
     },
 
-    async pool() {
+    async pool({ areas = true } = {}) {
       const [
         time,
         totalAssets,
@@ -346,7 +347,7 @@ export function viemChainReader(
         feeBps,
         heartbeat,
         maxOracleAge,
-        keys,
+        activeCells,
       ] = await read<
         [
           bigint,
@@ -378,8 +379,9 @@ export function viemChainReader(
         book('feeBps'),
         index('heartbeat'),
         book('maxOracleAge'),
-        book('activeCells'),
+        ...(areas ? [book('activeCells')] : []),
       ])
+      const keys: readonly bigint[] = areas ? activeCells : []
       const perArea = await read<bigint[]>(
         keys.flatMap((key) => [pool('cellExposure', [key]), book('openPolicies', [key])]),
       )

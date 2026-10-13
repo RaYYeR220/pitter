@@ -853,6 +853,11 @@
   color: var(--ink);
 }
 
+/* Where a history was read from: one quiet line, never louder than what it describes. */
+.source-note {
+  margin-top: 14px;
+}
+
 .address {
   font: 500 15px/1.3 var(--font-mono);
   letter-spacing: -0.02em;
