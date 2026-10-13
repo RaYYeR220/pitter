@@ -1,0 +1,14 @@
+{
+  "name": "cover",
+  "private": true,
+  "license": "MIT",
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "pnpm -r --if-present test",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "sync:contracts": "pnpm --filter @cover/core sync:contracts"
+  }
+}
