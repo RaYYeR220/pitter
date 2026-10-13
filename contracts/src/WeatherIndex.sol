@@ -25,7 +25,8 @@ import {Reading} from "./Types.sol";
 /// - a timeline only ever grows forward in time, so `wetSeconds(key, a, b)` is final once `b <= lastTo(key)`;
 /// - a reading can never add more wet seconds than the time it newly covers, so
 ///   `wetSeconds(key, a, b) <= b - a` for every range;
-/// - a report is accepted at most once (`issuedAt` strictly increases).
+/// - a report is accepted at most once (`issuedAt` strictly increases);
+/// - `heartbeat` never runs ahead of the chain clock and never moves backwards.
 contract WeatherIndex is IReceiver, IWeatherIndex, EIP712, Ownable2Step {
     struct Checkpoint {
         uint64 timestamp;
@@ -69,7 +70,7 @@ contract WeatherIndex is IReceiver, IWeatherIndex, EIP712, Ownable2Step {
     /// reported start when the reading overlapped time that was already on the timeline.
     event WeatherReported(uint256 indexed key, uint64 from, uint64 to, uint32 wetSeconds, uint256 cumulative);
 
-    /// @notice A report was accepted at `timestamp`.
+    /// @notice A report was accepted; `timestamp` is the new heartbeat.
     event Heartbeat(uint256 timestamp);
 
     event ForwarderSet(address indexed forwarder, bool allowed);
@@ -217,14 +218,17 @@ contract WeatherIndex is IReceiver, IWeatherIndex, EIP712, Ownable2Step {
             ) revert BadReporterSignature();
         }
 
+        // Liveness is when the reporter spoke, not when its words arrived: a report held back and delivered
+        // late must not make a silent oracle look alive.
+        uint64 beat = issuedAt < block.timestamp ? issuedAt : SafeCast.toUint64(block.timestamp);
         lastIssuedAt = issuedAt;
-        heartbeat = SafeCast.toUint64(block.timestamp);
+        heartbeat = beat;
 
         uint256 count = readings.length;
         for (uint256 i = 0; i < count; ++i) {
             _record(readings[i]);
         }
-        emit Heartbeat(block.timestamp);
+        emit Heartbeat(beat);
     }
 
     /// @dev Appends one reading to its key's timeline. Readings for the same key inside one report are applied

@@ -408,6 +408,35 @@ contract WeatherIndexReportTest is WeatherIndexFixture {
         vm.warp(_now() + 30 minutes);
 
         index.submit(payload);
+        assertEq(index.heartbeat(), _now() - 30 minutes);
+    }
+
+    function test_Heartbeat_IsWhenTheReportWasIssuedNotWhenItLanded() public {
+        uint64 issuedAt = _now();
+        bytes memory payload = _signedReport(reporterKey, domain, new Reading[](0), issuedAt);
+        vm.warp(issuedAt + 10 minutes);
+
+        vm.expectEmit(address(index));
+        emit WeatherIndex.Heartbeat(issuedAt);
+        index.submit(payload);
+
+        assertEq(index.heartbeat(), issuedAt);
+        assertEq(index.lastIssuedAt(), issuedAt);
+    }
+
+    function test_Heartbeat_NeverRunsAheadOfTheClock() public {
+        index.submit(_signedReport(reporterKey, domain, new Reading[](0), _now() + 60));
+        assertEq(index.heartbeat(), _now());
+        assertEq(index.lastIssuedAt(), _now() + 60);
+    }
+
+    function test_Heartbeat_OnlyMovesForward() public {
+        index.submit(_signedReport(reporterKey, domain, new Reading[](0), _now() + 50));
+        uint64 first = index.heartbeat();
+
+        vm.warp(_now() + 10);
+        index.submit(_signedReport(reporterKey, domain, new Reading[](0), _now() + 41));
+        assertGt(index.heartbeat(), first);
         assertEq(index.heartbeat(), _now());
     }
 

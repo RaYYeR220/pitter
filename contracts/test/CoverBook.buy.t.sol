@@ -6,7 +6,7 @@ import {CoverBook} from "../src/CoverBook.sol";
 import {CoverPool} from "../src/CoverPool.sol";
 import {IWeatherIndex} from "../src/interfaces/IWeatherIndex.sol";
 import {TestDollar} from "../src/TestDollar.sol";
-import {Quote} from "../src/Types.sol";
+import {Quote, Reading} from "../src/Types.sol";
 import {ContractSigner} from "./mocks/ContractSigner.sol";
 import {SilentDollar} from "./mocks/SilentDollar.sol";
 import {CoverFixture} from "./utils/CoverFixture.sol";
@@ -364,6 +364,22 @@ contract CoverBookBuyTest is CoverFixture {
     function test_Buy_AcceptsAHeartbeatAtTheAgeLimit() public {
         vm.warp(T0 + 20 minutes);
         assertEq(_buy(_standardQuote(0)), 1);
+    }
+
+    function test_Buy_AWithheldReportCannotMakeAStaleOracleLookAlive() public {
+        // The reporter signs a heartbeat that never lands; then the oracle goes quiet.
+        vm.warp(T0 + 60);
+        bytes memory withheld = _signedReport(reporterKey, indexDomain, new Reading[](0), _now());
+
+        // Twenty-five minutes on, someone delivers the old report. It is accepted, but it says nothing new
+        // about whether the oracle is alive now.
+        vm.warp(T0 + 25 minutes);
+        vm.prank(attacker);
+        index.submit(withheld);
+        assertEq(index.heartbeat(), T0 + 60);
+
+        Quote memory q = _standardQuote(0);
+        _expectBuyRevert(q, CoverBook.OracleStale.selector);
     }
 
     function test_Buy_RevertWhen_OracleNeverReported() public {
