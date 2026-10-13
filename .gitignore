@@ -1,0 +1,43 @@
+# dependencies and build output
+node_modules/
+.next/
+out/
+dist/
+cache/
+broadcast/
+*.tsbuildinfo
+.vercel/
+.turbo/
+generated/
+
+# secrets and local config
+.env
+.env.*
+!.env.example
+secrets/
+
+# working notes, never part of the product
+BRIEF.md
+ALTERNATIVES.md
+NOTES.md
+DESIGN.md
+PLAN.md
+MEMORY.md
+.remember/
+.claude/
+.agents/
+superpowers/
+docs/superpowers/
+*-internal/
+*-backup*
+*.bundle
+ui-prototypes/
+mockups/
+design-ref/
+variants/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

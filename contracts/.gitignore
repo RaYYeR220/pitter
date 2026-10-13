@@ -1,0 +1,8 @@
+cache/
+out/
+.env
+.env.*
+!.env.example
+
+# local rehearsals of the deploy script
+deployments/31337.json
