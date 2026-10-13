@@ -29,6 +29,7 @@ describe('loadConfig', () => {
     expect(settings.relayer.maxFeePerGas).toBe(parseGwei('300'))
     expect(settings.relayer.maxPriorityFeePerGas).toBe(parseGwei('2'))
     expect(settings.relayer.minBalance).toBe(parseEther('1'))
+    expect(settings.keeper.idleHeartbeatSeconds).toBe(900)
     expect(settings.sandbox).toEqual({ enabled: false, simulatorKey: null })
     expect(settings.x402.enabled).toBe(false)
     expect(settings.x402.facilitatorUrl).toBe('https://x402-facilitator.molandak.org')
@@ -108,6 +109,7 @@ describe('loadConfig', () => {
     expect(problemsOf(validEnv({ QUOTE_TTL_SECONDS: '5' }))[0]).toMatch(/^QUOTE_TTL_SECONDS: /)
     expect(problemsOf(validEnv({ QUOTE_MAX_RATE_PER_SECOND: '0' }))[0]).toMatch(/^QUOTE_MAX_RATE_PER_SECOND: /)
     expect(problemsOf(validEnv({ KEEPER_SETTLE_BATCH: '11' }))[0]).toMatch(/^KEEPER_SETTLE_BATCH: /)
+    expect(problemsOf(validEnv({ KEEPER_IDLE_HEARTBEAT_SECONDS: '-1' }))[0]).toMatch(/^KEEPER_IDLE_HEARTBEAT_SECONDS: /)
   })
 
   it('rejects a priority fee above the fee cap', () => {

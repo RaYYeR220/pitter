@@ -50,6 +50,11 @@ export interface Settings {
     /** Most steps one `syncOldestOpen` per tick may walk the book's mark; 0 never sends one. */
     syncSteps: number
     firstReadingSeconds: number
+    /**
+     * While no cover is open, the age the heartbeat may reach before a tick refreshes it; 0 refreshes it on every
+     * tick. Held at least one tick below the book's `maxOracleAge` when it is used.
+     */
+    idleHeartbeatSeconds: number
     heartbeatCell: { lat: number; lon: number }
   }
   weather: {
@@ -176,6 +181,7 @@ const environment = z.object({
   KEEPER_EXPIRE_PER_TICK: integer(0, 20, 4),
   KEEPER_SYNC_STEPS: integer(0, MAX_SYNC_STEPS, 256),
   KEEPER_FIRST_READING_SECONDS: integer(60, 1_800, 300),
+  KEEPER_IDLE_HEARTBEAT_SECONDS: integer(0, 86_400, 900),
   KEEPER_HEARTBEAT_LAT: z.coerce.number().min(-90).max(90).default(52.2297),
   KEEPER_HEARTBEAT_LON: z.coerce.number().min(-180).max(180).default(21.0122),
 
@@ -300,6 +306,7 @@ export function loadConfig(source: Record<string, string | undefined>): Config {
       expirePerTick: env.KEEPER_EXPIRE_PER_TICK,
       syncSteps: env.KEEPER_SYNC_STEPS,
       firstReadingSeconds: env.KEEPER_FIRST_READING_SECONDS,
+      idleHeartbeatSeconds: env.KEEPER_IDLE_HEARTBEAT_SECONDS,
       heartbeatCell: { lat: env.KEEPER_HEARTBEAT_LAT, lon: env.KEEPER_HEARTBEAT_LON },
     },
     weather: { userAgent: env.WEATHER_USER_AGENT },

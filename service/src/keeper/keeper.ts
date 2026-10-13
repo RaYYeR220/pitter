@@ -20,6 +20,12 @@ const HEARTBEAT_MIN_INTERVAL_SECONDS = 120
 /** How far ahead of the chain clock the weather index lets a report be dated. */
 const MAX_CLOCK_SKEW_SECONDS = 60
 
+/**
+ * How far below the book's `maxOracleAge` an idle heartbeat is refreshed at the latest: one five-minute tick, so
+ * the tick after the last skipped one still reports before the book stops selling.
+ */
+const IDLE_HEARTBEAT_MARGIN_SECONDS = 300
+
 export interface ReportedReading {
   key: string
   from: number
@@ -30,11 +36,22 @@ export interface ReportedReading {
 }
 
 export interface ReportOutcome {
-  status: 'submitted' | 'skipped' | 'failed'
+  /** `skipped_idle`: no cover is open and the heartbeat is not due yet, so no report was worth its gas. */
+  status: 'submitted' | 'skipped' | 'skipped_idle' | 'failed'
   /** Why nothing was submitted, or what went wrong. */
   reason?: string
+  /** With `skipped_idle`: the chain time from which a tick refreshes the heartbeat again. */
+  nextDueAt?: number
   readings: ReportedReading[]
   transactions: Hex[]
+}
+
+export interface TickOptions {
+  /**
+   * Report even while no cover is open and the heartbeat is not due, as the practice-mode weather check asks.
+   * Off for the scheduled tick.
+   */
+  reportWhenIdle?: boolean
 }
 
 export interface SettlementOutcome {
@@ -71,6 +88,9 @@ function chunks<T>(items: readonly T[], size: number): T[][] {
  *
  * The keeper reports only what the weather sources agreed on. A cell without a verdict gets no reading, and
  * when no source answers at all nothing is submitted, so the heartbeat ages and the book stops selling.
+ *
+ * While no cover is open a report would only refresh the heartbeat, so the scheduled tick sends one only once
+ * the heartbeat is `KEEPER_IDLE_HEARTBEAT_SECONDS` old (see `idleDueAt`).
  */
 export class Keeper {
   private readonly context: Context
@@ -80,11 +100,11 @@ export class Keeper {
     this.context = context
   }
 
-  async tick(): Promise<TickOutcome> {
+  async tick(options: TickOptions = {}): Promise<TickOutcome> {
     if (this.running) throw conflict('tick_in_progress', 'A keeper run is already in progress')
     this.running = true
     try {
-      const report = await this.report()
+      const report = await this.report(options)
       const settlement = await this.settle()
       return { time: this.context.now(), report, settlement }
     } finally {
@@ -92,12 +112,16 @@ export class Keeper {
     }
   }
 
-  private async report(): Promise<ReportOutcome> {
+  private async report(options: TickOptions): Promise<ReportOutcome> {
     const { settings, reader, core, reporter, relayer, calls, stores, logger } = this.context
     const outcome: ReportOutcome = { status: 'skipped', readings: [], transactions: [] }
     if (!reporter) return { ...outcome, reason: 'no_reporter_key' }
 
     const [head, oracle, activeKeys] = await Promise.all([reader.head(), reader.oracle(), reader.activeCells()])
+    if (activeKeys.length === 0 && !options.reportWhenIdle) {
+      const nextDueAt = await this.idleDueAt(oracle.heartbeat)
+      if (head.timestamp < nextDueAt) return { ...outcome, status: 'skipped_idle', nextDueAt }
+    }
     const time = Math.min(this.context.now(), head.timestamp)
     const lastTo = await reader.lastTo(activeKeys)
 
@@ -166,6 +190,28 @@ export class Keeper {
       issuedAt += 1n
     }
     return outcome
+  }
+
+  /**
+   * When an idle book's heartbeat is next due: `KEEPER_IDLE_HEARTBEAT_SECONDS` after the last one, but never
+   * later than one tick before the book's `maxOracleAge` runs out, so sales do not pause between ticks. A
+   * setting above that is lowered to it and logged. With the setting at 0 the heartbeat is always due.
+   */
+  private async idleDueAt(heartbeat: number): Promise<number> {
+    const { settings, reader, logger } = this.context
+    const configured = settings.keeper.idleHeartbeatSeconds
+    if (configured === 0) return heartbeat
+
+    const maxOracleAge = await reader.maxOracleAge()
+    const limit = Math.max(0, maxOracleAge - IDLE_HEARTBEAT_MARGIN_SECONDS)
+    if (configured > limit) {
+      logger.warn('KEEPER_IDLE_HEARTBEAT_SECONDS is too close to the book maxOracleAge; using the highest safe value', {
+        configured,
+        maxOracleAge,
+        used: limit,
+      })
+    }
+    return heartbeat + Math.min(configured, limit)
   }
 
   /**

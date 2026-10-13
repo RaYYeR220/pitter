@@ -79,6 +79,8 @@ export interface CoverReader {
   servedAreas(): Promise<ServedAreas>
   /** Seconds after the end of its window at which a policy may be expired. */
   expiryGrace(): Promise<number>
+  /** Seconds after the last heartbeat at which the book stops selling (`OracleStale`). */
+  maxOracleAge(): Promise<number>
   policies(ids: readonly bigint[]): Promise<Policy[]>
   claimable(ids: readonly bigint[]): Promise<bigint[]>
   activeCells(): Promise<bigint[]>
@@ -223,6 +225,8 @@ export function viemCoverReader(
     },
 
     expiryGrace: async () => Number(await book<bigint>('expiryGrace')),
+
+    maxOracleAge: async () => Number(await book<bigint>('maxOracleAge')),
 
     async policies(ids) {
       type Row = readonly [Address, bigint, bigint, bigint, bigint, bigint, bigint, bigint, bigint, boolean]

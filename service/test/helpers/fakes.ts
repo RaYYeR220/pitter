@@ -57,6 +57,10 @@ export class FakeReader implements CoverReader {
     return this.expiryGraceSeconds
   }
 
+  async maxOracleAge(): Promise<number> {
+    return this.marketState.maxOracleAge
+  }
+
   async policyCount(): Promise<bigint> {
     return [...this.policyRows.keys()].reduce((a, b) => (b > a ? b : a), 0n)
   }

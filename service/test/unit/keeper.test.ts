@@ -24,6 +24,11 @@ const WARSAW = coreCells.keyAt(52.2297, 21.0122)
 const CELL_A = (1n << 64n) | (100n << 32n) | 1n
 const CELL_B = (1n << 64n) | (100n << 32n) | 2n
 const SIMULATOR = (1n << 64n) | (1800n << 32n) | 3600n
+const SANDBOX = {
+  SANDBOX_ENABLED: 'true',
+  SANDBOX_SECRET: 'sandbox-secret-for-tests-01234567',
+  SANDBOX_SIMULATOR_KEY: SIMULATOR.toString(),
+}
 
 const reportParameters = [
   {
@@ -107,6 +112,7 @@ describe('keeper tick', () => {
 
     it('does not run two ticks at once', async () => {
       h.weather.verdicts.set(WARSAW, false)
+      h.reader.oracleState = { heartbeat: T0 - 900, lastIssuedAt: BigInt(T0 - 900) }
       h.rpc.delayMs = 10
 
       const responses = await Promise.all([tick(), tick()])
@@ -185,6 +191,7 @@ describe('keeper tick', () => {
 
     it('keeps the heartbeat alive with an empty report while no cell is active', async () => {
       h.weather.verdicts.set(WARSAW, false)
+      h.reader.oracleState = { heartbeat: T0 - 900, lastIssuedAt: BigInt(T0 - 900) }
 
       const result = await body(await tick())
 
@@ -195,7 +202,9 @@ describe('keeper tick', () => {
     })
 
     it('does not repeat an empty report while the heartbeat is fresh', async () => {
-      h.weather.verdicts.set(WARSAW, false)
+      h.reader.cells = [CELL_A]
+      h.reader.lastToValues.set(CELL_A, BigInt(T0))
+      h.weather.verdicts.set(CELL_A, false)
       h.reader.oracleState = { heartbeat: T0 - 30, lastIssuedAt: BigInt(T0 - 30) }
 
       const result = await body(await tick())
@@ -206,7 +215,7 @@ describe('keeper tick', () => {
 
     it('dates a report after the last accepted one', async () => {
       h.weather.verdicts.set(WARSAW, false)
-      h.reader.oracleState = { heartbeat: T0 - 300, lastIssuedAt: BigInt(T0 + 5) }
+      h.reader.oracleState = { heartbeat: T0 - 900, lastIssuedAt: BigInt(T0 + 5) }
 
       await tick()
 
@@ -263,15 +272,104 @@ describe('keeper tick', () => {
     })
   })
 
-  describe('simulator cell', () => {
-    const sandbox = {
-      SANDBOX_ENABLED: 'true',
-      SANDBOX_SECRET: 'sandbox-secret-for-tests-01234567',
-      SANDBOX_SIMULATOR_KEY: SIMULATOR.toString(),
-    }
+  describe('idle book', () => {
+    /** The practice-mode weather check, sent the way the web app sends it. */
+    const practiceCheck = () =>
+      h.guarded(cronTickHandler(h.context))(
+        new Request('https://cover.test/api/sandbox/tick', { method: 'POST', headers: secret }),
+      )
 
+    beforeEach(() => {
+      h.weather.verdicts.set(WARSAW, false)
+      h.reader.oracleState = { heartbeat: T0 - 300, lastIssuedAt: BigInt(T0 - 300) }
+    })
+
+    it('skips the report while no cover is open and the heartbeat is younger than the idle interval', async () => {
+      const result = await body(await tick())
+
+      expect(result.report).toEqual({ status: 'skipped_idle', nextDueAt: T0 + 600, readings: [], transactions: [] })
+      expect(submits()).toHaveLength(0)
+      expect(h.weather.observed).toHaveLength(0)
+    })
+
+    it('refreshes the heartbeat once it is as old as the idle interval', async () => {
+      h.reader.oracleState = { heartbeat: T0 - 900, lastIssuedAt: BigInt(T0 - 900) }
+
+      const result = await body(await tick())
+
+      expect(result.report).toMatchObject({ status: 'submitted', readings: [] })
+      expect(submits()).toHaveLength(1)
+    })
+
+    it('reports on every tick while cover is open, however fresh the heartbeat', async () => {
+      h.reader.cells = [CELL_A]
+      h.weather.verdicts.set(CELL_A, true)
+
+      const result = await body(await tick())
+
+      expect(result.report.status).toBe('submitted')
+      expect(result.report.readings).toHaveLength(1)
+      expect(submits()).toHaveLength(1)
+    })
+
+    it('holds a setting too close to the book maxOracleAge one tick below it', async () => {
+      start({ KEEPER_IDLE_HEARTBEAT_SECONDS: '3600' })
+      h.weather.verdicts.set(WARSAW, false)
+      h.reader.marketState.maxOracleAge = 1_800
+
+      h.reader.oracleState = { heartbeat: T0 - 1_499, lastIssuedAt: BigInt(T0 - 1_499) }
+      const young = await body(await tick())
+      h.reader.oracleState = { heartbeat: T0 - 1_500, lastIssuedAt: BigInt(T0 - 1_500) }
+      const due = await body(await tick())
+
+      expect(young.report).toMatchObject({ status: 'skipped_idle', nextDueAt: T0 + 1 })
+      expect(due.report.status).toBe('submitted')
+      expect(submits()).toHaveLength(1)
+      expect(h.logger.entries).toContainEqual(
+        expect.objectContaining({ level: 'warn', fields: { configured: 3_600, maxOracleAge: 1_800, used: 1_500 } }),
+      )
+    })
+
+    it('reports on every tick when the book maxOracleAge leaves no tick of room', async () => {
+      h.reader.marketState.maxOracleAge = 300
+
+      const result = await body(await tick())
+
+      expect(result.report.status).toBe('submitted')
+    })
+
+    it('can be turned off', async () => {
+      start({ KEEPER_IDLE_HEARTBEAT_SECONDS: '0' })
+      h.weather.verdicts.set(WARSAW, false)
+
+      const result = await body(await tick())
+
+      expect(result.report.status).toBe('submitted')
+    })
+
+    it('does not hold back the practice-mode weather check', async () => {
+      start(SANDBOX)
+      h.weather.verdicts.set(WARSAW, false)
+
+      const check = await body(await practiceCheck())
+      const scheduled = await body(await tick())
+
+      expect(check.report).toMatchObject({ status: 'submitted', readings: [] })
+      expect(submits()).toHaveLength(1)
+      expect(scheduled.report.status).toBe('skipped_idle')
+    })
+
+    it('treats a check sent to the practice path as a scheduled tick when the sandbox is off', async () => {
+      const result = await body(await practiceCheck())
+
+      expect(result.report.status).toBe('skipped_idle')
+      expect(submits()).toHaveLength(0)
+    })
+  })
+
+  describe('simulator cell', () => {
     it('is reported from the switch and labelled as simulated', async () => {
-      start(sandbox)
+      start(SANDBOX)
       h.reader.cells = [CELL_A, SIMULATOR]
       h.weather.verdicts.set(CELL_A, false)
       await writeStorm(h.stores.state, true, T0 - 10)
@@ -286,7 +384,7 @@ describe('keeper tick', () => {
     })
 
     it('is dry until the switch is turned on', async () => {
-      start(sandbox)
+      start(SANDBOX)
       h.reader.cells = [SIMULATOR]
 
       const result = await body(await tick())
