@@ -183,17 +183,7 @@ abstract contract CoverFixture is Signing {
     // ───────────────────────────── views ─────────────────────────────
 
     function _policy(uint256 id) internal view returns (PolicyView memory p) {
-        (
-            p.holder,
-            p.key,
-            p.start,
-            p.end,
-            p.ratePerSecond,
-            p.premium,
-            p.maxPayout,
-            p.paid,
-            p.settledUntil,
-            p.closed
-        ) = book.policies(id);
+        (p.holder, p.key, p.start, p.end, p.ratePerSecond, p.premium, p.maxPayout, p.paid, p.settledUntil, p.closed) =
+            book.policies(id);
     }
 }

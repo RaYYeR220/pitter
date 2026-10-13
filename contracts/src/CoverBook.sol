@@ -222,9 +222,8 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient {
         id = _open(q, digest, quoteSig);
 
         uint256 balanceBefore = token.balanceOf(address(this));
-        IERC3009(address(token)).receiveWithAuthorization(
-            q.holder, address(this), q.premium, validAfter, validBefore, digest, v, r, s
-        );
+        IERC3009(address(token))
+            .receiveWithAuthorization(q.holder, address(this), q.premium, validAfter, validBefore, digest, v, r, s);
         if (token.balanceOf(address(this)) < balanceBefore + q.premium) revert PremiumNotReceived();
 
         (uint256 fee, uint256 net) = _split(q.premium);
@@ -298,18 +297,19 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient {
         )
     {
         Policy storage p = _policies[id];
-        return (
-            p.holder,
-            p.key,
-            p.start,
-            p.end,
-            p.ratePerSecond,
-            p.premium,
-            _maxPayout(p),
-            p.paid,
-            p.settledUntil,
-            p.closed
-        );
+        return
+            (
+                p.holder,
+                p.key,
+                p.start,
+                p.end,
+                p.ratePerSecond,
+                p.premium,
+                _maxPayout(p),
+                p.paid,
+                p.settledUntil,
+                p.closed
+            );
     }
 
     /// @notice Keys that currently have at least one open policy. The oracle reports these.

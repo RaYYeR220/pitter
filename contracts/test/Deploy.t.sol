@@ -149,11 +149,12 @@ contract DeployTest is Signing {
         uint256 id = d.book.buyWithAuthorization(q, _signDigest(underwriterKey, digest), 0, q.expiry, v, r, s);
 
         vm.warp(q.end);
-        d.index.submit(
-            _signedReport(
-                reporterKey, d.index.DOMAIN_SEPARATOR(), _readings(Reading(key, q.start, q.end, 600)), q.end
-            )
-        );
+        d.index
+            .submit(
+                _signedReport(
+                    reporterKey, d.index.DOMAIN_SEPARATOR(), _readings(Reading(key, q.start, q.end, 600)), q.end
+                )
+            );
         assertEq(d.book.settle(id), 6e6);
         assertEq(dollar.balanceOf(holder), 1_000e6 - 1e6 + 6e6);
         assertEq(d.pool.lockedExposure(), 0);

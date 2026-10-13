@@ -134,7 +134,8 @@ contract TestDollarTest is Signing {
 
     function test_Permit_SetsTheAllowance() public {
         uint256 deadline = vm.getBlockTimestamp() + 1 hours;
-        (uint8 v, bytes32 r, bytes32 s) = _signPermit(aliceKey, domain, alice, bob, 40e6, dollar.nonces(alice), deadline);
+        (uint8 v, bytes32 r, bytes32 s) =
+            _signPermit(aliceKey, domain, alice, bob, 40e6, dollar.nonces(alice), deadline);
 
         vm.prank(relayer);
         dollar.permit(alice, bob, 40e6, deadline, v, r, s);
@@ -238,12 +239,7 @@ contract TestDollarTest is Signing {
         window = bound(window, 1, 365 days);
         uint256 nowTs = vm.getBlockTimestamp();
         Authorization memory a = Authorization({
-            from: alice,
-            to: bob,
-            value: value,
-            validAfter: nowTs - lead,
-            validBefore: nowTs + window,
-            nonce: nonce
+            from: alice, to: bob, value: value, validAfter: nowTs - lead, validBefore: nowTs + window, nonce: nonce
         });
         (uint8 v, bytes32 r, bytes32 s) = _signTransferAuthorization(aliceKey, domain, a);
 

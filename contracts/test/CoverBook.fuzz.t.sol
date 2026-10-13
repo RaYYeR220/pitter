@@ -121,9 +121,7 @@ contract CoverBookFuzzTest is CoverFixture {
         assertEq(settledOften, settledOnce);
     }
 
-    function testFuzz_Payout_OpenPolicyExposureAlwaysMatchesThePool(uint256 seed, uint128 rate, uint8 minutes_)
-        public
-    {
+    function testFuzz_Payout_OpenPolicyExposureAlwaysMatchesThePool(uint256 seed, uint128 rate, uint8 minutes_) public {
         uint64 duration = uint64(bound(minutes_, 2, 60)) * 60;
         rate = uint128(bound(rate, 1, MAX_POLICY_PAYOUT / duration));
         (uint256 id, Quote memory q) = _open(rate, duration);
@@ -165,9 +163,13 @@ contract CoverBookFuzzTest is CoverFixture {
         assertEq(dollar.balanceOf(holder), HOLDER_FUNDS - premium);
     }
 
-    function testFuzz_Quote_IsUsableExactlyOnce(uint128 rate, uint8 minutes_, bytes32 salt, bool firstByAuthorization, bool secondByAuthorization)
-        public
-    {
+    function testFuzz_Quote_IsUsableExactlyOnce(
+        uint128 rate,
+        uint8 minutes_,
+        bytes32 salt,
+        bool firstByAuthorization,
+        bool secondByAuthorization
+    ) public {
         uint64 duration = uint64(bound(minutes_, 1, 720)) * 60;
         rate = uint128(bound(rate, 0, MAX_POLICY_PAYOUT / duration));
         Quote memory q = _quote(holder, KEY, _now() + 60, _now() + 60 + duration, rate, PREMIUM);

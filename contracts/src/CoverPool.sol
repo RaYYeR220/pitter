@@ -217,9 +217,8 @@ contract CoverPool is ERC4626, Ownable2Step, ReentrancyGuardTransient, ICoverPoo
         IERC20 token = IERC20(asset());
         uint256 balanceBefore = token.balanceOf(address(this));
         // forge-lint: disable-start(reentrancy-no-eth)
-        IERC3009(address(token)).receiveWithAuthorization(
-            receiver, address(this), assets, validAfter, validBefore, nonce, v, r, s
-        );
+        IERC3009(address(token))
+            .receiveWithAuthorization(receiver, address(this), assets, validAfter, validBefore, nonce, v, r, s);
         // forge-lint: disable-end(reentrancy-no-eth)
         if (token.balanceOf(address(this)) < balanceBefore + assets) revert DepositNotReceived();
 

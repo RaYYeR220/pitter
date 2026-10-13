@@ -23,8 +23,7 @@ abstract contract Signing is Test {
         0xd099cc98ef71107a616c4f0f941f04c322d8e254fe26b3c6668db87aae413de8;
     bytes32 internal constant CANCEL_AUTHORIZATION_TYPEHASH =
         0x158b0a9edf7a828aad02f63cd515c68ef2f50ba807396f6d12842833a1597429;
-    bytes32 internal constant PERMIT_TYPEHASH =
-        0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9;
+    bytes32 internal constant PERMIT_TYPEHASH = 0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9;
 
     struct Authorization {
         address from;
@@ -44,7 +43,8 @@ abstract contract Signing is Test {
         pure
         returns (uint8 v, bytes32 r, bytes32 s)
     {
-        bytes32 structHash = keccak256(abi.encode(typeHash, a.from, a.to, a.value, a.validAfter, a.validBefore, a.nonce));
+        bytes32 structHash =
+            keccak256(abi.encode(typeHash, a.from, a.to, a.value, a.validAfter, a.validBefore, a.nonce));
         return vm.sign(privateKey, _typedDigest(domainSeparator, structHash));
     }
 
@@ -95,9 +95,7 @@ abstract contract Signing is Test {
 
     function _quoteDigest(bytes32 domainSeparator, Quote memory q) internal pure returns (bytes32) {
         bytes32 structHash = keccak256(
-            abi.encode(
-                QUOTE_TYPEHASH, q.holder, q.key, q.start, q.end, q.ratePerSecond, q.premium, q.expiry, q.salt
-            )
+            abi.encode(QUOTE_TYPEHASH, q.holder, q.key, q.start, q.end, q.ratePerSecond, q.premium, q.expiry, q.salt)
         );
         return _typedDigest(domainSeparator, structHash);
     }
@@ -112,9 +110,7 @@ abstract contract Signing is Test {
         bytes32[] memory hashes = new bytes32[](readings.length);
         for (uint256 i = 0; i < readings.length; ++i) {
             hashes[i] = keccak256(
-                abi.encode(
-                    READING_TYPEHASH, readings[i].key, readings[i].from, readings[i].to, readings[i].wetSeconds
-                )
+                abi.encode(READING_TYPEHASH, readings[i].key, readings[i].from, readings[i].to, readings[i].wetSeconds)
             );
         }
         bytes32 structHash = keccak256(abi.encode(REPORT_TYPEHASH, keccak256(abi.encodePacked(hashes)), issuedAt));

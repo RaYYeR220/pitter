@@ -112,9 +112,7 @@ contract TestDollar is ERC20, ERC20Permit, Ownable2Step, IERC3009 {
         bytes32 s
     ) external {
         if (msg.sender != to) revert CallerMustBePayee(msg.sender, to);
-        _useAuthorization(
-            RECEIVE_WITH_AUTHORIZATION_TYPEHASH, from, to, value, validAfter, validBefore, nonce, v, r, s
-        );
+        _useAuthorization(RECEIVE_WITH_AUTHORIZATION_TYPEHASH, from, to, value, validAfter, validBefore, nonce, v, r, s);
         _transfer(from, to, value);
     }
 
