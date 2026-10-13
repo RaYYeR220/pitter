@@ -1,6 +1,14 @@
 'use client'
 
-import { createContext, useCallback, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from 'react'
 import { createRuntime, type Runtime } from '@/lib/runtime'
 
 export type RuntimeStatus =
@@ -69,11 +77,9 @@ export function RuntimeProvider({ children }: { children: ReactNode }) {
       const next = account.getState().address
       if (next === address) return
       const switched = next !== null && lastAccount !== null && next !== lastAccount
-      const signedOut = next === null && account.getState().ended === 'signed_out'
-      if (switched || signedOut) {
-        engine.reset()
-        shiftLog.lock()
-      }
+      const ended = next === null ? account.getState().ended : null
+      if (switched || ended === 'signed_out') engine.reset()
+      if (switched || ended !== null) shiftLog.lock()
       address = next
       if (next !== null) lastAccount = next
     })
