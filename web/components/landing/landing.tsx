@@ -61,7 +61,7 @@ export function Landing() {
           {worked.heading}
         </h2>
         <p className="lede lsec__lede">{worked.lede(formatDollars(EXAMPLE.ratePerMinute))}</p>
-        <ScrollTo x={470} label={worked.chartLabel}>
+        <ScrollTo x={580} label={worked.chartLabel}>
           <ExampleChart />
         </ScrollTo>
         <p className="plot__hint mono">{worked.hint}</p>

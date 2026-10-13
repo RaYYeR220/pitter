@@ -230,7 +230,7 @@ export function AreaPicker({ locked }: { locked: boolean }) {
           </Banner>
         </dd>
       ) : null}
-      {area.area?.source === 'simulator' ? (
+      {area.area?.source === 'simulator' && !locked ? (
         <dd className="row__more">
           <p className="mono">{copy.area.simulatorNote}</p>
         </dd>
@@ -252,7 +252,7 @@ function PayoutChoice({ locked }: { locked: boolean }) {
         <span>{formatDollars(perMinute(area.ratePerSecond))}</span>
         <small className="mono">{copy.screen.payout.unit}</small>
       </dd>
-      <dd className="row__more">
+      <dd className="row__more" hidden={locked}>
         <fieldset className="chips" data-testid="rate" disabled={locked}>
           <legend className="vh">{copy.cover.payoutChoice}</legend>
           {area.rates.map((rate) => (
@@ -557,6 +557,30 @@ export function CoverPanel() {
             </div>
           </div>
         ) : null}
+        {phase === 'summary' ? (
+          <div className="pair">
+            <div>
+              <b>{copy.screen.rain.minutes(rainSeconds(accrual, accrual.paid + accrual.confirmed))}</b>
+              <span>{copy.screen.summary.minutes}</span>
+            </div>
+            <div>
+              <b>{formatDollars(accrual.cost)}</b>
+              <span>{copy.screen.summary.cost}</span>
+            </div>
+          </div>
+        ) : null}
+        {phase === 'dry' ? (
+          <div className="pair">
+            <div>
+              <b>{formatDollars(accrual.cost)}</b>
+              <span>{copy.screen.dry.cost}</span>
+            </div>
+            <div>
+              <b>{formatDollars(perMinute(rate))}</b>
+              <span>{copy.screen.dry.pays}</span>
+            </div>
+          </div>
+        ) : null}
         {phase === 'raining' ? (
           <div className="pair">
             <div>
@@ -605,7 +629,6 @@ export function CoverPanel() {
           <PayoutChoice locked={locked} />
           <BalanceRow />
         </Rows>
-        <AccrualPanel />
         <div className="actions actions--switch">
           {phase === 'summary' && price ? (
             <p className="side-offer" data-testid="offer">
@@ -633,6 +656,7 @@ export function CoverPanel() {
           </p>
         </div>
         <WeatherLine />
+        <AccrualPanel />
         <p className="mono fine">{copy.cover.heavyRain}</p>
         {lastBlock?.transactionHash ? (
           <p className="mono last-record">

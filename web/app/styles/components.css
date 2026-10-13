@@ -476,12 +476,14 @@
 
 .hair__caps {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
-  gap: 16px;
+  gap: 0 16px;
   margin-top: 9px;
 }
 
 .hair__caps > span:last-child {
+  margin-left: auto;
   text-align: right;
 }
 

@@ -266,6 +266,17 @@
   z-index: 0;
   opacity: 0.7;
   -webkit-mask-image: var(--streaks), linear-gradient(180deg, #000 0, #000 60%, transparent 100%);
+  mask-image: var(--streaks), linear-gradient(180deg, #000 0, #000 60%, transparent 100%);
+  -webkit-mask-size: 640px var(--tile-h), 100% 100%;
+  mask-size: 640px var(--tile-h), 100% 100%;
+  -webkit-mask-repeat: repeat, no-repeat;
+  mask-repeat: repeat, no-repeat;
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+}
+
+:root[data-weather='raining'] .floor--first {
+  display: none;
 }
 
 .cover--raining .sentence {
@@ -314,8 +325,21 @@
     padding: var(--s-6) 0 var(--s-7);
   }
 
+  /* on a phone the switch comes straight after the figure, where the thumb is */
   .screen__side {
-    padding-top: 18px;
+    display: flex;
+    flex-direction: column;
+    padding-top: 22px;
+  }
+
+  .screen__side > .actions--switch {
+    order: -2;
+    margin: 0 0 4px;
+  }
+
+  .screen__side > .check {
+    order: -1;
+    margin: 0 0 18px;
   }
 
   .screen .hair,
@@ -469,7 +493,17 @@
 }
 
 .cashout > summary {
-  min-height: 64px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 16px;
+  min-height: 72px;
+  padding: 12px 0;
+}
+
+.cashout > summary::after {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
 }
 
 .cashout__title {
@@ -478,8 +512,8 @@
 }
 
 .cashout__asks {
-  margin-left: auto;
-  color: var(--ink);
+  grid-column: 1;
+  color: var(--ink-2);
 }
 
 .cashout__form {
@@ -1268,6 +1302,10 @@
   min-height: 3px;
   background: var(--line);
   border-top: 2px solid var(--ink);
+}
+
+.tile--wet .tile__well {
+  background: repeating-linear-gradient(90deg, var(--mark-soft) 0 1px, transparent 1px 4px);
 }
 
 .tile--wet .tile__well i {

@@ -685,6 +685,14 @@ export const copy = {
       silent: 'since the weather was last confirmed. We don’t guess: new cover waits until it is confirmed again.',
       notNow: 'for every minute of heavy rain, once cover can be sold here again.',
     },
+    summary: {
+      minutes: 'of heavy rain, paid for',
+      cost: 'cost of cover on that shift',
+    },
+    dry: {
+      cost: 'cost of cover on this shift so far',
+      pays: 'a minute, paid to you if heavy rain starts',
+    },
     offer: {
       cost: (minutes: number) => `for the next ${minutes} minutes`,
       pays: 'if heavy rain fills all of them',
