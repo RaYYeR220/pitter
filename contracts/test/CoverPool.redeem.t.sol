@@ -777,21 +777,26 @@ contract CoverPoolRedeemTest is PoolFixture {
         pool.setRedeemNotice(7 days + 1);
 
         vm.startPrank(owner);
-        pool.setRedeemNotice(1 minutes);
         pool.setRedeemNotice(7 days);
+        // Against a book that sells no cover ahead, the floor is the settlement margin.
+        assertEq(pool.NOTICE_MARGIN(), 30 minutes);
+        pool.setRedeemNotice(30 minutes);
+        vm.expectRevert(CoverPool.NoticeInvalid.selector);
+        pool.setRedeemNotice(30 minutes - 1);
         vm.stopPrank();
     }
 
     function test_SetRedeemNotice_RevertWhen_ShorterThanTheCoverHorizon() public {
         BookStub(book).setMaxHorizon(2 hours);
 
+        // The notice has to outlast the horizon by the settlement margin.
         vm.expectRevert(CoverPool.NoticeInvalid.selector);
         vm.prank(owner);
-        pool.setRedeemNotice(2 hours - 1);
+        pool.setRedeemNotice(2 hours + 30 minutes - 1);
 
         vm.prank(owner);
-        pool.setRedeemNotice(2 hours);
-        assertEq(pool.redeemNotice(), 2 hours);
+        pool.setRedeemNotice(2 hours + 30 minutes);
+        assertEq(pool.redeemNotice(), 2 hours + 30 minutes);
     }
 
     function test_SetRedeemNotice_BeforeTheBookIsWiredOnlyTheLimitsApply() public {

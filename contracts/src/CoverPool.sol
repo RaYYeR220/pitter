@@ -67,6 +67,10 @@ contract CoverPool is ERC4626, Ownable2Step, ReentrancyGuardTransient, ICoverPoo
     /// @notice Longest redemption notice the owner can set.
     uint64 public constant MAX_REDEEM_NOTICE = 7 days;
 
+    /// @notice How much longer than the book's cover horizon the notice must be: time for the oracle to report
+    /// the last interval of a window at the horizon and for a keeper to settle it.
+    uint64 public constant NOTICE_MARGIN = 30 minutes;
+
     uint256 private constant BPS = 10_000;
 
     /// @notice The policy book: the only account allowed to lock, release and pay out exposure.
@@ -443,13 +447,15 @@ contract CoverPool is ERC4626, Ownable2Step, ReentrancyGuardTransient, ICoverPoo
         emit MaxCellSet(bps);
     }
 
-    /// @notice Sets the redemption notice. It may not be shorter than the book's cover horizon: capital that
-    /// asks to leave after a sale has to stay until that cover has ended. Requests already made keep the
-    /// notice they were given.
+    /// @notice Sets the redemption notice. Once the book is wired it must outlast the book's cover horizon by
+    /// `NOTICE_MARGIN`: capital that asks to leave after a sale stays until that cover has ended and been
+    /// reported. Requests already made keep the notice they were given.
     function setRedeemNotice(uint64 notice) external onlyOwner {
         if (notice < MIN_REDEEM_NOTICE || notice > MAX_REDEEM_NOTICE) revert NoticeInvalid();
         address book_ = book;
-        if (book_ != address(0) && notice < ICoverBook(book_).maxHorizon()) revert NoticeInvalid();
+        if (book_ != address(0) && notice < uint256(ICoverBook(book_).maxHorizon()) + NOTICE_MARGIN) {
+            revert NoticeInvalid();
+        }
         redeemNotice = notice;
         emit RedeemNoticeSet(notice);
     }

@@ -26,8 +26,8 @@ import {WeatherIndex} from "../src/WeatherIndex.sol";
 /// - `REDEEM_NOTICE` optional  seconds a liquidity provider waits between asking to leave and leaving;
 ///                            defaults to the pool's 13 hours
 /// - `MAX_HORIZON`  optional  seconds ahead of its purchase a policy may end: at least the longest window
-///                            (12 hours), at most the redemption notice; defaults to the book's 12 hours 30
-///                            minutes
+///                            (12 hours), at most the redemption notice less 30 minutes; defaults to the
+///                            book's 12 hours 30 minutes
 /// - `SHARE_NAME`, `SHARE_SYMBOL` optional  pool share token metadata
 ///
 /// The deployer owns the contracts while wiring them. When `OWNER` is another account, ownership is offered
@@ -135,11 +135,12 @@ contract Deploy is Script {
         }
     }
 
-    /// @notice Fails unless capital that asks to leave stays at least as long as the book sells cover ahead.
+    /// @notice Fails unless capital that asks to leave stays at least as long as the book sells cover ahead,
+    /// plus the margin for the last interval to be reported and settled.
     function checkHorizon(CoverPool pool, CoverBook book) public view {
         uint256 horizon = book.maxHorizon();
         uint256 notice = pool.redeemNotice();
-        if (notice < horizon) revert HorizonBeyondNotice(horizon, notice);
+        if (notice < horizon + book.NOTICE_MARGIN()) revert HorizonBeyondNotice(horizon, notice);
     }
 
     function _write(Deployment memory d, Params memory p, address deployer) internal {

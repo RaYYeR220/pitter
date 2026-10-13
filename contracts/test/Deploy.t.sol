@@ -91,23 +91,23 @@ contract DeployTest is Signing {
     function test_Deploy_ShortensTheHorizonBeforeTheNotice() public {
         // Both below their defaults: the notice can only follow the horizon down.
         Deploy.Params memory p = _params();
-        p.redeemNotice = 12 hours;
+        p.redeemNotice = 12 hours + 30 minutes;
         p.maxHorizon = 12 hours;
         Deploy.Deployment memory d = script.deploy(p, address(script));
 
-        assertEq(d.pool.redeemNotice(), 12 hours);
+        assertEq(d.pool.redeemNotice(), 12 hours + 30 minutes);
         assertEq(d.book.maxHorizon(), 12 hours);
     }
 
     function test_Deploy_RevertWhen_TheHorizonOutlastsTheNotice() public {
         Deploy.Params memory p = _params();
-        p.maxHorizon = 13 hours + 1;
+        p.maxHorizon = 12 hours + 30 minutes + 1;
         vm.expectRevert(CoverBook.ConfigInvalid.selector);
         script.deploy(p, address(script));
 
-        // A notice shorter than the horizon the book starts with is refused as well.
+        // A notice within the margin of the horizon the book starts with is refused as well.
         p.maxHorizon = 0;
-        p.redeemNotice = 12 hours;
+        p.redeemNotice = 13 hours - 1;
         vm.expectRevert(CoverPool.NoticeInvalid.selector);
         script.deploy(p, address(script));
     }
@@ -116,8 +116,10 @@ contract DeployTest is Signing {
         Deploy.Deployment memory d = script.deploy(_params(), address(script));
         script.checkHorizon(d.pool, d.book);
 
-        vm.mockCall(address(d.pool), abi.encodeWithSignature("redeemNotice()"), abi.encode(uint64(12 hours)));
-        vm.expectRevert(abi.encodeWithSelector(Deploy.HorizonBeyondNotice.selector, 12 hours + 30 minutes, 12 hours));
+        vm.mockCall(address(d.pool), abi.encodeWithSignature("redeemNotice()"), abi.encode(uint64(13 hours - 1)));
+        vm.expectRevert(
+            abi.encodeWithSelector(Deploy.HorizonBeyondNotice.selector, 12 hours + 30 minutes, 13 hours - 1)
+        );
         script.checkHorizon(d.pool, d.book);
     }
 

@@ -208,19 +208,66 @@ contract LiquidityExitTest is CoverFixture {
         assertApproxEqAbs(out, (200_000e6 + 3 * 475e6 - loss) / 2, 10);
     }
 
-    function test_TheNoticeCannotBeCutBelowTheCoverHorizon() public {
+    function test_TheNoticeCannotBeCutBelowTheCoverHorizonAndTheMargin() public {
+        assertEq(pool.NOTICE_MARGIN(), book.NOTICE_MARGIN());
+
         vm.startPrank(owner);
         vm.expectRevert(CoverPool.NoticeInvalid.selector);
-        pool.setRedeemNotice(12 hours + 30 minutes - 1);
+        pool.setRedeemNotice(13 hours - 1);
+        vm.expectRevert(CoverPool.NoticeInvalid.selector);
         pool.setRedeemNotice(12 hours + 30 minutes);
+        pool.setRedeemNotice(13 hours);
 
         // To shorten the notice further, the book first has to stop selling that far ahead.
         book.setDurationBounds(60, 1 hours);
         book.setMaxHorizon(1 hours);
-        pool.setRedeemNotice(1 hours);
+        pool.setRedeemNotice(1 hours + 30 minutes);
         vm.stopPrank();
 
-        assertEq(pool.redeemNotice(), book.maxHorizon());
+        assertEq(pool.redeemNotice(), book.maxHorizon() + book.NOTICE_MARGIN());
+    }
+
+    function test_ARequestMadeInTheSecondOfASaleAtTheHorizonWaitsForItsLastInterval() public {
+        vm.prank(whale);
+        pool.deposit(100_000e6, whale);
+
+        // A notice equal to the horizon is refused: a request made in the second of a sale at the horizon would
+        // mature in the second that window ends, before the oracle could report its last interval.
+        uint64 horizon = book.maxHorizon();
+        vm.prank(owner);
+        vm.expectRevert(CoverPool.NoticeInvalid.selector);
+        pool.setRedeemNotice(horizon);
+
+        // A ten-minute window ending exactly at the horizon; `lp` asks to leave in the same second.
+        uint64 end = _now() + horizon;
+        uint64 start = end - 10 minutes;
+        uint128 rate = uint128(50_000e6 / uint256(10 minutes));
+        uint256 id = _buy(_quote(holder, KEY, start, end, rate, 500e6));
+        uint256 shares = pool.balanceOf(lp);
+        vm.prank(lp);
+        pool.requestRedeem(shares, lp, lp);
+        (,, uint64 claimableAt,) = pool.redeemRequests(lp);
+        assertEq(claimableAt, end + book.NOTICE_MARGIN());
+
+        // The first half is reported wet and settled at once.
+        vm.warp(start + 5 minutes);
+        _report(KEY, start, start + 5 minutes, 300);
+        book.settle(id);
+
+        // The second half is reported wet after the window; when the notice ends nobody has settled it yet.
+        vm.warp(end + 20);
+        _report(KEY, start + 5 minutes, end, 300);
+        vm.warp(claimableAt);
+        vm.prank(lp);
+        vm.expectRevert(CoverPool.CoverStillOpen.selector);
+        pool.redeem(shares, lp, lp);
+
+        // Settled, the claim goes through and both providers have carried both halves.
+        book.settle(id);
+        vm.prank(lp);
+        uint256 out = pool.redeem(shares, lp, lp);
+        assertApproxEqAbs(out, pool.convertToAssets(pool.balanceOf(whale)), 10);
+        assertApproxEqAbs(out, (200_000e6 + 475e6 - 600 * uint256(rate)) / 2, 10);
     }
 
     /// @dev Whatever window the book sells and whenever a provider then asks to leave, the request matures no
@@ -240,6 +287,6 @@ contract LiquidityExitTest is CoverFixture {
         pool.requestRedeem(shares, lp, lp);
 
         (,, uint64 claimableAt,) = pool.redeemRequests(lp);
-        assertGe(claimableAt, _policy(id).end);
+        assertGe(claimableAt, _policy(id).end + book.NOTICE_MARGIN());
     }
 }

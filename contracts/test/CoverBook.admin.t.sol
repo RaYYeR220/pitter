@@ -203,23 +203,28 @@ contract CoverBookAdminTest is CoverFixture {
         assertEq(_buy(_quote(holder, KEY, _now() + 50 minutes, _now() + 1 hours, RATE, PREMIUM)), 1);
     }
 
-    function test_SetMaxHorizon_MayReachTheRedemptionNotice() public {
+    function test_SetMaxHorizon_MayReachTheNoticeLessTheMargin() public {
+        assertEq(book.NOTICE_MARGIN(), 30 minutes);
         vm.prank(owner);
-        book.setMaxHorizon(13 hours);
-        assertEq(book.maxHorizon(), pool.redeemNotice());
+        book.setMaxHorizon(12 hours + 30 minutes);
+        assertEq(book.maxHorizon() + book.NOTICE_MARGIN(), pool.redeemNotice());
     }
 
-    function test_SetMaxHorizon_RevertWhen_BeyondTheRedemptionNotice() public {
+    function test_SetMaxHorizon_RevertWhen_WithinTheMarginOfTheRedemptionNotice() public {
         vm.expectRevert(CoverBook.ConfigInvalid.selector);
         vm.prank(owner);
-        book.setMaxHorizon(13 hours + 1);
+        book.setMaxHorizon(12 hours + 30 minutes + 1);
+
+        vm.expectRevert(CoverBook.ConfigInvalid.selector);
+        vm.prank(owner);
+        book.setMaxHorizon(13 hours);
 
         // A longer notice makes room for a longer horizon.
         vm.startPrank(owner);
         pool.setRedeemNotice(1 days);
-        book.setMaxHorizon(1 days);
+        book.setMaxHorizon(1 days - 30 minutes);
         vm.stopPrank();
-        assertEq(book.maxHorizon(), 1 days);
+        assertEq(book.maxHorizon(), 1 days - 30 minutes);
     }
 
     function test_SetMaxHorizon_RevertWhen_BelowTheLongestWindow() public {

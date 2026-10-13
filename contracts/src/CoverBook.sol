@@ -60,6 +60,10 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient, ICoverBook
     /// @notice Shortest grace period the owner can set before an unfinished policy may be expired.
     uint64 public constant MIN_EXPIRY_GRACE = 1 hours;
 
+    /// @notice How much longer than the horizon the pool's redemption notice must be: time for the oracle to
+    /// report the last interval of a window at the horizon and for a keeper to settle it.
+    uint64 public constant NOTICE_MARGIN = 30 minutes;
+
     uint256 private constant BPS = 10_000;
     uint64 private constant MINUTE = 60;
 
@@ -96,8 +100,9 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient, ICoverBook
     /// @notice Longest window that can be bought, in seconds.
     uint64 public maxDuration = 12 hours;
 
-    /// @notice Furthest ahead of its purchase a window may end, in seconds. It never exceeds the pool's
-    /// redemption notice, so capital that asks to leave after a sale stays until that cover has ended.
+    /// @notice Furthest ahead of its purchase a window may end, in seconds. It stays at least `NOTICE_MARGIN`
+    /// below the pool's redemption notice, so capital that asks to leave after a sale stays until that cover
+    /// has ended and been reported.
     uint64 public maxHorizon = 12 hours + 30 minutes;
 
     /// @notice Sales stop when the index heartbeat is older than this, in seconds.
@@ -395,9 +400,11 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient, ICoverBook
     }
 
     /// @notice Sets how far ahead of its purchase a window may end. The horizon has to span the longest window
-    /// and may not outlast the pool's redemption notice.
+    /// and stay at least `NOTICE_MARGIN` below the pool's redemption notice.
     function setMaxHorizon(uint64 maxHorizon_) external onlyOwner {
-        if (maxHorizon_ < maxDuration || maxHorizon_ > pool.redeemNotice()) revert ConfigInvalid();
+        if (maxHorizon_ < maxDuration || uint256(maxHorizon_) + NOTICE_MARGIN > pool.redeemNotice()) {
+            revert ConfigInvalid();
+        }
         maxHorizon = maxHorizon_;
         emit MaxHorizonSet(maxHorizon_);
     }

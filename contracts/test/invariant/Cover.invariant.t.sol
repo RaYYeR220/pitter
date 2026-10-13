@@ -16,7 +16,7 @@ contract CoverInvariantTest is CoverFixture {
         book.setExpiryGrace(1 hours);
         book.setDurationBounds(60, 90 minutes);
         book.setMaxHorizon(90 minutes);
-        pool.setRedeemNotice(90 minutes);
+        pool.setRedeemNotice(2 hours);
         vm.stopPrank();
 
         handler = new CoverHandler(dollar, index, pool, book, owner, underwriterKey, reporterKey);
@@ -358,6 +358,7 @@ contract CoverInvariantTest is CoverFixture {
         }
 
         uint256 horizon = book.maxHorizon();
+        uint256 margin = pool.NOTICE_MARGIN();
         uint256 count = book.policyCount();
         for (uint256 id = 1; id <= count; ++id) {
             uint256 end = _policy(id).end;
@@ -366,7 +367,7 @@ contract CoverInvariantTest is CoverFixture {
             for (uint256 i = 0; i < providers; ++i) {
                 // Only a request made after the sale; a provider without one is left at zero.
                 if (requestedAt[i] < boughtAt) continue;
-                assertGe(claimableAt[i], end, "a request made after a sale matures before that cover ends");
+                assertGe(claimableAt[i], end + margin, "a request made after a sale matures within the margin");
             }
         }
     }

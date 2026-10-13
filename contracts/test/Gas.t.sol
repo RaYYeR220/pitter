@@ -31,13 +31,9 @@ contract GasTest is CoverFixture {
         index.setForwarder(forwarder, true);
         dollar.mint(newcomer, HOLDER_FUNDS);
         dollar.mint(leaver, 2_000e6);
-        // The notice cannot be shorter than the cover horizon, so the book looks no further than these tests do.
-        book.setDurationBounds(60, 10 minutes);
-        book.setMaxHorizon(15 minutes);
-        pool.setRedeemNotice(15 minutes);
         vm.stopPrank();
 
-        // A provider whose redemption request will have matured by the time the tests run.
+        // A provider who asks to leave before any cover is sold.
         vm.startPrank(leaver);
         dollar.approve(address(pool), type(uint256).max);
         pool.requestRedeem(pool.deposit(1_000e6, leaver), leaver, leaver);
@@ -183,6 +179,7 @@ contract GasTest is CoverFixture {
     }
 
     function test_Gas_Redeem_ClaimAMaturedRequest() public {
+        vm.warp(T0 + pool.redeemNotice());
         vm.prank(leaver);
         uint256 assets = pool.redeem(1_000e6 * 1e6, leaver, leaver);
         vm.snapshotGasLastFrame("Gas", "redeem: claim a matured request");
