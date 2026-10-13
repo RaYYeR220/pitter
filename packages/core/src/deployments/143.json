@@ -1,0 +1,13 @@
+{
+  "chainId": 143,
+  "startBlock": 0,
+  "token": "",
+  "testDollar": false,
+  "weatherIndex": "",
+  "coverPool": "",
+  "coverBook": "",
+  "reporter": "",
+  "underwriter": "",
+  "treasury": "",
+  "forwarders": []
+}
