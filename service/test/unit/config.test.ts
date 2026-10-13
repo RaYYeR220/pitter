@@ -1,6 +1,7 @@
 import { parseEther, parseGwei } from 'viem'
 import { describe, expect, it } from 'vitest'
-import { ConfigError, loadConfig } from '../../src/config'
+import { readFileSync } from 'node:fs'
+import { CONFIG_VARIABLES, ConfigError, loadConfig } from '../../src/config'
 import { validEnv } from '../helpers/env'
 
 function problemsOf(env: Record<string, string | undefined>): readonly string[] {
@@ -160,5 +161,33 @@ describe('loadConfig', () => {
 
       expect(problemsOf(env)[0]).toMatch(/must differ/)
     })
+  })
+})
+
+describe('.env.example', () => {
+  const example = readFileSync(new URL('../../.env.example', import.meta.url), 'utf8')
+  const entries = example
+    .split(/\r?\n/)
+    .filter((line) => /^[A-Z0-9_]+=/.test(line))
+    .map((line) => [line.slice(0, line.indexOf('=')), line.slice(line.indexOf('=') + 1)] as const)
+
+  it('documents every variable the service reads, and nothing else', () => {
+    expect(entries.map(([name]) => name).sort()).toEqual([...CONFIG_VARIABLES].sort())
+  })
+
+  it('holds no keys or secrets', () => {
+    for (const [name, value] of entries) {
+      if (/KEY$|SECRET$|^DATABASE_URL$/.test(name)) expect(value, name).toBe('')
+    }
+  })
+
+  it('is a valid configuration once the keys and addresses are filled in', () => {
+    const filled = { ...Object.fromEntries(entries), ...validEnv() }
+
+    const { settings } = loadConfig(filled)
+
+    expect(settings.chainId).toBe(10143)
+    expect(settings.sandbox.enabled).toBe(false)
+    expect(settings.x402.enabled).toBe(false)
   })
 })

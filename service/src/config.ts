@@ -193,6 +193,9 @@ const environment = z.object({
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/, error: 'expected a postgres:// URL' }).optional(),
 })
 
+/** Every environment variable the service reads. */
+export const CONFIG_VARIABLES: readonly string[] = Object.keys(environment.shape)
+
 type Environment = z.infer<typeof environment>
 
 function crossChecks(env: Environment): string[] {
