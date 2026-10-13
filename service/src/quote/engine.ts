@@ -10,6 +10,9 @@ import type { CoverRequest } from '../validation'
 const BPS = 10_000n
 const UINT128_MAX = (1n << 128n) - 1n
 
+/** No window may end further ahead than this, whatever the book allows: there is no forecast to price it. */
+const MAX_AHEAD_SECONDS = 7 * 86_400
+
 /** A quote that would expire sooner than this is not worth handing out. */
 const MIN_QUOTE_LIFETIME_SECONDS = 10
 
@@ -131,9 +134,10 @@ export class QuoteEngine {
       })
     }
 
-    if (market.maxHorizon !== null && end > BigInt(time + market.maxHorizon)) {
+    const horizon = Math.min(market.maxHorizon ?? MAX_AHEAD_SECONDS, MAX_AHEAD_SECONDS)
+    if (end > BigInt(time + horizon)) {
       throw unprocessable('window_too_far', 'The window ends further ahead than cover is sold for', {
-        latestEnd: Math.floor((time + market.maxHorizon) / MINUTE) * MINUTE,
+        latestEnd: Math.floor((time + horizon) / MINUTE) * MINUTE,
       })
     }
 

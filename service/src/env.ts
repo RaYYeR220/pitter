@@ -23,6 +23,8 @@ const MULTICALL3 = '0xcA11bde05977b3631167028862bE2a173976CA11'
 const MONAD_CHAINS = new Set([143, 10143])
 const RPC_TIMEOUT_MS = 10_000
 const POOL_SIZE = 4
+const NONCE_POOL_SIZE = 2
+const DATABASE_CONNECT_TIMEOUT_MS = 10_000
 
 export interface EnvOverrides {
   /** Used for the node, the weather sources and the forecast. Defaults to the platform `fetch`. */
@@ -58,10 +60,16 @@ export function consoleLogger(secrets: Pick<Secrets, 'rpcUrl'>): Logger {
 
 async function postgresStores(databaseUrl: string): Promise<Stores> {
   const { default: pg } = await import('pg')
-  const db = pgDatabase(new pg.Pool({ connectionString: databaseUrl, max: POOL_SIZE }))
+  const pool = (max: number) =>
+    pgDatabase(
+      new pg.Pool({ connectionString: databaseUrl, max, connectionTimeoutMillis: DATABASE_CONNECT_TIMEOUT_MS }),
+    )
+  const db = pool(POOL_SIZE)
   await migrate(db)
   return {
-    nonces: new PostgresNonceStore(db),
+    // A relay holds its connection until its transaction has a receipt. Giving the nonce lock connections of
+    // its own keeps waiting relays from starving every other query of this instance.
+    nonces: new PostgresNonceStore(pool(NONCE_POOL_SIZE)),
     limiter: new PostgresRateLimiter(db),
     ledger: new PostgresLedger(db),
     state: new PostgresStateStore(db),

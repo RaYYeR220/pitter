@@ -407,11 +407,16 @@ describe('cover horizon', () => {
     expect(within.status).toBe(200)
   })
 
-  it('applies no horizon when the book has none', async () => {
+  it('falls back to a week when the book sets no horizon', async () => {
     const h = harness()
     h.reader.marketState = fakeMarket({ maxHorizon: null })
     const handler = h.guarded(quoteHandler(h.context))
+    const week = 7 * 86_400
 
-    expect((await handler(get(url({ start: T0 + 39_600, end: T0 + 82_800 })))).status).toBe(200)
+    const within = await handler(get(url({ start: T0 + 39_600, end: T0 + 82_800 })))
+    const beyond = await handler(get(url({ start: T0 + week, end: T0 + week + 600 })))
+
+    expect(within.status).toBe(200)
+    expect((await body(beyond)).error.code).toBe('window_too_far')
   })
 })

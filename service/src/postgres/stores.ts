@@ -7,6 +7,7 @@ import type { Database, Sql } from './database'
 
 const PRUNE_EVERY_SECONDS = 300
 const KEEP_WINDOWS_FOR_SECONDS = 3_600
+const KEEP_FINISHED_FOR_SECONDS = 7 * 86_400
 
 /** Rate limiter shared by every instance: one atomic upsert per request. */
 export class PostgresRateLimiter implements RateLimiter {
@@ -32,9 +33,15 @@ export class PostgresRateLimiter implements RateLimiter {
   }
 }
 
-/** Ledger shared by every instance. A claim is a single statement, so two instances cannot both win it. */
+/**
+ * Ledger shared by every instance. A claim is a single statement, so two instances cannot both win it.
+ *
+ * Finished entries are dropped after a week. By then the signature behind each of them has expired or been
+ * used on chain, which is what actually stops a repeat; unfinished entries are never dropped.
+ */
 export class PostgresLedger implements Ledger {
   private readonly db: Sql
+  private prunedAt = 0
 
   constructor(db: Sql) {
     this.db = db
@@ -48,6 +55,12 @@ export class PostgresLedger implements Ledger {
        RETURNING data`,
       [key, now],
     )
+    if (now - this.prunedAt >= PRUNE_EVERY_SECONDS) {
+      this.prunedAt = now
+      await this.db.query(`DELETE FROM cover_ledger WHERE status = 'done' AND updated_at < $1`, [
+        now - KEEP_FINISHED_FOR_SECONDS,
+      ])
+    }
     if (claimed.rows.length > 0) return { claimed: true, resumed: claimed.rows[0]!.data ?? null }
 
     const existing = await this.db.query<{ status: LedgerStatus; data: Json | null; updated_at: number | string }>(
