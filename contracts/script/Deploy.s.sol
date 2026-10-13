@@ -22,6 +22,9 @@ import {WeatherIndex} from "../src/WeatherIndex.sol";
 /// - `OWNER`        optional  final owner of every contract; defaults to the deployer
 /// - `MIN_LEAD`     optional  seconds between a purchase and its window; defaults to 600 on mainnet, else 0
 /// - `MAX_POLICY_PAYOUT` optional  largest payout of one policy in token base units; defaults to 500e6
+/// - `MIN_PREMIUM`  optional  smallest premium of one policy in token base units; defaults to none
+/// - `REDEEM_NOTICE` optional  seconds a liquidity provider waits between asking to leave and leaving;
+///                            defaults to the pool's 13 hours
 /// - `SHARE_NAME`, `SHARE_SYMBOL` optional  pool share token metadata
 ///
 /// The deployer owns the contracts while wiring them. When `OWNER` is another account, ownership is offered
@@ -40,6 +43,8 @@ contract Deploy is Script {
         address owner;
         uint64 minLead;
         uint256 maxPolicyPayout;
+        uint128 minPremium;
+        uint64 redeemNotice;
         string shareName;
         string shareSymbol;
     }
@@ -78,6 +83,8 @@ contract Deploy is Script {
         p.owner = vm.envOr("OWNER", deployer);
         p.minLead = uint64(vm.envOr("MIN_LEAD", block.chainid == MONAD_MAINNET ? uint256(600) : uint256(0)));
         p.maxPolicyPayout = vm.envOr("MAX_POLICY_PAYOUT", uint256(500e6));
+        p.minPremium = uint128(vm.envOr("MIN_PREMIUM", uint256(0)));
+        p.redeemNotice = uint64(vm.envOr("REDEEM_NOTICE", uint256(0)));
         p.shareName = vm.envOr("SHARE_NAME", string("Cover Pool Share"));
         p.shareSymbol = vm.envOr("SHARE_SYMBOL", string("cvUSD"));
         if (bytes(vm.envOr("FORWARDERS", string(""))).length != 0) {
@@ -106,6 +113,8 @@ contract Deploy is Script {
             IERC20(d.token), d.pool, d.index, p.underwriter, p.treasury, p.minLead, p.maxPolicyPayout, deployer
         );
         d.pool.setBook(address(d.book));
+        if (p.redeemNotice != 0) d.pool.setRedeemNotice(p.redeemNotice);
+        if (p.minPremium != 0) d.book.setMinPremium(p.minPremium);
 
         if (p.owner != deployer) {
             d.index.transferOwnership(p.owner);
@@ -131,7 +140,9 @@ contract Deploy is Script {
         vm.serializeAddress(root, "underwriter", p.underwriter);
         vm.serializeAddress(root, "treasury", p.treasury);
         vm.serializeUint(root, "minLead", p.minLead);
-        string memory json = vm.serializeUint(root, "maxPolicyPayout", p.maxPolicyPayout);
+        vm.serializeUint(root, "maxPolicyPayout", p.maxPolicyPayout);
+        vm.serializeUint(root, "minPremium", p.minPremium);
+        string memory json = vm.serializeUint(root, "redeemNotice", d.pool.redeemNotice());
 
         vm.createDir("deployments", true);
         string memory path = string.concat("deployments/", vm.toString(block.chainid), ".json");
