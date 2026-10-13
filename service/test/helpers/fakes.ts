@@ -149,10 +149,6 @@ export class FakeWeather implements WeatherReporter {
   }
 }
 
-export interface FakeTransaction {
-  serialized: Hex
-}
-
 /** A node that includes every transaction it is sent, unless told otherwise. */
 export class FakeRpc implements RelayerRpc {
   chain = 10143

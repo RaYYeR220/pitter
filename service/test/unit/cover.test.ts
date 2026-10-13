@@ -33,8 +33,7 @@ describe('POST /v1/cover', () => {
     facilitator = new FakeFacilitator()
     h = harness(env, { facilitator })
     handler = h.guarded(coverHandler(h.context))
-    h.rpc.onSend = (serialized) => {
-      void serialized
+    h.rpc.onSend = () => {
       h.rpc.chainNonce++
       return h.rpc.receipt({ logs: boughtLogs() })
     }
@@ -207,7 +206,6 @@ describe('POST /v1/cover', () => {
       const { response } = await paid()
 
       expect(response.status).toBe(402)
-      expect(buys().every((call) => !h.rpc.sent.some((tx) => tx.includes(call.data.slice(2))))).toBe(true)
       expect(h.rpc.sent.filter((tx) => tx.includes(selectorOf('buy').slice(2)))).toHaveLength(0)
     })
 
@@ -497,6 +495,45 @@ describe('POST /v1/cover', () => {
       expect((await request(encodePaymentSignatureHeader(one))).status).toBe(200)
       expect((await request(encodePaymentSignatureHeader(two))).status).toBe(200)
       expect(facilitator.settled).toHaveLength(2)
+    })
+  })
+
+  describe('when the ledger cannot be written', () => {
+    it('keeps hold of a settled payment whose purchase then fails', async () => {
+      h.reader.allowances.set(`${h.relayerAccount.address}:${h.settings.contracts.coverBook}`, maxUint256)
+      const payment = await payFor(await request(), agent)
+      h.stores.ledger.checkpoint = async () => {
+        throw new Error('database unavailable')
+      }
+      let simulations = 0
+      const simulate = h.rpc.simulate
+      h.rpc.simulate = async (call) => {
+        if (++simulations === 2) {
+          throw new SimulationReverted(encodeErrorResult({ abi: coverBookAbi, errorName: 'OracleStale' }))
+        }
+        return simulate(call)
+      }
+
+      const first = await request(payment)
+      const second = await request(payment)
+
+      expect((await body(first)).error.code).toBe('cover_pending')
+      expect(second.status).toBe(409)
+      expect((await body(second)).error.code).toBe('payment_in_progress')
+      expect(facilitator.settled).toHaveLength(1)
+      expect(h.logger.entries.some((entry) => entry.message === 'a settled payment could not be recorded')).toBe(true)
+    })
+
+    it('still hands over a policy that was bought', async () => {
+      const payment = await payFor(await request(), agent)
+      h.stores.ledger.save = async () => {
+        throw new Error('database unavailable')
+      }
+
+      const response = await request(payment)
+
+      expect(response.status).toBe(200)
+      expect((await body(response)).policyId).toBe('7')
     })
   })
 

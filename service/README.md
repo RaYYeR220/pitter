@@ -203,6 +203,8 @@ facilitator logic running locally. Weather and pricing are stand-ins there; noth
 - **Secrets.** Shared secrets must be at least 24 characters and are compared in constant time. Responses never
   carry keys, stack traces or node URLs: unexpected failures return a reference and are logged under it, with
   the node URL masked.
+- **An x402 payment names a payee and an amount, not an order.** Whoever presents it first decides which
+  holder and window it buys, as with any x402 resource, so it must only ever travel over TLS.
 - **Known limits.** A payment whose settlement call never answered stays claimed and is not retried
   automatically; it has to be reconciled by hand from the logged payment id. A payment that settled for a
   window that can no longer be bought needs a manual refund. The keeper finds open policies by scanning from

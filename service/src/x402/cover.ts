@@ -204,8 +204,12 @@ export function coverHandler(context: Context): Handler {
   /**
    * Buys the policy a settled payment paid for. The claim on the payment is held throughout; on failure it
    * is handed back as `settled`, so the next attempt resumes here.
+   *
+   * @param recorded Whether the settlement is in the ledger. If it could not be written, a failed purchase
+   * keeps the claim instead of handing it back: releasing a claim with nothing recorded would forget that
+   * the payment was ever made.
    */
-  async function issue(paymentId: string, record: PaymentRecord): Promise<Response> {
+  async function issue(paymentId: string, record: PaymentRecord, recorded = true): Promise<Response> {
     const result = (policyId: string | null, transactionHash: string | null): Json => ({
       policyId,
       holder: record.quote.holder,
@@ -231,8 +235,8 @@ export function coverHandler(context: Context): Handler {
         outcome = result(bought ? String(bought.id) : null, receipt.transactionHash)
       }
     } catch (error) {
-      await stores.ledger.release(paymentId)
-      logger.error('a settled payment has no policy yet', { paymentId, error })
+      if (recorded) await stores.ledger.release(paymentId)
+      logger.error('a settled payment has no policy yet', { paymentId, payment: record.settlement, error })
       const failure = relayFailure(error, core.abis)
       const cause = failure instanceof ServiceError ? { cause: failure.code, ...failure.details } : {}
       throw new ServiceError(
@@ -245,7 +249,11 @@ export function coverHandler(context: Context): Handler {
       )
     }
 
-    await stores.ledger.save(paymentId, 'done', outcome, context.now())
+    try {
+      await stores.ledger.save(paymentId, 'done', outcome, context.now())
+    } catch (error) {
+      logger.error('an issued policy could not be recorded against its payment', { paymentId, error })
+    }
     return finished(outcome)
   }
 
@@ -355,11 +363,13 @@ export function coverHandler(context: Context): Handler {
       quoteSig: signed.quoteSig,
       digest: signed.digest,
     }
+    let recorded = true
     try {
       await stores.ledger.checkpoint(paymentId, recordToJson(record), context.now())
     } catch (error) {
-      logger.error('a settled payment could not be recorded', { paymentId, settlement: record.settlement, error })
+      recorded = false
+      logger.error('a settled payment could not be recorded', { paymentId, payment: record.settlement, error })
     }
-    return issue(paymentId, record)
+    return issue(paymentId, record, recorded)
   }
 }

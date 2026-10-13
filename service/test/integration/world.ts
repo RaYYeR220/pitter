@@ -123,6 +123,16 @@ export async function startWorld() {
   const logger = new RecordingLogger()
   const verdicts = new Map<bigint, boolean>()
   const gas: Array<{ name: string; limit: bigint; used: bigint }> = []
+  const nodeMethods = new Set<string>()
+
+  /** Notes which JSON-RPC methods the service calls on the node. */
+  const observedFetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    if (typeof init?.body === 'string') {
+      const sent = JSON.parse(init.body) as { method: string } | Array<{ method: string }>
+      for (const call of Array.isArray(sent) ? sent : [sent]) nodeMethods.add(call.method)
+    }
+    return fetch(input, init)
+  }) as typeof fetch
 
   const deps = await depsFromEnv(
     {
@@ -148,6 +158,7 @@ export async function startWorld() {
     {
       now: () => clock.now,
       logger,
+      fetch: observedFetch,
       core: {
         pricing: flatPricing,
         weather: {
@@ -204,6 +215,7 @@ export async function startWorld() {
     logger,
     verdicts,
     gas,
+    nodeMethods,
     sync,
     get,
     post,

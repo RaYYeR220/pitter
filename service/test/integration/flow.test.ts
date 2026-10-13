@@ -9,7 +9,6 @@ import { randomNonce, signAuthorization } from '../helpers/signing'
 import {
   CHAIN_ID,
   DRIP,
-  DURATION,
   FEE,
   MAX_PAYOUT,
   PREMIUM,
@@ -337,6 +336,13 @@ describe('cover on a local Monad chain', () => {
     expect(responses.map((response) => response.status)).toEqual([200, 200, 200, 200, 200, 200])
     expect(await world.relayerNonce()).toBe(nonce + 6)
     for (const address of recipients) expect(await world.balanceOf(address)).toBe(DRIP)
+  })
+
+  it('sent every transaction synchronously, with a gas limit of its own choosing', () => {
+    expect(world.nodeMethods.has('eth_sendRawTransactionSync')).toBe(true)
+    expect(world.nodeMethods.has('eth_sendRawTransaction')).toBe(false)
+    expect(world.nodeMethods.has('eth_sendTransaction')).toBe(false)
+    expect(world.nodeMethods.has('eth_estimateGas')).toBe(false)
   })
 
   it('stayed inside every gas limit it set', () => {
