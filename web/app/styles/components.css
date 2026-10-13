@@ -190,6 +190,11 @@
   padding-top: var(--s-4);
 }
 
+.page-line {
+  margin: 0;
+  padding: 10px 0;
+}
+
 .foot {
   position: relative;
   z-index: 1;

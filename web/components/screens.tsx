@@ -14,10 +14,19 @@ import { Banner } from './ui/notice'
 function SendingStatus() {
   const { health } = useWeather()
   if (!health || health.relayer.balance === 'ok' || health.relayer.balance === 'unknown') return null
+  // Running low changes nothing for the rider yet, so it is a quiet line; empty stops sending, so it is a banner.
+  if (health.relayer.balance === 'low') {
+    return (
+      <p className="check mono page-line" role="status">
+        <i className="check__mark check__mark--hollow" aria-hidden="true" />
+        <span>{copy.status.relayerLow}</span>
+      </p>
+    )
+  }
   return (
     <div className="page-note">
-      <Banner tone={health.relayer.balance === 'empty' ? 'stop' : 'wait'}>
-        <p>{health.relayer.balance === 'empty' ? copy.status.relayerEmpty : copy.status.relayerLow}</p>
+      <Banner tone="stop" alert>
+        <p>{copy.status.relayerEmpty}</p>
       </Banner>
     </div>
   )
