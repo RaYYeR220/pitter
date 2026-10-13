@@ -6,6 +6,7 @@ Pitter is for people who work outdoors by the shift, starting with bike and scoo
 
 - **Live app:** <https://pitter-cover.vercel.app> on Monad testnet, in practice mode (practice dollars and a simulator area where you make the rain).
 - **Mainnet pilot:** the same contracts on Monad mainnet with real native USDC, a pool of under one dollar and cover sold for cents. On 13 October two covers in Colombo and Davao were paid in full from real heavy rain (bought while it was already raining, so they were priced above what they could pay), and an over-limit sale in Warsaw was refused on chain. Every transaction is listed in [PROOF.md](PROOF.md).
+- **Videos:** [demo](https://youtu.be/aJwJBe9ZqO0) (3 min) · [pitch](https://youtu.be/dhA9dj_r4Vw) (2 min) · [the Chainlink CRE workflow, run live](https://youtu.be/mxlncr7Q8_0) · [one passkey, two keys with Mera](https://youtu.be/BcW8xL5A6fc).
 
 | Read next | |
 |---|---|

@@ -3,6 +3,9 @@
 Pitter is rain cover for couriers, switched on for one shift, that pays for every minute of heavy rain
 (1 mm an hour or more) in your area (about 5 km). Here is the shortest path through what is real.
 
+No time to click through? Watch the [three-minute demo](https://youtu.be/aJwJBe9ZqO0), the
+[CRE workflow run](https://youtu.be/mxlncr7Q8_0) and [one passkey, two keys](https://youtu.be/BcW8xL5A6fc).
+
 ## Minute 1: use it
 
 Open <https://pitter-cover.vercel.app/app> (Monad testnet, practice mode). You need a passkey manager with
