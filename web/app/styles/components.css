@@ -411,6 +411,16 @@
 }
 
 /* the landing's switch is a link and keeps its knob on the left */
+@media (max-width: 600px) {
+  .switch {
+    padding: 0 24px 0 80px;
+  }
+
+  .switch[aria-checked='true'] {
+    padding: 0 80px 0 24px;
+  }
+}
+
 .switch--link {
   display: inline-flex;
   flex-direction: row;

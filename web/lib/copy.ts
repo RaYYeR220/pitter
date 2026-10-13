@@ -644,8 +644,8 @@ export const copy = {
         signed_out: 'You are signed out.',
       },
       endedLabel: 'No time left on your sign-in',
-      endedCaption: 'left on your sign-in. Cover you already have keeps running and still pays.',
-      endedLeft: 'Nothing new is bought while you are signed out',
+      endedCaption: 'left on your sign-in.',
+      endedLeft: 'Nothing new is bought',
       endedRight: 'Sign in again to carry on',
     },
     state: {
