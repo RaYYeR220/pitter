@@ -2,11 +2,18 @@
 pragma solidity ^0.8.30;
 
 import {Test} from "forge-std/Test.sol";
+import {Reading} from "../../src/Types.sol";
 
-/// @dev EIP-712 signing helpers shared by the test suites. The type hashes are written out as the literals
-/// published in EIP-3009 and EIP-2612 so the suites check the contracts against the standards, not against
-/// themselves.
+/// @dev EIP-712 signing helpers shared by the test suites. Digests are rebuilt here from the type strings (and,
+/// for the token standards, from the literals published in EIP-3009 and EIP-2612) so the suites check the
+/// contracts against the specifications, not against themselves.
 abstract contract Signing is Test {
+    bytes32 internal constant READING_TYPEHASH =
+        keccak256("Reading(uint256 key,uint64 from,uint64 to,uint32 wetSeconds)");
+    bytes32 internal constant REPORT_TYPEHASH = keccak256(
+        "Report(Reading[] readings,uint64 issuedAt)Reading(uint256 key,uint64 from,uint64 to,uint32 wetSeconds)"
+    );
+
     bytes32 internal constant TRANSFER_WITH_AUTHORIZATION_TYPEHASH =
         0x7c7c6cdb67a18743f49ec6fa9b35f50d52ed05cbed4cc592e13b44501c1a2267;
     bytes32 internal constant RECEIVE_WITH_AUTHORIZATION_TYPEHASH =
@@ -74,5 +81,50 @@ abstract contract Signing is Test {
     ) internal pure returns (uint8 v, bytes32 r, bytes32 s) {
         bytes32 structHash = keccak256(abi.encode(PERMIT_TYPEHASH, owner, spender, value, nonce, deadline));
         return vm.sign(privateKey, _typedDigest(domainSeparator, structHash));
+    }
+
+    function _signDigest(uint256 privateKey, bytes32 digest) internal pure returns (bytes memory) {
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
+        return abi.encodePacked(r, s, v);
+    }
+
+    // ───────────────────────────── weather reports ─────────────────────────────
+
+    function _reportDigest(bytes32 domainSeparator, Reading[] memory readings, uint64 issuedAt)
+        internal
+        pure
+        returns (bytes32)
+    {
+        bytes32[] memory hashes = new bytes32[](readings.length);
+        for (uint256 i = 0; i < readings.length; ++i) {
+            hashes[i] = keccak256(
+                abi.encode(
+                    READING_TYPEHASH, readings[i].key, readings[i].from, readings[i].to, readings[i].wetSeconds
+                )
+            );
+        }
+        bytes32 structHash = keccak256(abi.encode(REPORT_TYPEHASH, keccak256(abi.encodePacked(hashes)), issuedAt));
+        return _typedDigest(domainSeparator, structHash);
+    }
+
+    /// @dev Payload accepted by `WeatherIndex.submit` and `WeatherIndex.onReport`, signed with `privateKey`.
+    function _signedReport(uint256 privateKey, bytes32 domainSeparator, Reading[] memory readings, uint64 issuedAt)
+        internal
+        pure
+        returns (bytes memory)
+    {
+        bytes memory signature = _signDigest(privateKey, _reportDigest(domainSeparator, readings, issuedAt));
+        return abi.encode(readings, issuedAt, signature);
+    }
+
+    function _readings(Reading memory a) internal pure returns (Reading[] memory list) {
+        list = new Reading[](1);
+        list[0] = a;
+    }
+
+    function _readings(Reading memory a, Reading memory b) internal pure returns (Reading[] memory list) {
+        list = new Reading[](2);
+        list[0] = a;
+        list[1] = b;
     }
 }
