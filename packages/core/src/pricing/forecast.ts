@@ -63,9 +63,9 @@ export function parseForecast(body: string): Forecast {
 }
 
 /** Fetches the forecast for a cell. Throws when the source refuses or returns something unreadable. */
-export async function fetchForecast(cell: { lat: number; lon: number }, fetch: FetchLike): Promise<Forecast> {
+export async function fetchForecast(cell: { lat: number; lon: number }, fetcher: FetchLike): Promise<Forecast> {
   const request = forecastRequest(cell)
-  const response = await fetch(request.url, { method: 'GET', headers: request.headers })
+  const response = await fetcher(request.url, { method: 'GET', headers: request.headers })
   if (response.status < 200 || response.status >= 300) {
     throw new Error(`forecast request failed with status ${response.status}`)
   }
