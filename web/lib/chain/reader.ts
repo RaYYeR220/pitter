@@ -144,6 +144,11 @@ interface Call {
   args?: readonly unknown[]
 }
 
+/** Names of the values `redeemRequests` returns, in order, taken from the ABI so a new field moves nothing. */
+const REDEEM_REQUEST_FIELDS: readonly string[] = getAbiItem({ abi: coverPoolAbi, name: 'redeemRequests' }).outputs.map(
+  (output) => output.name,
+)
+
 /** Public nodes answer `eth_getLogs` for at most this many blocks at a time. */
 export const LOG_RANGE_BLOCKS = 100
 
@@ -358,7 +363,7 @@ export function viemChainReader(
 
     async position(owner) {
       const [time, shares, request, claimableShares, claimableAssets, dollars, wei] = await read<
-        [bigint, bigint, readonly [bigint, bigint, bigint], bigint, bigint, bigint, bigint]
+        [bigint, bigint, readonly unknown[], bigint, bigint, bigint, bigint]
       >([
         clock,
         pool('balanceOf', [owner]),
@@ -369,12 +374,16 @@ export function viemChainReader(
         native(owner),
       ])
       const [value] = shares > 0n ? await read<[bigint]>([pool('convertToAssets', [shares])]) : [0n]
+      const field = (name: string) => BigInt((request as readonly unknown[])[REDEEM_REQUEST_FIELDS.indexOf(name)] as bigint)
+      const requested = field('shares')
       return {
         time: Number(time),
         shares,
         value,
         request:
-          request[0] > 0n ? { shares: request[0], assetsAtRequest: request[1], claimableAt: Number(request[2]) } : null,
+          requested > 0n
+            ? { shares: requested, assetsAtRequest: field('assetsAtRequest'), claimableAt: Number(field('claimableAt')) }
+            : null,
         claimableShares,
         claimableAssets,
         dollars,
