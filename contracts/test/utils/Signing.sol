@@ -2,7 +2,7 @@
 pragma solidity ^0.8.30;
 
 import {Test} from "forge-std/Test.sol";
-import {Reading} from "../../src/Types.sol";
+import {Quote, Reading} from "../../src/Types.sol";
 
 /// @dev EIP-712 signing helpers shared by the test suites. Digests are rebuilt here from the type strings (and,
 /// for the token standards, from the literals published in EIP-3009 and EIP-2612) so the suites check the
@@ -14,6 +14,9 @@ abstract contract Signing is Test {
         "Report(Reading[] readings,uint64 issuedAt)Reading(uint256 key,uint64 from,uint64 to,uint32 wetSeconds)"
     );
 
+    bytes32 internal constant QUOTE_TYPEHASH = keccak256(
+        "Quote(address holder,uint256 key,uint64 start,uint64 end,uint128 ratePerSecond,uint128 premium,uint64 expiry,bytes32 salt)"
+    );
     bytes32 internal constant TRANSFER_WITH_AUTHORIZATION_TYPEHASH =
         0x7c7c6cdb67a18743f49ec6fa9b35f50d52ed05cbed4cc592e13b44501c1a2267;
     bytes32 internal constant RECEIVE_WITH_AUTHORIZATION_TYPEHASH =
@@ -86,6 +89,17 @@ abstract contract Signing is Test {
     function _signDigest(uint256 privateKey, bytes32 digest) internal pure returns (bytes memory) {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
         return abi.encodePacked(r, s, v);
+    }
+
+    // ───────────────────────────── quotes ─────────────────────────────
+
+    function _quoteDigest(bytes32 domainSeparator, Quote memory q) internal pure returns (bytes32) {
+        bytes32 structHash = keccak256(
+            abi.encode(
+                QUOTE_TYPEHASH, q.holder, q.key, q.start, q.end, q.ratePerSecond, q.premium, q.expiry, q.salt
+            )
+        );
+        return _typedDigest(domainSeparator, structHash);
     }
 
     // ───────────────────────────── weather reports ─────────────────────────────
