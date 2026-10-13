@@ -1,7 +1,7 @@
 {
-  "buy: next window in an active cell": "319973",
-  "buyWithAuthorization: first policy in a new cell": "484948",
-  "buyWithAuthorization: next window in an active cell": "393993",
+  "buy: next window in an active cell": "320117",
+  "buyWithAuthorization: first policy in a new cell": "485136",
+  "buyWithAuthorization: next window in an active cell": "394181",
   "cancelRedeemRequest": "87575",
   "depositWithAuthorization": "161221",
   "onReport: 1 dry reading": "89508",
@@ -12,9 +12,9 @@
   "onReport: heartbeat, no readings": "64122",
   "redeem: claim a matured request": "117208",
   "requestRedeem": "127106",
-  "settle: dry close": "147624",
-  "settle: payout and close": "218700",
-  "settle: payout while the window is open": "166240",
+  "settle: dry close": "147646",
+  "settle: payout and close": "218722",
+  "settle: payout while the window is open": "166262",
   "settleMany: three policies": "339112",
   "submit: 1 wet reading": "100426"
 }

@@ -25,6 +25,10 @@ family, which older releases do not know). Dependencies are git submodules: `git
 - **No refunds, no cancellations.** A refundable policy would be a free option on the forecast.
 - **Sales fail closed.** `OracleStale` stops sales when the index heartbeat is older than `maxOracleAge`; the
   cap errors stop sales the pool cannot back. Open policies are unaffected.
+- **Cover ends before the capital behind it can leave.** A window may end at most `maxHorizon` after its
+  purchase (12 hours 30 minutes by default). `setMaxHorizon` refuses a horizon longer than the pool's
+  `redeemNotice` and `setRedeemNotice` refuses a notice shorter than the horizon, so a provider who asks to
+  leave after a sale is still in the pool when that cover ends.
 - **Settlement is permissionless and incremental.** `settle` pays what the index has confirmed since the last
   settlement and closes the policy when its window is fully reported. Time the oracle never reports pays
   nothing; after `end + expiryGrace` anyone can `expire` the policy and free its exposure.
@@ -43,8 +47,9 @@ transaction, or step out just ahead of a payout everyone can see coming. So a li
 
 1. `requestRedeem(shares, controller, owner)` moves the shares into escrow. The caller is the owner or holds an
    allowance over the owner's shares; the controller, who will hold the claim, is the owner or the caller.
-2. The request waits `redeemNotice` (13 hours by default, one hour more than the longest policy). Each
-   controller has one request; adding to it restarts the notice for all of it.
+2. The request waits `redeemNotice` (13 hours by default; it cannot be set below the book's `maxHorizon`, so
+   cover sold before the request has ended when it matures). Each controller has one request; adding to it
+   restarts the notice for all of it.
 3. Once matured, the controller calls `redeem(shares, receiver, controller)` or
    `withdraw(assets, receiver, controller)`, in one go or in parts, up to `freeAssets()`.
    `cancelRedeemRequest()` returns the escrowed shares instead, at any time.
@@ -65,8 +70,9 @@ shares, their value at the request and the time they become claimable.
 
 ### Refusals
 
-`CoverBook`: `QuoteExpired`, `BadQuoteSignature`, `QuoteUsed`, `WindowInvalid`, `LeadTooShort`, `PolicyTooLarge`,
-`PremiumTooSmall`, `OracleStale`, `TooManyCells` (checked in this order), `PolicyUnknown`, `ExpiryNotReached`.
+`CoverBook`: `QuoteExpired`, `BadQuoteSignature`, `QuoteUsed`, `WindowInvalid`, `WindowTooFar`, `LeadTooShort`,
+`PolicyTooLarge`, `PremiumTooSmall`, `OracleStale`, `TooManyCells` (checked in this order), `PolicyUnknown`,
+`ExpiryNotReached`.
 `CoverPool`: `GlobalCapExceeded`, `CellCapExceeded` for a sale; `NotController`, `InsufficientRequest`,
 `NoticeNotOver`, `ExposureLocked` for a claim; `ControllerNotAllowed`, `NoRedeemRequest` around a request.
 `WeatherIndex`: `NotForwarder`, `BadReporterSignature`, `StaleReport`, `ReportFromFuture`, `ReportTooOld`.
@@ -93,11 +99,13 @@ forge test
 
 - unit tests for every contract and every revert path, including the deploy script;
 - fuzz tests of the interpolation, the payout bounds, the caps and the withdrawal limits;
-- an invariant suite (`test/invariant`) that drives purchases, replays, genuine and forged reports, settlements,
-  expiries, deposits, redemption requests, cancellations, claims and issuer blocks, and checks after every call
-  that pool exposure equals the open policies, the pool holds what it owes, payouts follow the index and the
-  maximum, nothing is claimed before its notice or beyond free assets, a claim never pays more than its shares
-  are worth, the escrow matches the requests, and a quote is used once;
+- an invariant suite (`test/invariant`) that drives purchases inside, at and beyond the cover horizon, replays,
+  genuine and forged reports, settlements, expiries, deposits, redemption requests, cancellations, claims and
+  issuer blocks, and checks after every call that pool exposure equals the open policies, the pool holds what
+  it owes, payouts follow the index and the maximum, nothing is claimed before its notice or beyond free
+  assets, a claim never pays more than its shares are worth, the escrow matches the requests, no policy ends
+  beyond the horizon it was bought under, no request made after a sale matures before that cover ends, and a
+  quote is used once;
 - a fork suite (`test/fork`) against native USDC on Monad mainnet, skipped unless an RPC is given:
 
 ```sh
@@ -124,11 +132,13 @@ forge script script/Deploy.s.sol --rpc-url monad_testnet --broadcast --account <
 | `MIN_LEAD` | optional | seconds between a purchase and its window; defaults to 600 on chain 143, otherwise 0 |
 | `MAX_POLICY_PAYOUT` | optional | largest payout of one policy, in token base units; defaults to `500e6` |
 | `MIN_PREMIUM` | optional | smallest premium of one policy, in token base units; defaults to none |
-| `REDEEM_NOTICE` | optional | seconds a liquidity provider waits between asking to leave and leaving; defaults to 13 hours |
+| `REDEEM_NOTICE` | optional | seconds a liquidity provider waits between asking to leave and leaving, at least `MAX_HORIZON`; defaults to 13 hours |
+| `MAX_HORIZON` | optional | seconds ahead of its purchase a policy may end: at least the longest window (12 hours), at most `REDEEM_NOTICE`; defaults to 12 hours 30 minutes |
 | `SHARE_NAME`, `SHARE_SYMBOL` | optional | pool share token metadata |
 
 The script deploys `WeatherIndex`, `CoverPool` and `CoverBook`, allowlists the forwarders, points the pool at the
-book and writes `deployments/<chainId>.json` (addresses, parameters, start block). A run without `--broadcast`
+book, fails unless the redemption notice covers the cover horizon, and writes `deployments/<chainId>.json`
+(addresses, parameters, start block). A run without `--broadcast`
 only prints the addresses. When `OWNER` is not the deployer, ownership is offered to it and it must call
 `acceptOwnership()` on each contract.
 
@@ -140,9 +150,14 @@ only prints the addresses. When `OWNER` is not the deployer, ownership is offere
   each forwarder authenticates the workflow behind a report.
 - The caps bind when exposure is locked, against the capital that has not asked to leave. Later requests,
   claims and payouts can leave utilization above them; a claim can never take reserved assets.
-- The redemption notice protects the cover sold while a provider's capital counted only if it outlasts that
-  cover. The book bounds a window's length but not how far ahead it starts, so the underwriter must not quote
-  windows that end later than one notice from now.
+- The horizon and the notice bind at the moment of each sale and each request. An owner who shortens the
+  horizon and then the notice while cover sold under the longer horizon is still open lets later requests
+  mature before that cover ends; reserved assets stay in the pool either way. Before the book is wired the
+  pool has nothing to compare its notice with, which is why the deploy script checks the two afterwards.
+- A notice shorter than twelve hours needs shorter windows first: `setDurationBounds`, then `setMaxHorizon`,
+  then `setRedeemNotice`. The deploy script takes only the last two from the environment.
+- A window that has ended can still hold exposure until the index has reported it or it is expired, so a
+  matured request may have to wait for a settlement before all of it can be claimed.
 - A provider who never claims a matured request keeps bearing losses and keeps part of every later premium
   out of the other providers' reach until the claim is made. It costs them more than it costs the others.
 - Leaving needs two transactions from the provider (or a spender for the request); there is no gasless path.
