@@ -13,13 +13,20 @@
   "owner": "0x9F6D2520e195f80B84c2Bcdb383F8b1118017379",
   "pendingOwner": "0x0000000000000000000000000000000000000000",
   "redeemNotice": 46800,
-  "reporter": "0x79347d0f6C3b4363304bE7dD31D23C2e73459A0D",
+  "reporter": "0xf9618b9028bcbcf7ec145ba272dEeA328d3DCFc9",
   "servedKeys": [],
   "servedOnly": false,
   "startBlock": 70653032,
   "testDollar": true,
   "token": "0x27fe944e3b7037ED9F75b17123b6e2E716DEeF10",
   "treasury": "0x29F9e86Cfb1A999194E4582D0810B6bFb5c89297",
-  "underwriter": "0x806116242a61896a136b468bF702250eA9cbb27d",
-  "weatherIndex": "0x55F06d63A97ae82c67383cFB26B82Fda78e58664"
+  "underwriter": "0x3934Ec7eFcAc410528E8c301D8709e87eA8E453B",
+  "weatherIndex": "0x55F06d63A97ae82c67383cFB26B82Fda78e58664",
+  "keyRotations": [
+    {
+      "note": "reporter and underwriter moved to test-network-only keys",
+      "setReporter": "0xab82c3d4a6b515ecdb4d6fd0a2d240111410065adf78931145953c6207f13577",
+      "setUnderwriter": "0x19c5d1db501525c4485b33c1ca0589f657ebaa733061cc96ddb8efc422996df1"
+    }
+  ]
 }
