@@ -19,8 +19,11 @@
 }
 
 .mark {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   margin-right: auto;
-  padding: 10px 8px 10px 0;
+  padding: 0 8px 0 0;
   font: 600 24px/1 var(--font-display);
   letter-spacing: -0.045em;
   color: var(--ink);

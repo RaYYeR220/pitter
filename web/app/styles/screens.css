@@ -211,7 +211,8 @@
 }
 
 .area__change {
-  min-height: 36px;
+  min-height: 44px;
+  margin: -6px 0;
   font: 400 15px/1 var(--font-body);
   letter-spacing: 0;
 }
