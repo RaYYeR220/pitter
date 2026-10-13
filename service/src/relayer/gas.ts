@@ -1,44 +1,52 @@
 /**
  * Gas limits for every call the relayer makes.
  *
- * Monad charges for the gas limit, not for the gas used, so each limit is the worst case recorded in
- * `contracts/snapshots/Gas.json` (isolated transactions under the Monad gas schedule, intrinsic cost included)
- * plus headroom for native USDC, whose proxy and compliance checks cost more than the test dollar the snapshot
- * was taken with. The limits are fixed here on purpose: nothing a caller sends can raise what a relay costs.
+ * Monad charges for the gas limit, not for the gas used, so a limit is a price. Each one is the worst case
+ * measured for the call plus headroom, and none is higher than it has to be. The measurements come from two
+ * places that agree: `contracts/snapshots/Gas.json` (isolated transactions under the Monad gas schedule,
+ * intrinsic cost included) and the receipts of the service's integration tests on a local Monad chain, which
+ * also see the very first use of each storage slot. Both use the test dollar; native USDC adds a proxy hop
+ * and its own checks to every token call, which the headroom allows for.
+ *
+ * The limits are fixed here on purpose: nothing a caller sends can raise what a relay costs.
  */
 
-/** Snapshot worst case 485,136 (first policy in a new cell). */
-export const BUY_WITH_AUTHORIZATION_GAS = 650_000n
+/** Measured 520,278 for the first policy of a new cell; snapshot 485,136. */
+export const BUY_WITH_AUTHORIZATION_GAS = 700_000n
 
-/** Snapshot 320,117 for an active cell; a new cell adds about 91,000. */
-export const BUY_GAS = 560_000n
+/** Measured 454,680 for the first policy of a new cell; snapshot 320,117 for a cell that is already active. */
+export const BUY_GAS = 640_000n
 
-/** Snapshot 161,221. */
-export const DEPOSIT_WITH_AUTHORIZATION_GAS = 260_000n
+/** Measured 178,777 for a first deposit; snapshot 161,221. */
+export const DEPOSIT_WITH_AUTHORIZATION_GAS = 280_000n
 
-/** A token transfer authorised by signature. */
-export const TRANSFER_WITH_AUTHORIZATION_GAS = 140_000n
+/** Measured 103,023 for a transfer to an address that held nothing. */
+export const TRANSFER_WITH_AUTHORIZATION_GAS = 160_000n
 
+/** Measured 52,103. */
 export const APPROVE_GAS = 90_000n
 
-export const DRIP_GAS = 130_000n
+/** Measured 109,468 for the first drip, 92,468 afterwards. */
+export const DRIP_GAS = 150_000n
 
 /** No relayed call may ask for more than this. */
 export const MAX_RELAY_GAS = 3_000_000n
 
 /**
- * `settleMany` over `count` policies. Snapshot: 218,722 for one payout that closes its policy, 339,112 for
- * three. Each further policy can touch a different holder, cell and timeline, so it is budgeted close to a
- * full settlement rather than at the marginal cost the snapshot's mixed batch shows.
+ * `settleMany` over `count` policies. Measured 189,525 for one payout; snapshot 218,722 for a payout that
+ * closes its policy and 339,112 for a mixed batch of three. Each further policy can touch a different
+ * holder, cell and timeline, so it is budgeted close to a full settlement rather than at the marginal cost
+ * the mixed batch shows.
  */
 export function settleManyGas(count: number): bigint {
   return 90_000n + 190_000n * BigInt(count)
 }
 
 /**
- * `submit` of a report. Snapshot: about 64,000 for the empty heartbeat, 46,000 for each further reading of a
- * cell that already has a timeline and 84,000 for each reading that starts one.
+ * `submit` of a report. Measured 55,513 for an empty heartbeat, 100,438 with one reading of a cell that
+ * already has a timeline and 134,746 with one that starts a timeline; the snapshot's ten-reading reports
+ * give the same 45,000 and 79,000 per reading.
  */
 export function submitGas(readings: { known: number; fresh: number }): bigint {
-  return 110_000n + 55_000n * BigInt(readings.known) + 95_000n * BigInt(readings.fresh)
+  return 75_000n + 52_000n * BigInt(readings.known) + 92_000n * BigInt(readings.fresh)
 }

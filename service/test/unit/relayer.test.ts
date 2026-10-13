@@ -161,7 +161,7 @@ describe('gas limits', () => {
   it('grow with the batch and stay under the relay maximum', () => {
     expect(settleManyGas(1)).toBe(280_000n)
     expect(settleManyGas(10)).toBeLessThanOrEqual(MAX_RELAY_GAS)
-    expect(submitGas({ known: 0, fresh: 0 })).toBe(110_000n)
+    expect(submitGas({ known: 0, fresh: 0 })).toBe(75_000n)
     expect(submitGas({ known: 0, fresh: 20 })).toBeLessThanOrEqual(MAX_RELAY_GAS)
     expect(submitGas({ known: 20, fresh: 0 })).toBeLessThan(submitGas({ known: 0, fresh: 20 }))
   })
