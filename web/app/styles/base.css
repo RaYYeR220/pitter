@@ -127,7 +127,7 @@ ol {
 }
 
 :root[data-weather='raining'] .floor--wash {
-  background: linear-gradient(90deg, rgb(10 10 11 / 0.1), transparent 20%, transparent 80%, rgb(10 10 11 / 0.1));
+  background: linear-gradient(90deg, rgb(10 10 11 / 0.04), transparent 20%, transparent 80%, rgb(10 10 11 / 0.04));
 }
 
 /* column rules at 80px and 8px, centred, thinned behind the reading column */

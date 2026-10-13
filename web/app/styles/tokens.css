@@ -193,7 +193,7 @@
     inset 5px 5px 14px rgb(255 255 255 / 0.12);
   --knob: inset -5px -6px 12px rgb(0 0 0 / 0.6), inset 4px 4px 10px rgb(255 255 255 / 0.14);
   --grain-blend: multiply;
-  --grain-opacity: 0.3;
+  --grain-opacity: 0.2;
   --streak: rgb(10 10 11 / 0.55);
   --pool-light: transparent;
   --pool-warm: transparent;
