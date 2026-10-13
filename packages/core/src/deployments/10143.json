@@ -1,13 +1,15 @@
 {
   "chainId": 10143,
-  "startBlock": 0,
-  "token": "",
-  "testDollar": false,
-  "weatherIndex": "",
-  "coverPool": "",
-  "coverBook": "",
-  "reporter": "",
-  "underwriter": "",
-  "treasury": "",
-  "forwarders": []
+  "startBlock": 70624410,
+  "token": "0xDe6fb6D4C560C5901f733D53e591F2A0D6EB1438",
+  "testDollar": true,
+  "weatherIndex": "0x171CFCBAA60C9AfD267474773122293a67FbeD94",
+  "coverPool": "0xfA7e2510EAadB2BB6316Aac81D0D6Aa51a5f4C56",
+  "coverBook": "0x58d970780565E4C064369AD80eEC2D3581d6d75D",
+  "reporter": "0x79347d0f6C3b4363304bE7dD31D23C2e73459A0D",
+  "underwriter": "0x806116242a61896a136b468bF702250eA9cbb27d",
+  "treasury": "0x29F9e86Cfb1A999194E4582D0810B6bFb5c89297",
+  "forwarders": [
+    "0xB9F79d863261869B234c481D1f9A7af84AeAd192"
+  ]
 }
