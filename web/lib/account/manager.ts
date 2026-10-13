@@ -145,6 +145,11 @@ export class AccountManager {
     this.close('signed_out')
   }
 
+  /** The passkey of the signed-in account, so other prompts can go straight to it. */
+  credential(): CredentialHint | undefined {
+    return this.session?.credential
+  }
+
   /** The prompt-free signer for cover purchases, or null when nobody is signed in. */
   coverSigner(): CoverSigner | null {
     return this.session

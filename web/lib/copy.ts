@@ -393,7 +393,7 @@ export const copy = {
       take: 'Take my money out',
       cancel: 'Stay in the pool after all',
       asked: 'You have asked to leave.',
-      taken: (amount: bigint) => `Took ${formatDollars(amount)} out of the pool.`,
+      taken: 'Your money is out of the pool and back in your balance.',
       cancelled: 'You are staying in the pool.',
       fee: 'Leaving is the one thing here that carries a network fee, paid in MON from your own account.',
       noFee: 'Your account holds no MON, so leaving can’t be sent from it yet. There is no way to add MON from this page.',
