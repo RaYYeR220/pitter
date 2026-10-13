@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import {CoverBook} from "../src/CoverBook.sol";
 import {CoverPool} from "../src/CoverPool.sol";
@@ -9,6 +8,7 @@ import {IWeatherIndex} from "../src/interfaces/IWeatherIndex.sol";
 import {TestDollar} from "../src/TestDollar.sol";
 import {Quote} from "../src/Types.sol";
 import {ContractSigner} from "./mocks/ContractSigner.sol";
+import {SilentDollar} from "./mocks/SilentDollar.sol";
 import {CoverFixture} from "./utils/CoverFixture.sol";
 
 contract CoverBookBuyTest is CoverFixture {
@@ -439,7 +439,9 @@ contract CoverBookBuyTest is CoverFixture {
         bytes memory signature = _signQuote(q);
 
         vm.expectRevert(
-            abi.encodeWithSelector(IERC20Errors.ERC20InsufficientAllowance.selector, address(book), 0, PREMIUM * 5 / 100)
+            abi.encodeWithSelector(
+                IERC20Errors.ERC20InsufficientAllowance.selector, address(book), 0, PREMIUM * 5 / 100
+            )
         );
         vm.prank(attacker);
         book.buy(q, signature);
@@ -722,19 +724,6 @@ contract CoverBookBuyTest is CoverFixture {
         IWeatherIndex silent = IWeatherIndex(address(new SilentIndex()));
         return new CoverBook(dollar, pool, silent, underwriter, treasury, 0, MAX_POLICY_PAYOUT, owner);
     }
-}
-
-/// @dev A token whose `receiveWithAuthorization` returns without moving anything.
-contract SilentDollar is ERC20 {
-    constructor() ERC20("Silent Dollar", "sUSD") {}
-
-    function mint(address to, uint256 amount) external {
-        _mint(to, amount);
-    }
-
-    function receiveWithAuthorization(address, address, uint256, uint256, uint256, bytes32, uint8, bytes32, bytes32)
-        external
-    {}
 }
 
 /// @dev An index that has never accepted a report.

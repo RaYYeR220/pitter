@@ -7,6 +7,7 @@ import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.so
 import {CoverPool} from "../src/CoverPool.sol";
 import {TestDollar} from "../src/TestDollar.sol";
 import {BlockableDollar} from "./mocks/BlockableDollar.sol";
+import {SilentDollar} from "./mocks/SilentDollar.sol";
 import {Signing} from "./utils/Signing.sol";
 
 contract CoverPoolTest is Signing {
@@ -546,7 +547,9 @@ contract CoverPoolTest is Signing {
         assertLe(pool.previewRedeem(pool.maxRedeem(lp)), pool.freeAssets());
     }
 
-    function testFuzz_Redeem_NeverTakesAssetsBackingExposure(uint256 deposited, uint256 locked, uint256 donated) public {
+    function testFuzz_Redeem_NeverTakesAssetsBackingExposure(uint256 deposited, uint256 locked, uint256 donated)
+        public
+    {
         deposited = bound(deposited, 1e6, 1_000_000e6);
         donated = bound(donated, 0, 1_000e6);
         vm.prank(owner);
@@ -643,6 +646,15 @@ contract CoverPoolTest is Signing {
 
         vm.expectRevert(abi.encodeWithSelector(TestDollar.AuthorizationExpired.selector, a.validBefore));
         pool.depositWithAuthorization(400e6, lp, a.validAfter, a.validBefore, a.nonce, v, r, s);
+    }
+
+    function test_DepositWithAuthorization_RevertWhen_TheTokenDoesNotDeliverTheAssets() public {
+        CoverPool silentPool = new CoverPool(new SilentDollar(), owner, "Cover Pool Share", "cvUSD");
+
+        vm.expectRevert(CoverPool.DepositNotReceived.selector);
+        silentPool.depositWithAuthorization(400e6, lp, 0, type(uint256).max, bytes32(0), 27, bytes32(0), bytes32(0));
+
+        assertEq(silentPool.totalSupply(), 0);
     }
 
     function test_DepositWithAuthorization_CannotBeConsumedOutsideThePool() public {
