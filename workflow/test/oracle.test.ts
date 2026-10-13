@@ -141,7 +141,7 @@ describe('an oracle run', () => {
     const summary = runOracleSync(settings, env.handlers)
     expect(env.delivered).toHaveLength(2)
     expect(summary.reports.map((report) => report.accepted)).toEqual([false, false])
-    expect(env.calls.logs.filter((line) => line.includes('NOT accepted (rejected)'))).toHaveLength(2)
+    expect(env.calls.logs.filter((line) => line.includes('not delivered: rejected'))).toHaveLength(2)
   })
 
   it('writes nothing for cells without a quorum but still reports the others', () => {

@@ -220,7 +220,7 @@ function* deliverReports(settings: OracleSettings, reports: ReportDraft[], summa
       accepted: delivery.accepted,
       txHash: delivery.txHash,
     })
-    const state = delivery.accepted ? 'delivered' : `NOT accepted${delivery.detail ? ` (${delivery.detail})` : ''}`
+    const state = delivery.accepted ? 'delivered' : `not delivered: ${delivery.detail ?? 'refused'}`
     yield* perform<void>({
       type: 'log',
       message: `report issuedAt=${report.issuedAt} readings=${report.readings.length} wet=${wetReadings} ${state} tx=${delivery.txHash ?? 'none'}`,

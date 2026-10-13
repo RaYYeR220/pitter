@@ -207,7 +207,7 @@ describe('weather oracle workflow', () => {
     const { runtime } = arrange({ activeKeys: [key('sumburgh')], receiverReverts: true })
     const result = JSON.parse(onCronTrigger(runtime))
     expect(result.reports).toEqual([{ issuedAt: String(recordedAt), readings: 1, wetReadings: 1, accepted: false, txHash: TX_HASH }])
-    expect(runtime.getLogs().join('\n')).toContain('NOT accepted (the index rejected the report)')
+    expect(runtime.getLogs().join('\n')).toContain('not delivered: the index rejected the report')
   })
 
   test('fails loudly when the reporter key is missing', () => {
