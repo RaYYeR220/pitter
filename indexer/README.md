@@ -4,6 +4,13 @@ Turns the events of the cover contracts into a GraphQL API: policies and their s
 exposure per grid cell, the pool's totals and daily series, and redemption requests. Built with
 [Envio HyperIndex](https://docs.envio.dev) 3.14.
 
+It indexes two deployments, both from `contracts/deployments/<chainId>.json`:
+
+| Chain | Start block | `CoverBook` | `CoverPool` | `WeatherIndex` |
+|---|---|---|---|---|
+| Monad mainnet (143) | 113022718 | `0x8C7f6A8b09176c893da3ee4C1cbCd2d8ec26E770` | `0x58d970780565E4C064369AD80eEC2D3581d6d75D` | `0x171CFCBAA60C9AfD267474773122293a67FbeD94` |
+| Monad testnet (10143) | 70653032 | `0xE0951FC7640Da8bA5071693007607FBa31592ee4` | `0x80375eB8BE28a7bffb274C2620E9D70Fe7E70B9f` | `0x55F06d63A97ae82c67383cFB26B82Fda78e58664` |
+
 The queries the app runs are in [queries.md](./queries.md).
 
 ## What is indexed
@@ -94,7 +101,10 @@ and the data. The endpoint and the console are the same as above.
 ### Without a token
 
 `ENVIO_RPC_ROLE=sync` indexes over the RPC instead of HyperSync. The public Monad endpoints answer `eth_getLogs`
-for 100 blocks at a time, so this is slow over a long history; it is meant for a quick local look.
+for 100 blocks at a time, so this is slow over a long history; it is meant for a quick local look. Mainnet's
+history is short (it starts at block 113022718) and reaches head in about a minute this way; the testnet's
+starts much earlier, so for a quick look at mainnet alone add `skip: true` to the 10143 entry of a local copy
+of `config.yaml`.
 
 ## Tests
 
@@ -156,12 +166,12 @@ Things to know:
 ## Adding a chain
 
 `config.yaml` has one entry per deployment under `chains`, filled in from
-`contracts/deployments/<chainId>.json`. The entry for Monad mainnet (143) is already there, switched off. Once
-`contracts/deployments/143.json` exists:
+`contracts/deployments/<chainId>.json`. For a new deployment, add an entry like the two there:
 
-1. set `start_block` to its `startBlock`;
-2. add `address` to the three contracts: `coverBook`, `coverPool` and `weatherIndex`;
-3. delete the `skip: true` line.
+1. `id` is the chain id and `start_block` the file's `startBlock`;
+2. the three contracts take its `coverBook`, `coverPool` and `weatherIndex` addresses;
+3. the RPC URL reads `ENVIO_RPC_URL_<chainId>`; add that variable to `docker-compose.yaml`.
 
 Then run `pnpm codegen` and the tests, and push to the release branch. Nothing else changes: the handlers and
-the queries already tell chains apart by `chainId`.
+the queries already tell chains apart by `chainId`. A redeployment on a chain already listed replaces its
+addresses and start block; the new deployment indexes from scratch.
