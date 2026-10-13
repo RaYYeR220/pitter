@@ -1,0 +1,19 @@
+# Workflow settings per target. Select one with `--target`.
+#   monad-testnet  sandbox: test dollar, simulation forwarder
+#   monad-mainnet  pilot: native USDC
+
+monad-testnet:
+  user-workflow:
+    workflow-name: "cover-weather-oracle-testnet"
+  workflow-artifacts:
+    workflow-path: "./main.ts"
+    config-path: "./config.testnet.json"
+    secrets-path: "./secrets.yaml"
+
+monad-mainnet:
+  user-workflow:
+    workflow-name: "cover-weather-oracle-mainnet"
+  workflow-artifacts:
+    workflow-path: "./main.ts"
+    config-path: "./config.mainnet.json"
+    secrets-path: "./secrets.yaml"

@@ -1,0 +1,11 @@
+# RPC endpoints per target. The chain names are the ones the CRE CLI knows Monad by.
+
+monad-testnet:
+  rpcs:
+    - chain-name: monad-testnet
+      url: https://testnet-rpc.monad.xyz
+
+monad-mainnet:
+  rpcs:
+    - chain-name: monad-mainnet
+      url: https://rpc.monad.xyz
