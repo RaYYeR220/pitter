@@ -120,6 +120,7 @@ contract CoverInvariantTest is CoverFixture {
         assertEq(handler.earlyClaims(), 0, "claimed before the notice was over");
         assertEq(handler.claimsAheadOfCover(), 0, "claimed while cover sold before the request was open");
         assertEq(handler.overpaidClaims(), 0, "claim paid more than the shares were worth");
+        assertEq(handler.surplusLeftBehind(), 0, "a capped claim left its surplus to the remaining providers");
         assertEq(handler.claimableMismatches(), 0, "claimable differs from settle");
     }
 
@@ -275,7 +276,7 @@ contract CoverInvariantTest is CoverFixture {
         assertGe(pool.totalAssets(), pool.lockedExposure());
         assertEq(pool.freeAssets(), pool.totalAssets() - pool.lockedExposure());
 
-        uint256 deferredSum;
+        uint256 deferredSum = pool.deferred(pool.treasury());
         uint256 holderCount = handler.holderCount();
         for (uint256 i = 0; i < holderCount; ++i) {
             deferredSum += pool.deferred(handler.holders(i));

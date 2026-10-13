@@ -62,7 +62,7 @@ contract NativeUsdcForkTest is Signing {
         (reporter, reporterKey) = makeAddrAndKey("reporter");
 
         index = new WeatherIndex(owner, reporter);
-        pool = new CoverPool(USDC, owner, "Cover Pool Share", "cvUSD");
+        pool = new CoverPool(USDC, owner, treasury, "Cover Pool Share", "cvUSD");
         book = new CoverBook(USDC, pool, index, underwriter, treasury, 0, 500e6, owner);
         vm.prank(owner);
         pool.setBook(address(book));

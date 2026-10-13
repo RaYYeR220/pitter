@@ -69,6 +69,7 @@ contract CoverHandler is Signing {
     uint256 public earlyClaims;
     uint256 public claimsAheadOfCover;
     uint256 public overpaidClaims;
+    uint256 public surplusLeftBehind;
     uint256 public claimableMismatches;
 
     // Activity counters.
@@ -512,12 +513,14 @@ contract CoverHandler is Signing {
         (uint256 requested, uint256 atRequest,,) = pool.redeemRequests(lp);
         uint256 fair = pool.convertToAssets(shares);
         uint256 balanceBefore = dollar.balanceOf(lp);
+        uint256 treasuryBefore = _treasuryHolds();
 
         vm.prank(lp);
         uint256 assets = pool.redeem(shares, lp, lp);
 
         if (assets > fair || dollar.balanceOf(lp) - balanceBefore != assets) ++overpaidClaims;
         if (requested != 0 && assets * requested > atRequest * shares) ++overpaidClaims;
+        _checkNothingLeftBehind(fair, assets + _treasuryHolds() - treasuryBefore);
         if (shares != 0) ++claims;
     }
 
@@ -530,6 +533,7 @@ contract CoverHandler is Signing {
         uint256 poolAssets = pool.totalAssets();
         uint256 supply = pool.totalSupply();
         uint256 balanceBefore = dollar.balanceOf(lp);
+        uint256 treasuryBefore = _treasuryHolds();
 
         vm.prank(lp);
         uint256 shares = pool.withdraw(assets, lp, lp);
@@ -537,6 +541,7 @@ contract CoverHandler is Signing {
         // Value of the burned shares at the price before the claim.
         uint256 fair = shares * (poolAssets + 1) / (supply + 1e6);
         if (assets > fair || dollar.balanceOf(lp) - balanceBefore != assets) ++overpaidClaims;
+        if (assets != 0) _checkNothingLeftBehind(fair, assets + _treasuryHolds() - treasuryBefore);
         if (assets != 0) ++claims;
     }
 
@@ -549,6 +554,18 @@ contract CoverHandler is Signing {
         try pool.redeem(requested, lp, lp) {
             ++earlyClaims;
         } catch {}
+    }
+
+    function _treasuryHolds() internal view returns (uint256) {
+        address treasury = pool.treasury();
+        return dollar.balanceOf(treasury) + pool.deferred(treasury);
+    }
+
+    /// @dev What the claimed shares were worth leaves the pool: paid to the provider, the rest to the treasury.
+    /// Only rounding may stay behind with the providers who remain, and nothing may leave beyond the value.
+    function _checkNothingLeftBehind(uint256 fair, uint256 out) internal {
+        if (out > fair) ++overpaidClaims;
+        else if (fair - out > 2) ++surplusLeftBehind;
     }
 
     /// @dev A matured request cannot be claimed while a policy sold before it is open.

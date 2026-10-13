@@ -114,7 +114,7 @@ contract Deploy is Script {
             d.index.setForwarder(p.forwarders[i], true);
         }
 
-        d.pool = new CoverPool(IERC20(d.token), deployer, p.shareName, p.shareSymbol);
+        d.pool = new CoverPool(IERC20(d.token), deployer, p.treasury, p.shareName, p.shareSymbol);
         d.book = new CoverBook(
             IERC20(d.token), d.pool, d.index, p.underwriter, p.treasury, p.minLead, p.maxPolicyPayout, deployer
         );

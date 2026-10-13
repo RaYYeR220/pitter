@@ -30,7 +30,9 @@ import {IERC7540Redeem} from "./interfaces/IERC7540Redeem.sol";
 /// way or already confirmed and waiting to be settled. From the moment of the request the capital is
 /// retiring:
 /// - it no longer counts towards the caps, so no new cover is sold against it;
-/// - it earns nothing further: it is paid the lower of its value at the request and its value at the claim;
+/// - it earns nothing further: it is paid the lower of its value at the request and its value at the claim,
+///   and what its shares gained in between goes to the treasury. It does not stay in the share price, where
+///   a buyer who holds the active shares would collect it back;
 /// - it still bears every loss until it is claimed.
 ///
 /// @dev Invariants:
@@ -40,7 +42,8 @@ import {IERC7540Redeem} from "./interfaces/IERC7540Redeem.sol";
 ///   `cellExposure[key] <= activeAssets * maxCellBps / 10_000`. Later requests, claims or payouts may leave the
 ///   ratios above the caps; they only gate new exposure;
 /// - `escrowedShares` equals the sum of the shares of all redemption requests, and the pool holds them;
-/// - a claim never pays more than the claimed shares are worth, so it never dilutes the providers who stay.
+/// - a claim takes out what the claimed shares are worth, paid to the provider and the rest to the treasury,
+///   less rounding: it neither dilutes nor enriches the providers who stay.
 ///
 /// Shares carry six more decimals than the asset (virtual shares), which makes donation-based share price
 /// manipulation uneconomic.
@@ -75,6 +78,9 @@ contract CoverPool is ERC4626, Ownable2Step, ReentrancyGuardTransient, ICoverPoo
 
     /// @notice The policy book: the only account allowed to lock, release and pay out exposure.
     address public book;
+
+    /// @notice Receives what a capped claim's shares gained after the request.
+    address public treasury;
 
     /// @notice Largest share of total assets that may be reserved across all cells, in basis points.
     uint16 public maxUtilizationBps = 8000;
@@ -122,6 +128,11 @@ contract CoverPool is ERC4626, Ownable2Step, ReentrancyGuardTransient, ICoverPoo
     event RedeemRequestCancelled(address indexed controller, uint256 shares);
 
     event RedeemNoticeSet(uint256 notice);
+    event TreasurySet(address indexed treasury);
+
+    /// @notice A claim of `controller` was capped at its value at the request; what its shares gained since,
+    /// `amount`, went to `treasury`.
+    event SurplusToTreasury(address indexed controller, address indexed treasury, uint256 amount);
 
     error NotBook();
     error BookAlreadySet();
@@ -150,13 +161,16 @@ contract CoverPool is ERC4626, Ownable2Step, ReentrancyGuardTransient, ICoverPoo
 
     /// @param asset_ The dollar token the pool holds.
     /// @param initialOwner Account that sets the caps and wires the book.
+    /// @param treasury_ Recipient of the surplus of capped claims.
     /// @param name_ Share token name.
     /// @param symbol_ Share token symbol.
-    constructor(IERC20 asset_, address initialOwner, string memory name_, string memory symbol_)
+    constructor(IERC20 asset_, address initialOwner, address treasury_, string memory name_, string memory symbol_)
         ERC20(name_, symbol_)
         ERC4626(asset_)
         Ownable(initialOwner)
-    {}
+    {
+        _setTreasury(treasury_);
+    }
 
     // ───────────────────────────── exposure (book only) ─────────────────────────────
 
@@ -309,31 +323,37 @@ contract CoverPool is ERC4626, Ownable2Step, ReentrancyGuardTransient, ICoverPoo
         return _coverStillOpen(redeemRequests[controller]);
     }
 
-    /// @notice Largest amount of assets `controller` can claim now: the value of its matured request, capped
-    /// by `freeAssets`. Zero while the notice runs or cover sold before the request is open.
+    /// @notice Largest amount of assets `controller` can claim now. Zero while the notice runs or cover sold
+    /// before the request is open.
+    /// @dev A claim takes what its shares are worth out of `freeAssets`, the surplus of a capped claim
+    /// included, so this is what `maxRedeem` shares pay.
     function maxWithdraw(address controller) public view override returns (uint256) {
         PendingRedeem storage request = redeemRequests[controller];
         if (!_claimable(request)) return 0;
-        return Math.min(_requestValue(request), freeAssets());
+        (uint256 worth, uint256 owed) = _requestValues(request);
+        uint256 free = freeAssets();
+        if (worth <= free) return owed;
+        return Math.mulDiv(owed, Math.mulDiv(request.shares, free, worth), request.shares);
     }
 
-    /// @notice Largest number of escrowed shares `controller` can claim now. Zero while the notice runs or
-    /// cover sold before the request is open.
+    /// @notice Largest number of escrowed shares `controller` can claim now: those whose value fits in
+    /// `freeAssets`. Zero while the notice runs or cover sold before the request is open.
     function maxRedeem(address controller) public view override returns (uint256) {
         PendingRedeem storage request = redeemRequests[controller];
         if (!_claimable(request)) return 0;
-        uint256 value = _requestValue(request);
+        (uint256 worth,) = _requestValues(request);
         uint256 free = freeAssets();
-        return value <= free ? request.shares : Math.mulDiv(request.shares, free, value);
+        return worth <= free ? request.shares : Math.mulDiv(request.shares, free, worth);
     }
 
     /// @notice Claims `shares` of the caller's matured redemption request and sends the assets to `receiver`.
     /// @dev Reverts with `NotController` unless the caller is `controller`, `InsufficientRequest` when more is
     /// claimed than was requested, `NoticeNotOver` before the request matures, `CoverStillOpen` while a policy
-    /// sold before the request is open and `ExposureLocked` when the assets exceed `freeAssets`. A partial
-    /// claim leaves the rest claimable; a claim of nothing does nothing.
+    /// sold before the request is open and `ExposureLocked` when what the shares are worth exceeds
+    /// `freeAssets`. A partial claim leaves the rest claimable; a claim of nothing does nothing.
     /// @return assets The assets paid: the claimed part of the lower of the request's value at the request
-    /// and its value now.
+    /// and its value now. When the first is lower, the rest of what the shares are worth goes to the
+    /// treasury.
     function redeem(uint256 shares, address receiver, address controller)
         public
         override
@@ -343,12 +363,14 @@ contract CoverPool is ERC4626, Ownable2Step, ReentrancyGuardTransient, ICoverPoo
         if (msg.sender != controller) revert NotController();
         if (shares == 0) return 0;
         PendingRedeem storage request = redeemRequests[controller];
-        if (shares > request.shares) revert InsufficientRequest();
+        uint256 requested = request.shares;
+        if (shares > requested) revert InsufficientRequest();
         if (block.timestamp < request.claimableAt) revert NoticeNotOver();
         if (_coverStillOpen(request)) revert CoverStillOpen();
 
-        assets = Math.mulDiv(_requestValue(request), shares, request.shares);
-        _claim(request, controller, receiver, assets, shares);
+        (uint256 worth, uint256 owed) = _requestValues(request);
+        assets = Math.mulDiv(owed, shares, requested);
+        _claim(request, controller, receiver, assets, shares, worth, owed);
     }
 
     /// @notice Claims exactly `assets` from the caller's matured redemption request and sends them to
@@ -364,13 +386,13 @@ contract CoverPool is ERC4626, Ownable2Step, ReentrancyGuardTransient, ICoverPoo
         if (msg.sender != controller) revert NotController();
         if (assets == 0) return 0;
         PendingRedeem storage request = redeemRequests[controller];
-        uint256 value = _requestValue(request);
-        if (assets > value) revert InsufficientRequest();
+        (uint256 worth, uint256 owed) = _requestValues(request);
+        if (assets > owed) revert InsufficientRequest();
         if (block.timestamp < request.claimableAt) revert NoticeNotOver();
         if (_coverStillOpen(request)) revert CoverStillOpen();
 
-        shares = Math.mulDiv(assets, request.shares, value, Math.Rounding.Ceil);
-        _claim(request, controller, receiver, assets, shares);
+        shares = Math.mulDiv(assets, request.shares, owed, Math.Rounding.Ceil);
+        _claim(request, controller, receiver, assets, shares, worth, owed);
     }
 
     /// @notice Always reverts: a redemption is priced when it is claimed, not when it is requested.
@@ -447,6 +469,11 @@ contract CoverPool is ERC4626, Ownable2Step, ReentrancyGuardTransient, ICoverPoo
         emit MaxCellSet(bps);
     }
 
+    /// @notice Sets the recipient of the surplus of capped claims.
+    function setTreasury(address treasury_) external onlyOwner {
+        _setTreasury(treasury_);
+    }
+
     /// @notice Sets the redemption notice. Once the book is wired it must outlast the book's cover horizon by
     /// `NOTICE_MARGIN`: capital that asks to leave after a sale stays until that cover has ended and been
     /// reported. Requests already made keep the notice they were given.
@@ -473,22 +500,32 @@ contract CoverPool is ERC4626, Ownable2Step, ReentrancyGuardTransient, ICoverPoo
         return block.timestamp >= request.claimableAt && !_coverStillOpen(request);
     }
 
-    /// @dev What the whole of a request may be paid now: its shares at the current price, but no more than
-    /// they were worth when it was requested.
-    function _requestValue(PendingRedeem storage request) private view returns (uint256 value) {
-        value = _convertToAssets(request.shares, Math.Rounding.Floor);
+    /// @dev What the whole of a request is worth now (`worth`) and what it may be paid (`owed`): no more than
+    /// it was worth when it was requested.
+    function _requestValues(PendingRedeem storage request) private view returns (uint256 worth, uint256 owed) {
+        worth = _convertToAssets(request.shares, Math.Rounding.Floor);
         uint256 atRequest = request.assetsAtRequest;
-        if (value > atRequest) value = atRequest;
+        owed = worth > atRequest ? atRequest : worth;
     }
 
-    /// @dev Burns `shares` out of escrow and pays `assets`. The caller has checked the controller, the size of
-    /// the request and the notice; `assets` is never more than the shares are worth.
-    function _claim(PendingRedeem storage request, address controller, address receiver, uint256 assets, uint256 shares)
-        private
-    {
-        if (assets > freeAssets()) revert ExposureLocked();
-
+    /// @dev Burns `shares` out of escrow, pays `assets` and, when the request is capped (`owed < worth`), sends
+    /// the rest of what the shares are worth to the treasury. The caller has checked the controller, the size
+    /// of the request, the notice and the cover; `assets` is never more than the shares are worth.
+    function _claim(
+        PendingRedeem storage request,
+        address controller,
+        address receiver,
+        uint256 assets,
+        uint256 shares,
+        uint256 worth,
+        uint256 owed
+    ) private {
         uint256 requested = request.shares;
+        // Everything the shares are worth leaves the pool, so all of it has to be free.
+        if (worth * shares > freeAssets() * requested) revert ExposureLocked();
+        uint256 value = Math.mulDiv(worth, shares, requested);
+        uint256 surplus = owed < worth ? value - assets : 0;
+
         if (shares == requested) {
             delete redeemRequests[controller];
         } else {
@@ -500,7 +537,25 @@ contract CoverPool is ERC4626, Ownable2Step, ReentrancyGuardTransient, ICoverPoo
         _burn(address(this), shares);
 
         emit Withdraw(msg.sender, receiver, controller, assets, shares);
-        IERC20(asset()).safeTransfer(receiver, assets);
+        IERC20 token = IERC20(asset());
+        token.safeTransfer(receiver, assets);
+
+        if (surplus != 0) {
+            address treasury_ = treasury;
+            emit SurplusToTreasury(controller, treasury_, surplus);
+            // A treasury the token refuses must not hold up the claim: the surplus waits, like a payout.
+            if (!token.trySafeTransfer(treasury_, surplus)) {
+                deferred[treasury_] += surplus;
+                totalDeferred += surplus;
+                emit PayoutDeferred(treasury_, surplus);
+            }
+        }
+    }
+
+    function _setTreasury(address treasury_) private {
+        if (treasury_ == address(0)) revert ZeroAddress();
+        treasury = treasury_;
+        emit TreasurySet(treasury_);
     }
 
     function _reduceExposure(uint256 key, uint256 amount) private {

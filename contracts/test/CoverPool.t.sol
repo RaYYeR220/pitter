@@ -19,6 +19,7 @@ contract CoverPoolTest is PoolFixture {
         assertEq(pool.decimals(), 12);
         assertEq(pool.owner(), owner);
         assertEq(pool.book(), book);
+        assertEq(pool.treasury(), treasury);
         assertEq(pool.maxUtilizationBps(), 8000);
         assertEq(pool.maxCellBps(), 2500);
         assertEq(pool.lockedExposure(), 0);
@@ -27,7 +28,7 @@ contract CoverPoolTest is PoolFixture {
     }
 
     function test_SetBook_IsOneTime() public {
-        CoverPool fresh = new CoverPool(dollar, owner, "Cover Pool Share", "cvUSD");
+        CoverPool fresh = new CoverPool(dollar, owner, treasury, "Cover Pool Share", "cvUSD");
         assertEq(fresh.book(), address(0));
 
         vm.expectEmit(address(fresh));
@@ -42,17 +43,43 @@ contract CoverPoolTest is PoolFixture {
     }
 
     function test_SetBook_RevertWhen_ZeroAddress() public {
-        CoverPool fresh = new CoverPool(dollar, owner, "Cover Pool Share", "cvUSD");
+        CoverPool fresh = new CoverPool(dollar, owner, treasury, "Cover Pool Share", "cvUSD");
         vm.expectRevert(CoverPool.ZeroAddress.selector);
         vm.prank(owner);
         fresh.setBook(address(0));
     }
 
     function test_SetBook_RevertWhen_CallerIsNotOwner() public {
-        CoverPool fresh = new CoverPool(dollar, owner, "Cover Pool Share", "cvUSD");
+        CoverPool fresh = new CoverPool(dollar, owner, treasury, "Cover Pool Share", "cvUSD");
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, attacker));
         vm.prank(attacker);
         fresh.setBook(attacker);
+    }
+
+    function test_Constructor_RevertWhen_TreasuryIsZero() public {
+        vm.expectRevert(CoverPool.ZeroAddress.selector);
+        new CoverPool(dollar, owner, address(0), "Cover Pool Share", "cvUSD");
+    }
+
+    function test_SetTreasury() public {
+        address next = makeAddr("next treasury");
+        vm.expectEmit(address(pool));
+        emit CoverPool.TreasurySet(next);
+        vm.prank(owner);
+        pool.setTreasury(next);
+        assertEq(pool.treasury(), next);
+    }
+
+    function test_SetTreasury_RevertWhen_Zero() public {
+        vm.expectRevert(CoverPool.ZeroAddress.selector);
+        vm.prank(owner);
+        pool.setTreasury(address(0));
+    }
+
+    function test_SetTreasury_RevertWhen_CallerIsNotOwner() public {
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, attacker));
+        vm.prank(attacker);
+        pool.setTreasury(attacker);
     }
 
     function test_SetMaxUtilizationBps() public {
@@ -462,7 +489,7 @@ contract CoverPoolTest is PoolFixture {
     }
 
     function test_DepositWithAuthorization_RevertWhen_TheTokenDoesNotDeliverTheAssets() public {
-        CoverPool silentPool = new CoverPool(new SilentDollar(), owner, "Cover Pool Share", "cvUSD");
+        CoverPool silentPool = new CoverPool(new SilentDollar(), owner, treasury, "Cover Pool Share", "cvUSD");
 
         vm.expectRevert(CoverPool.DepositNotReceived.selector);
         silentPool.depositWithAuthorization(400e6, lp, 0, type(uint256).max, bytes32(0), 27, bytes32(0), bytes32(0));

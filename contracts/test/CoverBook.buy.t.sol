@@ -785,7 +785,7 @@ contract CoverBookBuyTest is CoverFixture {
 
     function test_BuyWithAuthorization_RevertWhen_TheTokenDoesNotDeliverThePremium() public {
         SilentDollar silent = new SilentDollar();
-        CoverPool silentPool = new CoverPool(silent, owner, "Cover Pool Share", "cvUSD");
+        CoverPool silentPool = new CoverPool(silent, owner, treasury, "Cover Pool Share", "cvUSD");
         CoverBook silentBook =
             new CoverBook(silent, silentPool, index, underwriter, treasury, 0, MAX_POLICY_PAYOUT, owner);
         vm.prank(owner);

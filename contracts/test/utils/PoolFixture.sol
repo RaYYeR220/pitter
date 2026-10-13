@@ -16,6 +16,7 @@ abstract contract PoolFixture is Signing {
     address internal relayer = makeAddr("relayer");
     address internal holder = makeAddr("holder");
     address internal attacker = makeAddr("attacker");
+    address internal treasury = makeAddr("treasury");
     address internal lp;
     uint256 internal lpKey;
     address internal lp2 = makeAddr("lp2");
@@ -31,7 +32,7 @@ abstract contract PoolFixture is Signing {
         book = address(new BookStub());
         vm.label(book, "book");
         dollar = new BlockableDollar(owner);
-        pool = new CoverPool(dollar, owner, "Cover Pool Share", "cvUSD");
+        pool = new CoverPool(dollar, owner, treasury, "Cover Pool Share", "cvUSD");
         vm.prank(owner);
         pool.setBook(book);
 

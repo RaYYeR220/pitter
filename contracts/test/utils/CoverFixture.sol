@@ -71,7 +71,7 @@ abstract contract CoverFixture is Signing {
 
         dollar = new BlockableDollar(owner);
         index = new WeatherIndex(owner, reporter);
-        pool = new CoverPool(dollar, owner, "Cover Pool Share", "cvUSD");
+        pool = new CoverPool(dollar, owner, treasury, "Cover Pool Share", "cvUSD");
         book = new CoverBook(dollar, pool, index, underwriter, treasury, 0, MAX_POLICY_PAYOUT, owner);
         vm.prank(owner);
         pool.setBook(address(book));

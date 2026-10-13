@@ -216,7 +216,7 @@ contract CoverBookSettleTest is CoverFixture {
 
     function test_Settle_NeverPaysMoreThanTheMaximumEvenIfTheIndexOverReports() public {
         GenerousIndex generous = new GenerousIndex();
-        CoverPool otherPool = new CoverPool(dollar, owner, "Cover Pool Share", "cvUSD");
+        CoverPool otherPool = new CoverPool(dollar, owner, treasury, "Cover Pool Share", "cvUSD");
         CoverBook otherBook = new CoverBook(
             dollar, otherPool, IWeatherIndex(address(generous)), underwriter, treasury, 0, MAX_POLICY_PAYOUT, owner
         );

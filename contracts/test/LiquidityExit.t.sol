@@ -134,9 +134,86 @@ contract LiquidityExitTest is CoverFixture {
         vm.prank(lp);
         uint256 assets = pool.redeem(shares, lp, lp);
 
-        // 950 dollars of premium reached the pool; none of it leaves with the retiring provider.
+        // 950 dollars of premium reached the pool. None of it leaves with the retiring provider; the provider who
+        // stays keeps its own half and the retiring half goes to the treasury with the fee.
         assertEq(assets, POOL_DEPOSIT);
-        assertApproxEqAbs(pool.convertToAssets(whaleShares), 100_000e6 + 950e6, 2);
+        assertApproxEqAbs(pool.convertToAssets(whaleShares), 100_000e6 + 475e6, 2);
+        assertApproxEqAbs(dollar.balanceOf(treasury), 50e6 + 475e6, 2);
+    }
+
+    /// @dev One window of 160 policies of 500 at 187.50 each (a 30% chance of rain with a 25% load), bought by
+    /// a provider who holds the only active shares while `lp` is in notice or, in the control, active. Everybody
+    /// is unwound afterwards. Returns the buyer's and `lp`'s result.
+    function _playOneWindow(bool lpInNotice, bool wet) internal returns (int256 buyer, int256 retiring) {
+        uint256 lpShares = pool.balanceOf(lp);
+        if (lpInNotice) {
+            vm.prank(lp);
+            pool.requestRedeem(lpShares, lp, lp);
+        }
+
+        vm.prank(owner);
+        dollar.mint(attacker, 120_000e6);
+        uint256 funds = dollar.balanceOf(attacker);
+        vm.startPrank(attacker);
+        dollar.approve(address(pool), type(uint256).max);
+        dollar.approve(address(book), type(uint256).max);
+        uint256 buyerShares = pool.deposit(100_000e6, attacker);
+        vm.stopPrank();
+
+        uint64 start = _now() + 60;
+        uint64 end = start + 10 minutes;
+        uint256[] memory ids = new uint256[](160);
+        for (uint256 i = 0; i < ids.length; ++i) {
+            ids[i] = _buy(_quote(attacker, KEY + i % 4, start, end, uint128(500e6 / uint256(10 minutes)), 187_500000));
+        }
+        vm.warp(end);
+        Reading[] memory readings = new Reading[](4);
+        for (uint256 c = 0; c < 4; ++c) {
+            readings[c] = Reading(KEY + c, start, end, wet ? 600 : 0);
+        }
+        _submitReport(readings);
+        book.settleMany(ids);
+
+        if (!lpInNotice) {
+            vm.prank(lp);
+            pool.requestRedeem(lpShares, lp, lp);
+        }
+        vm.warp(_now() + NOTICE);
+        vm.prank(lp);
+        pool.redeem(lpShares, lp, lp);
+
+        vm.startPrank(attacker);
+        pool.requestRedeem(buyerShares, attacker, attacker);
+        vm.warp(_now() + NOTICE);
+        pool.redeem(buyerShares, attacker, attacker);
+        vm.stopPrank();
+
+        buyer = int256(dollar.balanceOf(attacker)) - int256(funds);
+        retiring = int256(dollar.balanceOf(lp)) - int256(POOL_DEPOSIT);
+    }
+
+    function _bothWeathers(bool lpInNotice) internal returns (int256 dry, int256 wet, int256 lpDry, int256 lpWet) {
+        uint256 snapshot = vm.snapshotState();
+        (dry, lpDry) = _playOneWindow(lpInNotice, false);
+        vm.revertToState(snapshot);
+        (wet, lpWet) = _playOneWindow(lpInNotice, true);
+        vm.revertToState(snapshot);
+    }
+
+    function test_ABuyerWhoHoldsTheActiveSharesStillPaysForCoverWrittenAgainstThem() public {
+        (int256 dry, int256 wet, int256 lpDry, int256 lpWet) = _bothWeathers(true);
+
+        // Dry, the buyer gets back only its own half of the premium; the retiring half goes to the treasury.
+        assertApproxEqAbs(dry, -15_750e6, 1e6);
+        assertApproxEqAbs(lpDry, 0, 1e6);
+        assertApproxEqAbs(wet, 24_250e6, 1e6);
+        assertApproxEqAbs(lpWet, -25_750e6, 1e6);
+
+        // At the 30% it was priced for, the bet loses, exactly as it does against a provider who stays.
+        (int256 controlDry, int256 controlWet,,) = _bothWeathers(false);
+        assertApproxEqAbs(dry, controlDry, 1e6);
+        assertApproxEqAbs(wet, controlWet, 1e6);
+        assertLt((3 * wet + 7 * dry) / 10, -3_500e6);
     }
 
     function test_AMaturedRequest_WaitsForPoliciesTheOracleHasNotClosed() public {

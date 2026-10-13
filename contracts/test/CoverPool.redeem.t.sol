@@ -534,6 +534,167 @@ contract CoverPoolRedeemTest is PoolFixture {
         assertFalse(pool.claimBlockedByCover(lp2));
     }
 
+    // ───────────────────────────── the surplus of a capped claim ─────────────────────────────
+
+    function test_Redeem_SendsTheSurplusOfACappedClaimToTheTreasury() public {
+        _deposit(lp2, DEPOSIT);
+        _request(lp, SHARES);
+        _donate(100e6);
+        vm.warp(T0 + NOTICE);
+
+        // Worth 1,050 now (less a unit of rounding), owed the 1,000 it was worth at the request.
+        uint256 worth = pool.convertToAssets(SHARES);
+        assertEq(worth, 1_049_999_999);
+        uint256 lp2Before = pool.convertToAssets(pool.balanceOf(lp2));
+
+        vm.expectEmit(address(pool));
+        emit IERC4626.Withdraw(lp, lp, lp, DEPOSIT, SHARES);
+        vm.expectEmit(address(pool));
+        emit CoverPool.SurplusToTreasury(lp, treasury, worth - DEPOSIT);
+        assertEq(_redeem(lp, SHARES), DEPOSIT);
+
+        assertEq(dollar.balanceOf(lp), 1_000_000e6 - DEPOSIT + DEPOSIT);
+        assertEq(dollar.balanceOf(treasury), 49_999_999);
+        assertEq(pool.totalAssets(), 2_100e6 - worth);
+        assertApproxEqAbs(pool.convertToAssets(pool.balanceOf(lp2)), lp2Before, 1);
+    }
+
+    function test_Redeem_InPartsSendsEachPartsSurplus() public {
+        _deposit(lp2, DEPOSIT);
+        _request(lp, SHARES);
+        _donate(100e6);
+        vm.warp(T0 + NOTICE);
+
+        assertEq(_redeem(lp, SHARES / 2), 500e6);
+        assertEq(dollar.balanceOf(treasury), 24_999_999);
+
+        (uint256 rest,,) = _state(lp);
+        uint256 worth = pool.convertToAssets(rest);
+        assertEq(_redeem(lp, rest), 500e6);
+        assertEq(dollar.balanceOf(treasury), 24_999_999 + worth - 500e6);
+        assertApproxEqAbs(dollar.balanceOf(treasury), 50e6, 2);
+    }
+
+    function test_Withdraw_SendsTheSurplusOfTheBurnedShares() public {
+        _deposit(lp2, DEPOSIT);
+        _request(lp, SHARES);
+        _donate(100e6);
+        vm.warp(T0 + NOTICE);
+
+        // 400 of the 1,000 owed burns 40% of the shares, worth 420 now.
+        vm.expectEmit(address(pool));
+        emit CoverPool.SurplusToTreasury(lp, treasury, 19_999_999);
+        vm.prank(lp);
+        assertEq(pool.withdraw(400e6, lp, lp), SHARES * 4 / 10);
+        assertEq(dollar.balanceOf(treasury), 19_999_999);
+    }
+
+    function test_Redeem_AnUncappedClaimSendsNothingToTheTreasury() public {
+        _deposit(lp2, DEPOSIT);
+        _lock(KEY, 100e6);
+        _request(lp, SHARES);
+        _loss(100e6);
+        vm.warp(T0 + NOTICE);
+
+        assertApproxEqAbs(_redeem(lp, SHARES), 950e6, 1);
+        assertEq(dollar.balanceOf(treasury), 0);
+    }
+
+    function test_Redeem_TheSurplusWaitsForATreasuryTheTokenRefuses() public {
+        _deposit(lp2, DEPOSIT);
+        _request(lp, SHARES);
+        _donate(100e6);
+        vm.warp(T0 + NOTICE);
+        vm.prank(owner);
+        dollar.setBlocked(treasury, true);
+
+        uint256 surplus = pool.convertToAssets(SHARES) - DEPOSIT;
+        vm.expectEmit(address(pool));
+        emit CoverPool.PayoutDeferred(treasury, surplus);
+        assertEq(_redeem(lp, SHARES), DEPOSIT);
+
+        // Set aside, outside the providers' assets, until it can be delivered.
+        assertEq(pool.deferred(treasury), surplus);
+        assertEq(pool.totalDeferred(), surplus);
+        assertApproxEqAbs(pool.convertToAssets(pool.balanceOf(lp2)), 1_050e6, 2);
+
+        vm.prank(owner);
+        dollar.setBlocked(treasury, false);
+        pool.claimDeferred(treasury);
+        assertEq(dollar.balanceOf(treasury), surplus);
+    }
+
+    function test_Claim_TheSurplusCountsAgainstFreeAssets() public {
+        _deposit(lp2, DEPOSIT);
+        _lock(KEY, 500e6);
+        _lock(OTHER_KEY, 500e6);
+        _lock(KEY + 2, 500e6);
+        _request(lp, SHARES);
+        _donate(100e6);
+        vm.warp(T0 + NOTICE);
+
+        // 600 are free. Claiming everything would take the 1,050 the shares are worth, paid and surplus alike.
+        uint256 free = pool.freeAssets();
+        uint256 worth = pool.convertToAssets(SHARES);
+        assertEq(free, 600e6);
+        uint256 maxShares = pool.maxRedeem(lp);
+        assertEq(maxShares, SHARES * free / worth);
+        assertEq(pool.maxWithdraw(lp), DEPOSIT * maxShares / SHARES);
+
+        uint256 maxAssets = pool.maxWithdraw(lp);
+        uint256 snapshot = vm.snapshotState();
+        vm.prank(lp);
+        vm.expectRevert(CoverPool.ExposureLocked.selector);
+        pool.withdraw(maxAssets + 1, lp, lp);
+
+        _redeem(lp, maxShares);
+        assertLe(pool.totalAssets() - pool.lockedExposure(), 1);
+        assertGe(dollar.balanceOf(address(pool)), pool.lockedExposure());
+        vm.revertToState(snapshot);
+
+        vm.prank(lp);
+        vm.expectRevert(CoverPool.ExposureLocked.selector);
+        pool.redeem(maxShares + SHARE_UNIT, lp, lp);
+    }
+
+    function test_Claim_NothingIsStrandedWhenEveryShareLeaves() public {
+        _deposit(lp2, DEPOSIT);
+        _request(lp, SHARES);
+        _donate(100e6);
+
+        // An hour later the other provider asks to leave too, marked at 1,050.
+        vm.warp(T0 + 1 hours);
+        _request(lp2, SHARES);
+        vm.warp(T0 + 1 hours + NOTICE);
+
+        assertEq(_redeem(lp, SHARES), DEPOSIT);
+        assertApproxEqAbs(_redeem(lp2, SHARES), 1_050e6, 1);
+
+        // The first leaver's 50 went to the treasury; nothing is left without an owner.
+        assertEq(pool.totalSupply(), 0);
+        assertLe(pool.totalAssets(), 2);
+        assertApproxEqAbs(dollar.balanceOf(treasury), 50e6, 1);
+    }
+
+    function test_Claim_AOneDollarDepositCannotCollectTheSurplus() public {
+        _deposit(lp2, DEPOSIT);
+        _request(lp, SHARES);
+        _donate(100e6);
+        vm.warp(T0 + 1 hours);
+        _request(lp2, SHARES);
+        vm.warp(T0 + 1 hours + NOTICE);
+
+        // One dollar of active capital, just before the claims.
+        uint256 shares = _deposit(attacker, 1e6);
+        _redeem(lp, SHARES);
+        _redeem(lp2, SHARES);
+
+        _request(attacker, shares);
+        vm.warp(_now() + NOTICE);
+        uint256 out = _redeem(attacker, shares);
+        assertApproxEqAbs(out, 1e6, 2);
+    }
+
     // ───────────────────────────── free assets ─────────────────────────────
 
     function test_Redeem_AMaturedRequestIsStillLimitedByFreeAssets() public {
@@ -593,11 +754,14 @@ contract CoverPoolRedeemTest is PoolFixture {
         vm.warp(T0 + NOTICE);
 
         assertEq(pool.maxWithdraw(lp), 400e6);
+        uint256 worth = pool.convertToAssets(400e6 * SHARE_UNIT);
         assertEq(_redeem(lp, 400e6 * SHARE_UNIT), 400e6);
 
-        // It stays with the providers who remain.
-        assertEq(pool.totalAssets(), 700e6);
-        assertApproxEqAbs(pool.convertToAssets(pool.balanceOf(lp)), 700e6, 2);
+        // Its part of the premium goes to the treasury, not to the providers who remain: they keep their own.
+        assertEq(dollar.balanceOf(treasury), worth - 400e6);
+        assertApproxEqAbs(worth - 400e6, 40e6, 1);
+        assertApproxEqAbs(pool.totalAssets(), 660e6, 1);
+        assertApproxEqAbs(pool.convertToAssets(pool.balanceOf(lp)), 660e6, 2);
     }
 
     function test_Redeem_AGainDoesNotMakeUpForALoss() public {
@@ -608,7 +772,10 @@ contract CoverPoolRedeemTest is PoolFixture {
         vm.warp(T0 + NOTICE);
 
         // Worth 480 at today's price, owed no more than the 400 it was worth when it asked to leave.
+        uint256 worth = pool.convertToAssets(400e6 * SHARE_UNIT);
         assertEq(_redeem(lp, 400e6 * SHARE_UNIT), 400e6);
+        assertEq(dollar.balanceOf(treasury), worth - 400e6);
+        assertApproxEqAbs(worth, 480e6, 1);
     }
 
     function test_RequestRedeem_AddingRemarksTheWholeRequestAtTheCurrentPrice() public {
@@ -634,8 +801,10 @@ contract CoverPoolRedeemTest is PoolFixture {
         vm.prank(attacker);
         uint256 assets = pool.redeem(shares, attacker, attacker);
 
+        // The leaver gets what it put in; its half of the donation goes to the treasury.
         assertEq(assets, 1_000e6);
-        assertApproxEqAbs(pool.convertToAssets(pool.balanceOf(lp)), 6_000e6, 10);
+        assertApproxEqAbs(dollar.balanceOf(treasury), 2_500e6, 10);
+        assertApproxEqAbs(pool.convertToAssets(pool.balanceOf(lp)), 3_500e6, 10);
     }
 
     function test_Redeem_DustRoundsInThePoolsFavour() public {
@@ -685,6 +854,8 @@ contract CoverPoolRedeemTest is PoolFixture {
 
         assertLe(first + second, assetsAtRequest, "paid above the value at request");
         assertGe(pool.convertToAssets(pool.balanceOf(lp2)), restBefore, "the remaining provider was diluted");
+        // Whatever the cap withheld went to the treasury, not to the provider who stays.
+        assertApproxEqAbs(pool.convertToAssets(pool.balanceOf(lp2)), restBefore, 4, "the remaining provider gained");
         assertEq(pool.escrowedShares(), 0);
         assertEq(pool.balanceOf(address(pool)), 0);
         assertGe(dollar.balanceOf(address(pool)), pool.lockedExposure());
@@ -800,7 +971,7 @@ contract CoverPoolRedeemTest is PoolFixture {
     }
 
     function test_SetRedeemNotice_BeforeTheBookIsWiredOnlyTheLimitsApply() public {
-        CoverPool fresh = new CoverPool(dollar, owner, "Cover Pool Share", "cvUSD");
+        CoverPool fresh = new CoverPool(dollar, owner, treasury, "Cover Pool Share", "cvUSD");
         vm.prank(owner);
         fresh.setRedeemNotice(1 minutes);
         assertEq(fresh.redeemNotice(), 1 minutes);
