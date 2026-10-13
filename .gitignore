@@ -16,18 +16,9 @@ generated/
 !.env.example
 secrets/
 
-# working notes, never part of the product
-BRIEF.md
-ALTERNATIVES.md
 NOTES.md
 DESIGN.md
 PLAN.md
-MEMORY.md
-.remember/
-.claude/
-.agents/
-superpowers/
-docs/superpowers/
 *-internal/
 *-backup*
 *.bundle
