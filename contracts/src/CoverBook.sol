@@ -31,7 +31,8 @@ import {Quote} from "./Types.sol";
 ///   per key for `cellExposure`;
 /// - a policy is never paid more than its maximum payout, and never for time the index has not reported;
 /// - `settledUntil` only moves forward and never passes `end`;
-/// - a key is in the active set exactly while it has an open policy.
+/// - a key is in the active set exactly while it has an open policy;
+/// - every policy with an id below `oldestOpenId` is closed.
 contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient, ICoverBook {
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.UintSet;
@@ -61,6 +62,9 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient, ICoverBook
 
     uint256 private constant BPS = 10_000;
     uint64 private constant MINUTE = 60;
+
+    /// @dev How far one closing policy walks `oldestOpenId` over policies that closed before it.
+    uint256 private constant OLDEST_OPEN_STEPS = 32;
 
     /// @notice The dollar token premiums and payouts are made in.
     IERC20 public immutable token;
@@ -112,6 +116,11 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient, ICoverBook
 
     /// @notice Number of policies ever sold. Policy ids run from 1 to this value.
     uint256 public policyCount;
+
+    /// @notice Every policy with a smaller id is closed. It is the oldest open policy, or `policyCount + 1`
+    /// when none is open, except that it may trail behind policies that closed out of order; `syncOldestOpen`
+    /// catches it up. The pool holds a redemption claim until the cover sold before its request is closed.
+    uint256 public oldestOpenId = 1;
 
     /// @notice Whether a quote digest has been used.
     mapping(bytes32 digest => bool) public quoteUsed;
@@ -260,6 +269,13 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient, ICoverBook
         for (uint256 i = 0; i < count; ++i) {
             _settle(ids[i], false);
         }
+    }
+
+    /// @notice Walks `oldestOpenId` forward over policies that are already closed, at most `maxSteps` of
+    /// them. Anyone may call; it only ever moves the mark up to the oldest open policy.
+    /// @return oldest The new `oldestOpenId`.
+    function syncOldestOpen(uint256 maxSteps) external returns (uint256 oldest) {
+        return _advanceOldestOpen(maxSteps);
     }
 
     /// @notice Closes policy `id` once `expiryGrace` has passed since the end of its window, even if the index
@@ -496,12 +512,25 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient, ICoverBook
         if (closing) {
             p.closed = true;
             if (--openPolicies[key] == 0) _activeCells.remove(key);
+            _advanceOldestOpen(OLDEST_OPEN_STEPS);
         }
         address holder = p.holder;
         emit PolicySettled(id, holder, paid, settledUntil, closing);
 
         if (paid != 0) pool.pay(holder, key, paid);
         if (closing && remaining != paid) pool.release(key, remaining - paid);
+    }
+
+    /// @dev Moves `oldestOpenId` past closed policies, at most `maxSteps` of them.
+    function _advanceOldestOpen(uint256 maxSteps) private returns (uint256 oldest) {
+        oldest = oldestOpenId;
+        uint256 start = oldest;
+        uint256 count = policyCount;
+        uint256 limit = maxSteps < count + 1 - oldest ? oldest + maxSteps : count + 1;
+        while (oldest < limit && _policies[oldest].closed) {
+            ++oldest;
+        }
+        if (oldest != start) oldestOpenId = oldest;
     }
 
     /// @dev Latest timestamp a policy for `key` ending at `end` can be settled to: time that has passed, is

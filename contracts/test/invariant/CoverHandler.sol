@@ -451,6 +451,10 @@ contract CoverHandler is Signing {
         if (!closed) ++expiries;
     }
 
+    function syncOldestOpen(uint256 steps) external {
+        book.syncOldestOpen(bound(steps, 0, 64));
+    }
+
     function _recordPayout(uint256 id, address holder, uint256 paid) internal {
         paidTo[id] += paid;
         payoutsOwed[holder] += paid;

@@ -22,7 +22,7 @@ contract CoverInvariantTest is CoverFixture {
         handler = new CoverHandler(dollar, index, pool, book, owner, underwriterKey, reporterKey);
         targetContract(address(handler));
 
-        bytes4[] memory selectors = new bytes4[](23);
+        bytes4[] memory selectors = new bytes4[](24);
         selectors[0] = CoverHandler.warp.selector;
         selectors[1] = CoverHandler.warpFar.selector;
         selectors[2] = CoverHandler.heartbeat.selector;
@@ -46,6 +46,7 @@ contract CoverInvariantTest is CoverFixture {
         selectors[20] = CoverHandler.claimDeferred.selector;
         selectors[21] = CoverHandler.buyAboveTheCellCap.selector;
         selectors[22] = CoverHandler.buyAtTheHorizon.selector;
+        selectors[23] = CoverHandler.syncOldestOpen.selector;
         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
     }
 
@@ -63,7 +64,7 @@ contract CoverInvariantTest is CoverFixture {
     }
 
     /// A policy is never paid more than its maximum, and exactly for the rain the index reported inside the
-    /// part of its window that has been settled.
+    /// part of its window that has been settled. Every policy below the book's oldest-open mark is closed.
     function invariant_PayoutsFollowTheIndexAndTheMaximum() public view {
         _checkPolicies();
     }
@@ -281,8 +282,12 @@ contract CoverInvariantTest is CoverFixture {
 
     function _checkPolicies() internal view {
         uint256 count = book.policyCount();
+        uint256 oldestOpen = book.oldestOpenId();
+        assertGe(oldestOpen, 1);
+        assertLe(oldestOpen, count + 1);
         for (uint256 id = 1; id <= count; ++id) {
             PolicyView memory p = _policy(id);
+            if (id < oldestOpen) assertTrue(p.closed, "an open policy lies below the oldest-open mark");
             assertLe(p.paid, p.maxPayout, "paid above the maximum");
             assertEq(p.paid, handler.paidTo(id), "paid differs from the settlements made");
             assertGe(p.settledUntil, p.start);
