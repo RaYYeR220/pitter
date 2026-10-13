@@ -1,0 +1,71 @@
+# yaml-language-server: $schema=./node_modules/envio/evm.schema.json
+name: cover-indexer
+description: Policies, settlements, weather readings and pool accounting of the per-minute weather cover
+
+# Every entity is stored per chain: the same id on two chains is two rows, told apart by `chainId`.
+disable_default_cross_chain: true
+address_format: lowercase
+
+contracts:
+  - name: CoverBook
+    events:
+      - event: "PolicyBought(uint256 indexed id, address indexed holder, uint256 indexed key, uint64 start, uint64 end, uint128 ratePerSecond, uint128 premium, uint256 maxPayout)"
+        field_selection:
+          transaction_fields: [hash]
+      - event: "PolicySettled(uint256 indexed id, address indexed holder, uint256 paid, uint64 settledUntil, bool closed)"
+        field_selection:
+          transaction_fields: [hash]
+      - event: "FeeSet(uint256 feeBps)"
+  - name: CoverPool
+    events:
+      - event: "ExposureChanged(uint256 indexed key, uint256 cellExposure, uint256 lockedExposure)"
+      - event: "Deposit(address indexed sender, address indexed owner, uint256 assets, uint256 shares)"
+      - event: "Withdraw(address indexed sender, address indexed receiver, address indexed owner, uint256 assets, uint256 shares)"
+        field_selection:
+          transaction_fields: [hash]
+      - event: "RedeemRequest(address indexed controller, address indexed owner, uint256 indexed requestId, address sender, uint256 shares)"
+        field_selection:
+          transaction_fields: [hash]
+      - event: "RedeemRequestCancelled(address indexed controller, uint256 shares)"
+        field_selection:
+          transaction_fields: [hash]
+      - event: "RedeemNoticeSet(uint256 notice)"
+      - event: "PayoutDeferred(address indexed to, uint256 amount)"
+      - event: "DeferredClaimed(address indexed to, uint256 amount)"
+  - name: WeatherIndex
+    events:
+      - event: "WeatherReported(uint256 indexed key, uint64 from, uint64 to, uint32 wetSeconds, uint256 cumulative)"
+        field_selection:
+          transaction_fields: [hash]
+      - event: "Heartbeat(uint256 timestamp)"
+
+# One entry per deployment, taken from contracts/deployments/<chainId>.json:
+# `start_block` is its `startBlock`, the addresses are `coverBook`, `coverPool` and `weatherIndex`.
+# The public Monad endpoints answer eth_getLogs for at most 100 blocks, hence the intervals.
+chains:
+  - id: 10143 # Monad testnet
+    start_block: 70624410
+    rpc:
+      - url: ${ENVIO_RPC_URL_10143:-https://testnet-rpc.monad.xyz}
+        for: ${ENVIO_RPC_ROLE:-fallback}
+        initial_block_interval: 100
+        interval_ceiling: 100
+    contracts:
+      - { name: CoverBook, address: "0x58d970780565E4C064369AD80eEC2D3581d6d75D" }
+      - { name: CoverPool, address: "0xfA7e2510EAadB2BB6316Aac81D0D6Aa51a5f4C56" }
+      - { name: WeatherIndex, address: "0x171CFCBAA60C9AfD267474773122293a67FbeD94" }
+
+  # Not deployed yet. Once contracts/deployments/143.json exists: set the start block, add the three addresses
+  # and delete `skip`.
+  - id: 143 # Monad mainnet
+    skip: true
+    start_block: 0
+    rpc:
+      - url: ${ENVIO_RPC_URL_143:-https://rpc.monad.xyz}
+        for: ${ENVIO_RPC_ROLE:-fallback}
+        initial_block_interval: 100
+        interval_ceiling: 100
+    contracts:
+      - { name: CoverBook }
+      - { name: CoverPool }
+      - { name: WeatherIndex }
