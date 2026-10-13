@@ -1,120 +1,312 @@
 'use client'
 
-import { useState } from 'react'
-import { areaFromKey } from '@/lib/cover/area'
+import { useState, type CSSProperties } from 'react'
+import { CITIES, areaFromKey, cityArea } from '@/lib/cover/area'
 import { copy } from '@/lib/copy'
-import { formatDollars, formatPercent } from '@/lib/format'
+import { formatCountdown, formatDollars, formatPercent } from '@/lib/format'
 import type { PoolActionProblem } from '@/lib/pool'
 import { useAccount } from '@/hooks/account'
+import { useAreaWeather } from '@/hooks/area-weather'
 import { useWeather } from '@/hooks/money'
 import { usePool, usePoolPosition } from '@/hooks/pool'
+import { useRuntime } from '@/hooks/runtime'
 import { AccountPanel } from './account-panel'
 import { ProblemNote, RecordLink, RefusalNote } from './notes'
+import { Figure } from './ui/figure'
+import { Hairline } from './ui/hairline'
+import { Meter, MeterCaps } from './ui/meter'
+import { AsksAgain, Banner, Sheet } from './ui/notice'
+import { Receipt, Receipts } from './ui/receipt'
+import { Tile } from './ui/tile'
 
-function MeterRow({ label, used, limit }: { label: string; used: bigint; limit: bigint }) {
-  return (
-    <div>
-      <p>
-        {label}: {copy.pool.inUseOf(used, limit)} ({formatPercent(used, limit)})
-      </p>
-      <meter min={0} max={1} value={limit > 0n ? Number((used * 1000n) / limit) / 1000 : 0} />
-    </div>
-  )
+const CITY_KEYS = new Map(CITIES.map((city) => [cityArea(city).key, city.name]))
+
+/** A name a person can place: the simulator, a city centre, or the area's coordinates. */
+function useAreaName() {
+  const { config } = useRuntime()
+  const simulator = config.practice?.simulator.key ?? null
+  return (key: bigint): string => {
+    if (simulator !== null && key === simulator) return copy.area.simulator
+    const city = CITY_KEYS.get(key)
+    if (city) return copy.screen.pool.central(city)
+    const place = areaFromKey(key, 'city', '')
+    return copy.area.coordinates(place.lat, place.lon)
+  }
 }
+
+const bpsShare = (bps: number) => `${bps / 100}%`
 
 export function PoolOverview() {
   const pool = usePool()
   const weather = useWeather()
   const meters = pool.meters
+  const areaWeather = useAreaWeather(meters?.areas.map((area) => area.key) ?? [])
+  const wet = meters?.areas.filter((area) => areaWeather?.get(area.key)?.raining) ?? []
+
+  let state: string = copy.pool.intro
+  if (meters) {
+    if (meters.areas.length === 0) state = copy.screen.pool.stateNone
+    else if (wet.length > 0) state = copy.screen.pool.stateRaining(wet.length, meters.areas.length)
+    else state = copy.screen.pool.stateDry(meters.areas.length)
+  }
 
   return (
-    <>
-      <section data-testid="pool">
-        <h2>{copy.pool.heading}</h2>
-        <p>{copy.pool.intro}</p>
-        {pool.error && !pool.data ? <p className="warn">{copy.pool.unavailable}</p> : null}
-        {!pool.data && !pool.error ? <p>{copy.status.loading}</p> : null}
-        {meters ? (
-          <>
-            <dl>
+    <section className="pool-lead" data-testid="pool" aria-labelledby="pool-h">
+      <p className="mono pool-lead__clock">
+        <span>{copy.pool.intro}</span>
+        <span className={weather.fresh === false ? 'pool-lead__stale' : undefined}>
+          <i className={`check__mark${weather.fresh === false ? ' check__mark--hollow' : ''}`} aria-hidden="true" />
+          {weather.ageSeconds !== null
+            ? weather.fresh === false
+              ? copy.weather.silent
+              : copy.weather.fresh(weather.ageSeconds)
+            : copy.weather.unknown}
+        </span>
+      </p>
+      <h1 className="sentence" id="pool-h">
+        {state}
+      </h1>
+      {pool.error && !pool.data ? (
+        <Banner tone="stop" alert>
+          <p>{copy.pool.unavailable}</p>
+        </Banner>
+      ) : null}
+      {!pool.data && !pool.error ? <p className="mono">{copy.status.loading}</p> : null}
+      {meters && pool.data ? (
+        <>
+          <Figure value={formatDollars(meters.pool.used)} wipe label={copy.screen.pool.inUseLabel(meters.pool.used)} />
+          <p className="figcap">{copy.screen.pool.inUseCaption}</p>
+          <div className="pool-lead__meter">
+            <Meter
+              share={meters.pool.share}
+              size="lg"
+              label={copy.screen.pool.meterLabel(formatPercent(meters.pool.used, meters.pool.limit))}
+            />
+            <MeterCaps>
+              <span>
+                <b>{formatPercent(meters.pool.used, meters.pool.limit)}</b> {copy.screen.pool.ofLimit}
+              </span>
+              <span>
+                <b>{formatDollars(meters.pool.room)}</b> {copy.screen.pool.room}
+              </span>
+              <span>
+                {copy.screen.pool.limitIs} <b>{formatDollars(meters.pool.limit)}</b>,{' '}
+                {copy.screen.pool.limitShare(bpsShare(pool.data.state.maxUtilizationBps))}
+              </span>
+            </MeterCaps>
+          </div>
+          <dl className="kpi">
+            <div>
               <dt>{copy.pool.size}</dt>
-              <dd data-testid="pool-total" data-units={meters.total.toString()}>
+              <dd className="kpi__value" data-testid="pool-total" data-units={meters.total.toString()}>
                 {formatDollars(meters.total)}
               </dd>
+              <dd className="mono">{copy.screen.pool.leaving(meters.leaving)}</dd>
+            </div>
+            <div>
               <dt>{copy.pool.active}</dt>
-              <dd data-testid="pool-active" data-units={meters.active.toString()}>
+              <dd className="kpi__value" data-testid="pool-active" data-units={meters.active.toString()}>
                 {formatDollars(meters.active)}
               </dd>
+              <dd className="mono">{copy.screen.pool.activeSub}</dd>
+            </div>
+            <div>
               <dt>{copy.pool.free}</dt>
-              <dd>{formatDollars(meters.free)}</dd>
-            </dl>
-            <MeterRow label={copy.pool.inUse} used={meters.pool.used} limit={meters.pool.limit} />
-            <p className="muted">
-              {copy.pool.areaLimit}: {formatDollars(meters.areaLimit)}
-            </p>
-          </>
-        ) : null}
-        {weather.ageSeconds !== null ? (
-          <p className={weather.fresh === false ? 'warn' : 'muted'}>
-            {weather.fresh === false ? copy.weather.silent : copy.weather.fresh(weather.ageSeconds)}
-          </p>
-        ) : (
-          <p className="muted">{copy.weather.unknown}</p>
-        )}
-      </section>
+              <dd className="kpi__value">{formatDollars(meters.free)}</dd>
+              <dd className="mono">{copy.screen.pool.freeSub}</dd>
+            </div>
+            <div>
+              <dt>{copy.pool.areaLimit}</dt>
+              <dd className="kpi__value">{formatDollars(meters.areaLimit)}</dd>
+              <dd className="mono">{copy.screen.pool.areaLimitSub(bpsShare(pool.data.state.maxCellBps))}</dd>
+            </div>
+          </dl>
+        </>
+      ) : null}
+    </section>
+  )
+}
 
-      <section data-testid="pool-areas">
-        <h2>{copy.pool.areas}</h2>
-        {meters && meters.areas.length === 0 ? <p>{copy.pool.noAreas}</p> : null}
-        {meters?.areas.map((area) => {
-          const place = areaFromKey(area.key, 'city', '')
-          return (
-            <MeterRow
-              key={area.key.toString()}
-              label={copy.pool.areaRow(place.lat, place.lon, area.openCover)}
-              used={area.used}
-              limit={area.limit}
-            />
-          )
-        })}
-      </section>
-
-      <section data-testid="pool-totals">
-        <h2>{copy.pool.totals}</h2>
-        {pool.data ? (
-          <>
-            <p>{copy.pool.sold(pool.data.totals.covers)}</p>
-            <dl>
-              <dt>{copy.pool.premiums}</dt>
-              <dd>{formatDollars(pool.data.totals.premiums)}</dd>
-              <dt>{copy.pool.fees}</dt>
-              <dd>{formatDollars(pool.data.totals.fees)}</dd>
-              <dt>{copy.pool.payouts}</dt>
-              <dd>{formatDollars(pool.data.totals.payouts)}</dd>
-            </dl>
-          </>
-        ) : null}
-        <h3>{copy.pool.recent}</h3>
-        {pool.recent.data ? (
-          <>
-            <p className="muted">
-              {copy.pool.recentRange(pool.recent.data.blocks, Math.round(pool.recent.data.blocks * 0.4))}
-            </p>
-            {pool.recent.data.events.length === 0 ? <p>{copy.pool.recentNone}</p> : null}
-            <ul className="plain">
-              {pool.recent.data.events.map((event) => (
-                <li key={`${event.transactionHash}-${event.kind}-${event.id}`}>
-                  {event.kind === 'bought' ? copy.pool.bought(event.amount) : copy.pool.settled(event.amount)}{' '}
-                  <RecordLink hash={event.transactionHash} />
-                </li>
-              ))}
+export function PoolAreas() {
+  const pool = usePool()
+  const meters = pool.meters
+  const nameOf = useAreaName()
+  const areaWeather = useAreaWeather(meters?.areas.map((area) => area.key) ?? [])
+  return (
+    <section className="psec" data-testid="pool-areas" aria-labelledby="areas-h" id="areas">
+      <h2 className="h-section" id="areas-h">
+        {copy.pool.areas}
+      </h2>
+      {meters ? <p className="lede psec__lede">{copy.screen.pool.areasLede(meters.areaLimit)}</p> : null}
+      {meters && meters.areas.length === 0 ? <p className="small dim">{copy.pool.noAreas}</p> : null}
+      {meters && meters.areas.length > 0 ? (
+        <div className="psplit psplit--flip">
+          <div>
+            <ul className="tiles" aria-label={copy.screen.pool.tilesLabel}>
+              {meters.areas.map((area) => {
+                const raining = areaWeather?.get(area.key)?.raining === true
+                const name = nameOf(area.key)
+                const percent = formatPercent(area.used, area.limit)
+                return (
+                  <Tile
+                    key={area.key.toString()}
+                    name={name}
+                    value={formatDollars(area.used)}
+                    sub={raining ? copy.screen.pool.tilePaying(percent) : percent}
+                    share={area.share}
+                    wet={raining}
+                    label={copy.screen.pool.tileLabel(name, area.used, area.limit, raining)}
+                  />
+                )
+              })}
             </ul>
-          </>
-        ) : pool.recent.error ? (
-          <p className="warn">{copy.pool.recentUnavailable}</p>
-        ) : null}
-      </section>
-    </>
+            <p className="key mono">
+              <span>
+                <i className="key__well" aria-hidden="true" />
+                {copy.screen.pool.keyWell}
+              </span>
+              <span>
+                <i className="key__wet" aria-hidden="true" />
+                {copy.screen.pool.keyWet}
+              </span>
+              <span>
+                <i className="key__full" aria-hidden="true" />
+                {copy.screen.pool.keyFull}
+              </span>
+            </p>
+          </div>
+          <div className="scroll">
+            <table className="grid">
+              <caption className="vh">{copy.screen.pool.tableCaption}</caption>
+              <thead>
+                <tr>
+                  <th scope="col">{copy.screen.pool.colArea}</th>
+                  <th scope="col" className="grid__meter">
+                    {copy.screen.pool.colLimit}
+                  </th>
+                  <th scope="col" className="r">
+                    {copy.pool.inUse}
+                  </th>
+                  <th scope="col" className="r grid__opt">
+                    {copy.screen.pool.colRoom}
+                  </th>
+                  <th scope="col" className="r">
+                    {copy.screen.pool.colCovers}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {meters.areas.map((area) => {
+                  const raining = areaWeather?.get(area.key)?.raining === true
+                  return (
+                    <tr key={area.key.toString()} className={raining ? 'grid__wet' : undefined}>
+                      <th scope="row">
+                        {raining ? <i className="drops" aria-hidden="true" /> : null}
+                        {nameOf(area.key)}
+                        {raining ? <span className="vh">{copy.screen.pool.paying}</span> : null}
+                      </th>
+                      <td className="grid__meter">
+                        <Meter
+                          share={area.share}
+                          size="sm"
+                          label={copy.screen.pool.rowMeter(formatPercent(area.used, area.limit))}
+                        />
+                      </td>
+                      <td className="r">{formatDollars(area.used)}</td>
+                      <td className="r grid__opt">{formatDollars(area.room)}</td>
+                      <td className="r">{area.openCover.toString()}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
+    </section>
+  )
+}
+
+/** Premiums in, payouts out, since the book opened: one dollar scale, payouts in the accent. */
+function TotalsBars({ premiums, fees, payouts }: { premiums: bigint; fees: bigint; payouts: bigint }) {
+  const top = [premiums, payouts, fees].reduce((a, b) => (b > a ? b : a), 1n)
+  const share = (value: bigint) => Number((value * 10_000n) / top) / 10_000
+  const bars = [
+    { key: 'premiums', label: copy.pool.premiums, sub: copy.screen.pool.premiumsSub, value: premiums, tone: 'ink' },
+    { key: 'payouts', label: copy.pool.payouts, sub: copy.screen.pool.payoutsSub, value: payouts, tone: 'rain' },
+    { key: 'fees', label: copy.pool.fees, sub: copy.screen.pool.feesSub, value: fees, tone: 'quiet' },
+  ] as const
+  return (
+    <dl className="hbars">
+      {bars.map((bar) => (
+        <div key={bar.key} className={`hbars__row hbars__row--${bar.tone}`}>
+          <dt>
+            {bar.label}
+            <small className="mono">{bar.sub}</small>
+          </dt>
+          <dd className="hbars__value">{formatDollars(bar.value)}</dd>
+          <dd className="hbars__track" aria-hidden="true">
+            <i style={{ '--p': share(bar.value) } as CSSProperties} />
+          </dd>
+        </div>
+      ))}
+    </dl>
+  )
+}
+
+export function PoolTotals() {
+  const pool = usePool()
+  return (
+    <section className="psec" data-testid="pool-totals" aria-labelledby="totals-h" id="totals">
+      <h2 className="h-section" id="totals-h">
+        {copy.screen.pool.totalsHeading}
+      </h2>
+      <p className="lede psec__lede">{copy.screen.pool.totalsLede}</p>
+      <div className="psplit">
+        <div>
+          {pool.data ? (
+            <>
+              <p className="totals__sold">{copy.pool.sold(pool.data.totals.covers)}</p>
+              <TotalsBars
+                premiums={pool.data.totals.premiums}
+                fees={pool.data.totals.fees}
+                payouts={pool.data.totals.payouts}
+              />
+              <p className="mono totals__net">{copy.screen.pool.net(pool.data.totals.net)}</p>
+            </>
+          ) : (
+            <p className="mono">{copy.status.loading}</p>
+          )}
+        </div>
+        <div>
+          <h3 className="h-block">{copy.pool.recent}</h3>
+          {pool.recent.data ? (
+            <>
+              <p className="mono recent__range">
+                {copy.pool.recentRange(pool.recent.data.blocks, Math.round(pool.recent.data.blocks * 0.4))}
+              </p>
+              {pool.recent.data.events.length === 0 ? <p className="small dim">{copy.pool.recentNone}</p> : null}
+              <Receipts>
+                {pool.recent.data.events.map((event) => (
+                  <Receipt
+                    key={`${event.transactionHash}-${event.kind}-${event.id}`}
+                    rain={event.kind === 'settled'}
+                    what={event.kind === 'bought' ? copy.screen.pool.boughtLabel : copy.screen.pool.settledLabel}
+                    amount={formatDollars(event.amount)}
+                    when={copy.screen.pool.eventWhen(event.id)}
+                    record={<RecordLink hash={event.transactionHash} />}
+                  />
+                ))}
+              </Receipts>
+            </>
+          ) : pool.recent.error ? (
+            <p className="mono">{copy.pool.recentUnavailable}</p>
+          ) : (
+            <p className="mono">{copy.status.loading}</p>
+          )}
+        </div>
+      </div>
+    </section>
   )
 }
 
@@ -136,20 +328,20 @@ function actionProblem(problem: PoolActionProblem | null): string | null {
   }
 }
 
+/** The backer's slip: what their share is worth, and adding to it. */
 export function PoolPosition() {
   const account = useAccount()
   const position = usePoolPosition()
-  const pool = usePool()
   const [amount, setAmount] = useState('')
   if (account.status !== 'signed_in') {
     return (
-      <>
-        <section>
-          <h2>{copy.pool.position.heading}</h2>
-          <p>{copy.pool.position.signIn}</p>
-        </section>
-        <AccountPanel />
-      </>
+      <aside className="pool-aside" aria-label={copy.pool.position.heading}>
+        <Sheet className="share">
+          <h2 className="h-block">{copy.pool.position.heading}</h2>
+          <p className="small">{copy.pool.position.signIn}</p>
+        </Sheet>
+        <AccountPanel variant="slip" />
+      </aside>
     )
   }
   const data = position.data
@@ -157,122 +349,212 @@ export function PoolPosition() {
   const busy = position.status === 'confirming' || position.status === 'sending'
 
   return (
-    <>
-      <AccountPanel />
-      <section data-testid="pool-position" data-phase={leave?.phase ?? 'loading'}>
-        <h2>{copy.pool.position.heading}</h2>
+    <aside className="pool-aside" aria-labelledby="share-h">
+      <Sheet className="share" testId="pool-position" data={{ 'data-phase': leave?.phase ?? 'loading' }}>
+        <h2 className="h-block" id="share-h">
+          {copy.pool.position.heading}
+        </h2>
         {data ? (
           <>
             {data.shares > 0n || data.request ? (
-              <dl>
-                <dt>{copy.pool.position.value}</dt>
-                <dd data-testid="position-value" data-units={data.value.toString()}>
+              <>
+                <p className="share__big" data-testid="position-value" data-units={data.value.toString()}>
                   {formatDollars(data.value)}
-                </dd>
-              </dl>
+                </p>
+                <p className="mono">{copy.pool.position.value}</p>
+              </>
             ) : (
-              <p>{copy.pool.position.none}</p>
+              <p className="small">{copy.pool.position.none}</p>
             )}
-            <p className="muted">{copy.pool.position.balance(data.dollars)}</p>
+            <p className="mono share__balance">{copy.pool.position.balance(data.dollars)}</p>
           </>
         ) : (
-          <p>{copy.status.loading}</p>
+          <p className="mono">{copy.status.loading}</p>
         )}
 
-        <h3>{copy.pool.position.add}</h3>
-        <p>{copy.pool.position.addIntro}</p>
         <form
+          className="share__add"
           onSubmit={(event) => {
             event.preventDefault()
             void position.add(amount)
           }}
         >
-          <label>
-            {copy.pool.position.amount}
+          <p className="small">{copy.pool.position.addIntro}</p>
+          <label className="field">
+            <span>{copy.pool.position.amount}</span>
             <input
+              className="input input--money"
               value={amount}
               onChange={(event) => setAmount(event.target.value)}
               inputMode="decimal"
+              placeholder="500"
               data-testid="pool-amount"
             />
           </label>
-          <button type="submit" disabled={busy} data-testid="pool-add">
-            {copy.pool.position.add}
+          <button
+            type="submit"
+            className="btn btn--ink btn--wide"
+            disabled={busy}
+            data-testid="pool-add"
+            aria-describedby="pool-add-asks"
+          >
+            {position.action === 'add' && position.status === 'sending' ? copy.status.working : copy.pool.position.add}
           </button>
+          <AsksAgain id="pool-add-asks">{copy.screen.pool.addAsks}</AsksAgain>
         </form>
-        {position.invalidAmount ? <p className="note warn">{copy.money.invalidAmount}</p> : null}
-        {position.action === 'add' && position.status === 'confirming' ? <p>{copy.account.confirm.pool_add}</p> : null}
-        {position.action === 'add' && position.status === 'sending' ? <p>{copy.status.working}</p> : null}
+        {position.invalidAmount ? (
+          <Banner tone="stop" alert>
+            <p>{copy.money.invalidAmount}</p>
+          </Banner>
+        ) : null}
+        {position.action === 'add' && position.status === 'confirming' ? (
+          <Banner tone="wait" live>
+            <p>{copy.account.confirm.pool_add}</p>
+          </Banner>
+        ) : null}
         {position.deposit ? (
-          <p className="note good" data-testid="pool-added">
-            {copy.pool.position.added(position.deposit.assets)} <RecordLink hash={position.deposit.transactionHash} />
-          </p>
+          <Banner tone="done" live testId="pool-added">
+            <p>
+              {copy.pool.position.added(position.deposit.assets)} <RecordLink hash={position.deposit.transactionHash} />
+            </p>
+          </Banner>
         ) : null}
         <ProblemNote problem={position.problem} />
         <RefusalNote refusal={position.refusal} />
-      </section>
+        {data && leave && leave.phase !== 'none' ? (
+          <a className="btn btn--line btn--wide" href="#leave">
+            {copy.pool.leave.heading}
+          </a>
+        ) : null}
+      </Sheet>
+    </aside>
+  )
+}
 
-      {data && leave && leave.phase !== 'none' ? (
-        <section data-testid="pool-leave">
-          <h2>{copy.pool.leave.heading}</h2>
-          <p>{copy.pool.leave.intro(pool.data?.state.redeemNotice ?? 0)}</p>
-          <p className="muted">{copy.pool.leave.fee}</p>
-          {position.fee && !position.fee.ok ? <p className="note warn">{copy.pool.leave.noFee}</p> : null}
+/** Leaving in three steps: ask, wait out the notice, take the money out. */
+export function PoolLeave() {
+  const position = usePoolPosition()
+  const pool = usePool()
+  const account = useAccount()
+  if (account.status !== 'signed_in') return null
+  const data = position.data
+  const leave = position.leave
+  if (!data || !leave || leave.phase === 'none') return null
+  const busy = position.status === 'confirming' || position.status === 'sending'
+  const notice = pool.data?.state.redeemNotice ?? 0
+  const step = leave.phase === 'in' ? 0 : leave.phase === 'waiting' ? 1 : 2
+  const problem = actionProblem(position.actionProblem)
+
+  return (
+    <section className="psec" data-testid="pool-leave" aria-labelledby="leave-h" id="leave">
+      <h2 className="h-section" id="leave-h">
+        {copy.pool.leave.heading}
+      </h2>
+      <p className="lede psec__lede">{copy.pool.leave.intro(notice)}</p>
+      <p className="mono">{copy.pool.leave.fee}</p>
+      {position.fee && !position.fee.ok ? (
+        <Banner tone="wait">
+          <p>{copy.pool.leave.noFee}</p>
+        </Banner>
+      ) : null}
+      <ol className="steps">
+        <li className={step === 0 ? 'steps__item steps__item--now' : 'steps__item'}>
+          <p className="mono steps__k">{copy.screen.leave.step(1)}</p>
+          <h3 className="steps__h">{copy.screen.leave.askTitle}</h3>
+          <p className="small">{copy.screen.leave.askText}</p>
           {leave.phase === 'in' ? (
-            <button type="button" className="secondary" disabled={busy} onClick={() => void position.askToLeave()}>
-              {copy.pool.leave.ask}
-            </button>
+            <div className="steps__act">
+              <button
+                type="button"
+                className="btn btn--line btn--wide"
+                disabled={busy}
+                onClick={() => void position.askToLeave()}
+                aria-describedby="leave-asks"
+              >
+                {copy.pool.leave.ask}
+              </button>
+              <AsksAgain id="leave-asks">{copy.screen.pool.leaveAsks}</AsksAgain>
+            </div>
           ) : null}
+        </li>
+        <li className={step === 1 ? 'steps__item steps__item--now' : 'steps__item'}>
+          <p className="mono steps__k">{copy.screen.leave.step(2)}</p>
+          <h3 className="steps__h">{copy.screen.leave.waitTitle}</h3>
           {leave.phase === 'waiting' ? (
             <>
-              <p>{copy.pool.leave.asked}</p>
-              <p data-testid="leave-countdown">{copy.pool.leave.waiting(leave.remainingMs)}</p>
-              <button type="button" className="secondary" disabled={busy} onClick={() => void position.stay()}>
-                {copy.pool.leave.cancel}
-              </button>
-            </>
-          ) : null}
-          {leave.phase === 'ready' ? (
-            <>
-              {leave.blockedByCover ? (
-                <p data-testid="leave-blocked">{copy.pool.leave.waitingForCover}</p>
-              ) : (
-                <>
-                  <p>{copy.pool.leave.ready(leave.claimableAssets)}</p>
-                  {leave.partly ? <p className="muted">{copy.pool.leave.readyPartly}</p> : null}
-                </>
-              )}
-              <div className="row">
-                <button
-                  type="button"
-                  disabled={busy || leave.claimableShares === 0n}
-                  onClick={() => void position.takeOut()}
-                >
-                  {copy.pool.leave.take}
-                </button>
-                <button type="button" className="secondary" disabled={busy} onClick={() => void position.stay()}>
+              <p className="steps__count" data-testid="leave-countdown">
+                {formatCountdown(leave.remainingMs)}
+              </p>
+              <p className="small">{copy.pool.leave.waiting(leave.remainingMs)}</p>
+              <Hairline progress={notice > 0 ? 1 - leave.remainingMs / (notice * 1000) : 0} />
+              <p className="small">{copy.pool.leave.asked}</p>
+              <div className="steps__act">
+                <button type="button" className="link" disabled={busy} onClick={() => void position.stay()}>
                   {copy.pool.leave.cancel}
                 </button>
               </div>
             </>
-          ) : null}
-          {position.action !== 'add' && position.status === 'confirming' ? (
-            <p>{copy.account.confirm.pool_leave}</p>
-          ) : null}
-          {position.action !== 'add' && position.status === 'done' ? (
-            <p className="good">
-              {position.action === 'cancel'
-                ? copy.pool.leave.cancelled
-                : position.action === 'take'
-                  ? copy.pool.leave.taken
-                  : copy.pool.leave.asked}
-            </p>
-          ) : null}
-          {actionProblem(position.actionProblem) ? (
-            <p className="note bad">{actionProblem(position.actionProblem)}</p>
-          ) : null}
-        </section>
+          ) : (
+            <p className="small">{copy.screen.leave.waitText(notice)}</p>
+          )}
+        </li>
+        <li className={step === 2 ? 'steps__item steps__item--now' : 'steps__item'}>
+          <p className="mono steps__k">{copy.screen.leave.step(3)}</p>
+          <h3 className="steps__h">{copy.screen.leave.takeTitle}</h3>
+          {leave.phase === 'ready' ? (
+            <>
+              {leave.blockedByCover ? (
+                <p className="small" data-testid="leave-blocked">
+                  {copy.pool.leave.waitingForCover}
+                </p>
+              ) : (
+                <>
+                  <p className="small">{copy.pool.leave.ready(leave.claimableAssets)}</p>
+                  {leave.partly ? <p className="mono">{copy.pool.leave.readyPartly}</p> : null}
+                </>
+              )}
+              <div className="steps__act">
+                <button
+                  type="button"
+                  className="btn btn--ink btn--wide"
+                  disabled={busy || leave.claimableShares === 0n}
+                  onClick={() => void position.takeOut()}
+                  aria-describedby="take-asks"
+                >
+                  {copy.pool.leave.take}
+                </button>
+                <AsksAgain id="take-asks">{copy.screen.pool.leaveAsks}</AsksAgain>
+                <button type="button" className="link" disabled={busy} onClick={() => void position.stay()}>
+                  {copy.pool.leave.cancel}
+                </button>
+              </div>
+            </>
+          ) : (
+            <p className="small">{copy.screen.leave.takeText}</p>
+          )}
+        </li>
+      </ol>
+      {position.action !== 'add' && position.status === 'confirming' ? (
+        <Banner tone="wait" live>
+          <p>{copy.account.confirm.pool_leave}</p>
+        </Banner>
       ) : null}
-    </>
+      {position.action !== 'add' && position.status === 'done' ? (
+        <Banner tone="done" live>
+          <p>
+            {position.action === 'cancel'
+              ? copy.pool.leave.cancelled
+              : position.action === 'take'
+                ? copy.pool.leave.taken
+                : copy.pool.leave.asked}
+          </p>
+        </Banner>
+      ) : null}
+      {problem ? (
+        <Banner tone="stop" alert>
+          <p>{problem}</p>
+        </Banner>
+      ) : null}
+    </section>
   )
 }

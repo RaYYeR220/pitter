@@ -1,66 +1,90 @@
 'use client'
 
-import Link from 'next/link'
 import { copy } from '@/lib/copy'
-import { useRuntimeStatus } from '@/hooks/runtime'
+import { useAccount } from '@/hooks/account'
 import { useWeather } from '@/hooks/money'
 import { AccountPanel } from './account-panel'
-import { AccrualPanel, AreaPicker, CoverPanel, LockShiftPanel } from './cover-panel'
+import { CoverPanel, LockShiftPanel } from './cover-panel'
 import { HistoryPanel, MoneyPanel, PracticePanel } from './money-panel'
-import { PoolOverview, PoolPosition } from './pool-panels'
+import { PoolAreas, PoolLeave, PoolOverview, PoolPosition, PoolTotals } from './pool-panels'
 import { Ready } from './shell'
 import { ShiftLogPanel } from './shift-log-panel'
-
-export function Landing() {
-  const state = useRuntimeStatus()
-  const practice = state.status === 'ready' && state.runtime.config.practice !== null
-  return (
-    <section>
-      <h1>{copy.landing.claim}</h1>
-      <p>{copy.landing.support}</p>
-      <p>
-        <Link href="/app" data-testid="landing-cta">
-          <button type="button">{copy.landing.button}</button>
-        </Link>
-      </p>
-      {practice ? <p className="muted">{copy.landing.practice}</p> : null}
-    </section>
-  )
-}
+import { Banner } from './ui/notice'
 
 function SendingStatus() {
   const { health } = useWeather()
   if (!health || health.relayer.balance === 'ok' || health.relayer.balance === 'unknown') return null
   return (
-    <p className={`note ${health.relayer.balance === 'empty' ? 'bad' : 'warn'}`}>
-      {health.relayer.balance === 'empty' ? copy.status.relayerEmpty : copy.status.relayerLow}
-    </p>
+    <div className="page-note">
+      <Banner tone={health.relayer.balance === 'empty' ? 'stop' : 'wait'}>
+        <p>{health.relayer.balance === 'empty' ? copy.status.relayerEmpty : copy.status.relayerLow}</p>
+      </Banner>
+    </div>
+  )
+}
+
+function CoverBody() {
+  const account = useAccount()
+  const signedIn = account.status === 'signed_in'
+  return (
+    <div className="page page--app">
+      <SendingStatus />
+      {signedIn ? (
+        <>
+          <AccountPanel />
+          <CoverPanel />
+        </>
+      ) : (
+        <AccountPanel />
+      )}
+      <PracticePanel />
+      {signedIn ? (
+        <div className="ledger-grid">
+          <div className="ledger-grid__main">
+            <HistoryPanel />
+            <ShiftLogPanel />
+          </div>
+          <div className="ledger-grid__side">
+            <MoneyPanel />
+            <LockShiftPanel />
+          </div>
+        </div>
+      ) : (
+        <ShiftLogPanel />
+      )}
+    </div>
   )
 }
 
 export function CoverScreen() {
   return (
     <Ready>
-      <SendingStatus />
-      <AccountPanel />
-      <CoverPanel />
-      <AreaPicker />
-      <AccrualPanel />
-      <MoneyPanel />
-      <PracticePanel />
-      <LockShiftPanel />
-      <HistoryPanel />
-      <ShiftLogPanel />
+      <CoverBody />
     </Ready>
+  )
+}
+
+function PoolBody() {
+  const account = useAccount()
+  return (
+    <div className="page page--pool">
+      <SendingStatus />
+      {account.status === 'signed_in' ? <AccountPanel /> : null}
+      <div className="pool-hero">
+        <PoolOverview />
+        <PoolPosition />
+      </div>
+      <PoolAreas />
+      <PoolTotals />
+      <PoolLeave />
+    </div>
   )
 }
 
 export function PoolScreen() {
   return (
     <Ready>
-      <SendingStatus />
-      <PoolOverview />
-      <PoolPosition />
+      <PoolBody />
     </Ready>
   )
 }

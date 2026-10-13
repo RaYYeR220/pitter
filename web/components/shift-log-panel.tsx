@@ -4,67 +4,90 @@ import { useState } from 'react'
 import { copy } from '@/lib/copy'
 import { useShiftLog } from '@/hooks/shift-log'
 import { ProblemNote } from './notes'
+import { AsksAgain, Banner, Block } from './ui/notice'
 
 export function ShiftLogPanel() {
   const log = useShiftLog()
   const [label, setLabel] = useState('')
 
   return (
-    <section data-testid="shift-log" data-status={log.status} data-sync={log.sync}>
-      <h2>{copy.shiftLog.heading}</h2>
-      <p>{copy.shiftLog.intro}</p>
+    <Block
+      id="shift-log"
+      title={copy.shiftLog.heading}
+      lede={copy.shiftLog.intro}
+      testId="shift-log"
+      data={{ 'data-status': log.status, 'data-sync': log.sync }}
+      className="log"
+    >
       <ProblemNote problem={log.problem} />
-      {log.error === 'load_failed' ? <p className="note warn">{copy.shiftLog.loadFailed}</p> : null}
-      {log.error === 'cannot_open' ? <p className="note bad">{copy.shiftLog.cantOpen}</p> : null}
+      {log.error === 'load_failed' ? (
+        <Banner tone="wait">
+          <p>{copy.shiftLog.loadFailed}</p>
+        </Banner>
+      ) : null}
+      {log.error === 'cannot_open' ? (
+        <Banner tone="stop" alert>
+          <p>{copy.shiftLog.cantOpen}</p>
+        </Banner>
+      ) : null}
 
       {log.status !== 'unlocked' ? (
-        <button
-          type="button"
-          disabled={log.status === 'unlocking'}
-          onClick={() => void log.unlock()}
-          data-testid="unlock-log"
-        >
-          {log.status === 'unlocking' ? copy.shiftLog.unlocking : copy.shiftLog.unlock}
-        </button>
+        <div className="actions">
+          <button
+            type="button"
+            className="btn btn--ink"
+            disabled={log.status === 'unlocking'}
+            onClick={() => void log.unlock()}
+            data-testid="unlock-log"
+            aria-describedby="log-asks"
+          >
+            {log.status === 'unlocking' ? copy.shiftLog.unlocking : copy.shiftLog.unlock}
+          </button>
+          <AsksAgain id="log-asks">{copy.screen.log.asks}</AsksAgain>
+        </div>
       ) : (
         <>
-          <p className="muted">{copy.shiftLog.storedAs}</p>
+          <p className="mono">{copy.shiftLog.storedAs}</p>
           <form
+            className="log__new"
             onSubmit={(event) => {
               event.preventDefault()
               if (log.startShift(label)) setLabel('')
             }}
           >
-            <label>
-              {copy.shiftLog.label}
+            <label className="field">
+              <span>{copy.shiftLog.label}</span>
               <input
+                className="input"
                 value={label}
                 placeholder={copy.shiftLog.labelPlaceholder}
                 onChange={(event) => setLabel(event.target.value)}
                 data-testid="new-shift-label"
               />
             </label>
-            <button type="submit" className="secondary" data-testid="new-shift">
+            <button type="submit" className="btn btn--line" data-testid="new-shift">
               {copy.shiftLog.newShift}
             </button>
           </form>
 
-          {log.log && log.log.shifts.length === 0 ? <p>{copy.shiftLog.empty}</p> : null}
-          {log.log?.trimmed ? <p className="muted">{copy.shiftLog.trimmed}</p> : null}
-          <ul className="plain">
+          {log.log && log.log.shifts.length === 0 ? <p className="small dim">{copy.shiftLog.empty}</p> : null}
+          {log.log?.trimmed ? <p className="mono">{copy.shiftLog.trimmed}</p> : null}
+          <ul className="log__list">
             {log.log?.shifts.map((shift) => (
-              <li key={shift.id} data-testid="shift-entry">
-                <label>
-                  {copy.shiftLog.label}
+              <li key={shift.id} className="sheet-slip log__entry" data-testid="shift-entry">
+                <label className="field">
+                  <span>{copy.shiftLog.label}</span>
                   <input
+                    className="input"
                     value={shift.label}
                     onChange={(event) => log.editShift(shift.id, { label: event.target.value })}
                   />
                 </label>
-                <p className="muted">{copy.shiftLog.shiftOn(shift.startedAt)}</p>
-                <label>
-                  {copy.shiftLog.note}
+                <p className="mono">{copy.shiftLog.shiftOn(shift.startedAt)}</p>
+                <label className="field">
+                  <span>{copy.shiftLog.note}</span>
                   <textarea
+                    className="input"
                     rows={3}
                     value={shift.note}
                     placeholder={copy.shiftLog.notePlaceholder}
@@ -72,28 +95,28 @@ export function ShiftLogPanel() {
                     data-testid="shift-note"
                   />
                 </label>
-                <p className="muted" data-testid="trail-count" data-count={shift.trail.length}>
+                <p className="small" data-testid="trail-count" data-count={shift.trail.length}>
                   {copy.shiftLog.points(shift.trail.length)}
                 </p>
                 {shift.trail.slice(-3).map((point) => (
-                  <p key={point.at} className="muted">
+                  <p key={point.at} className="mono">
                     {copy.shiftLog.point(point.lat, point.lon, point.at)}
                   </p>
                 ))}
-                <div className="row">
-                  <button type="button" className="secondary" onClick={() => void log.addCurrentSpot(shift.id)}>
+                <div className="log__buttons">
+                  <button type="button" className="btn btn--quiet" onClick={() => void log.addCurrentSpot(shift.id)}>
                     {copy.shiftLog.record}
                   </button>
-                  <button type="button" className="secondary" onClick={() => log.removeShift(shift.id)}>
+                  <button type="button" className="link" onClick={() => log.removeShift(shift.id)}>
                     {copy.shiftLog.remove}
                   </button>
                 </div>
-                <p className="muted">{copy.shiftLog.recordHint}</p>
+                <p className="mono">{copy.shiftLog.recordHint}</p>
               </li>
             ))}
           </ul>
 
-          <p className="muted" data-testid="log-sync">
+          <p className="mono" data-testid="log-sync">
             {log.sync === 'saving'
               ? copy.shiftLog.saving
               : log.sync === 'failed'
@@ -104,21 +127,22 @@ export function ShiftLogPanel() {
                     ? copy.shiftLog.saved(log.savedAt)
                     : ''}
           </p>
-          <div className="row">
+          <div className="log__buttons">
             <button
               type="button"
+              className="btn btn--ink"
               onClick={() => void log.save()}
               disabled={log.sync === 'saving'}
               data-testid="save-log"
             >
               {copy.shiftLog.save}
             </button>
-            <button type="button" className="secondary" onClick={log.lock} data-testid="lock-log">
+            <button type="button" className="btn btn--line" onClick={log.lock} data-testid="lock-log">
               {copy.shiftLog.lock}
             </button>
           </div>
         </>
       )}
-    </section>
+    </Block>
   )
 }

@@ -36,72 +36,87 @@ export default async function DocsPage() {
   const fields = copy.docs.fields
 
   return (
-    <>
-      <section>
-        <h1>{copy.docs.heading}</h1>
-        <p>{copy.docs.intro}</p>
-        <p className={status?.paidCover.enabled ? 'good' : 'warn'}>
+    <div className="page page--docs">
+      <header className="docs-head">
+        <h1 className="h-display">{copy.docs.heading}</h1>
+        <p className="lede">{copy.docs.intro}</p>
+        <p className={`mono docs-state${status?.paidCover.enabled ? '' : ' docs-state--off'}`}>
+          <i className="check__mark" aria-hidden="true" />
           {status?.paidCover.enabled ? copy.docs.enabled : copy.docs.disabled}
         </p>
-      </section>
+      </header>
 
-      <section>
-        <h2>{copy.docs.endpointHeading}</h2>
-        <p>
+      <section className="docs-sec" aria-labelledby="endpoint-h">
+        <h2 className="h-section" id="endpoint-h">
+          {copy.docs.endpointHeading}
+        </h2>
+        <p className="docs-endpoint">
           <code>POST {base}/api/v1/cover</code>
         </p>
-        <p>{copy.docs.endpoint}</p>
-        <pre>
+        <p className="prose">{copy.docs.endpoint}</p>
+        <pre className="code">
           <code>{`curl -i -X POST ${base}/api/v1/cover \\
   -H 'content-type: application/json' \\
   -d '${body}'`}</code>
         </pre>
-        <h3>{copy.docs.fieldsHeading}</h3>
-        <dl>
-          {Object.entries(fields).map(([name, text]) => (
-            <div key={name} style={{ display: 'contents' }}>
-              <dt>
-                <code>{name}</code>
-              </dt>
-              <dd>{text}</dd>
-            </div>
-          ))}
-        </dl>
-        <h3>{copy.docs.stepsHeading}</h3>
-        <ol>
-          {copy.docs.steps.map((step) => (
-            <li key={step}>{step}</li>
-          ))}
-        </ol>
-        <h3>{copy.docs.safeHeading}</h3>
-        <p>{copy.docs.safe}</p>
-        <h3>{copy.docs.refusalsHeading}</h3>
-        <p>{copy.docs.refusals}</p>
+        <div className="docs-split">
+          <div>
+            <h3 className="h-block">{copy.docs.fieldsHeading}</h3>
+            <dl className="rows docs-fields">
+              {Object.entries(fields).map(([name, text]) => (
+                <div key={name} className="row">
+                  <dt>
+                    <code>{name}</code>
+                  </dt>
+                  <dd className="docs-fields__text">{text}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+          <div>
+            <h3 className="h-block">{copy.docs.stepsHeading}</h3>
+            <ol className="docs-steps">
+              {copy.docs.steps.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </ol>
+            <h3 className="h-block">{copy.docs.safeHeading}</h3>
+            <p className="small">{copy.docs.safe}</p>
+            <h3 className="h-block">{copy.docs.refusalsHeading}</h3>
+            <p className="small">{copy.docs.refusals}</p>
+          </div>
+        </div>
       </section>
 
-      <section>
-        <h2>{copy.docs.quoteHeading}</h2>
-        <p>{copy.docs.quote}</p>
-        <pre>
+      <section className="docs-sec" aria-labelledby="quote-h">
+        <h2 className="h-section" id="quote-h">
+          {copy.docs.quoteHeading}
+        </h2>
+        <p className="prose">{copy.docs.quote}</p>
+        <pre className="code">
           <code>{`curl '${base}/api/quote?lat=52.2297&lon=21.0122&start=${start}&end=${start + 3600}&rate=2000&holder=0x…'`}</code>
         </pre>
       </section>
 
-      <section>
-        <h2>{copy.docs.practiceHeading}</h2>
-        <p>{status?.practice.enabled ? copy.docs.practiceOn : copy.docs.practiceOff}</p>
+      <section className="docs-sec" aria-labelledby="practice-h">
+        <h2 className="h-section" id="practice-h">
+          {copy.docs.practiceHeading}
+        </h2>
+        <p className="prose">{status?.practice.enabled ? copy.docs.practiceOn : copy.docs.practiceOff}</p>
         {status?.practice.simulator ? (
-          <p>{copy.docs.simulatorArea(status.practice.simulator.lat, status.practice.simulator.lon)}</p>
+          <p className="mono">{copy.docs.simulatorArea(status.practice.simulator.lat, status.practice.simulator.lon)}</p>
         ) : null}
       </section>
 
-      <section>
-        <h2>{copy.docs.healthHeading}</h2>
-        <p>{copy.docs.health}</p>
-        <pre>
+      <section className="docs-sec" aria-labelledby="health-h">
+        <h2 className="h-section" id="health-h">
+          {copy.docs.healthHeading}
+        </h2>
+        <p className="prose">{copy.docs.health}</p>
+        <pre className="code">
           <code>{`curl ${base}/api/health`}</code>
         </pre>
       </section>
-    </>
+    </div>
   )
 }
