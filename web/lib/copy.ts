@@ -453,10 +453,365 @@ export const copy = {
     health:
       'The health address reports the contracts in use, when the weather was last checked and whether sending is working.',
   },
+
+  footer: {
+    line: 'Pitter is rain cover you switch on for one shift. Every payout follows several weather sources and comes from a shared pool.',
+  },
+
+  /** The landing page, past its claim. Every figure in the worked example is passed in, worked out by the pricing rule. */
+  story: {
+    heroExample: 'An example: heavy rain where you are',
+    heroLabel: (amount: string) => `Example: ${amount} paid so far`,
+    soFar: (seconds: number) => `${Math.floor(seconds / 60)} min ${seconds % 60} s of heavy rain so far`,
+    perMark: 'One more cent at every mark',
+    fine: 'No app to install. Sign in with Face ID or fingerprint.',
+    how: {
+      heading: 'A shift, in four moves',
+      lede: 'Pitter is rain cover for people who work outside in shifts, couriers first. It runs by the minute, and it knows one kind of weather: heavy rain.',
+      moves: (rates: readonly bigint[]) => [
+        {
+          time: '16:00',
+          label: 'shift starts',
+          verb: 'Switch on',
+          text: 'Turn cover on when you start. It is bought ten minutes at a time at the price of the moment, and the next ten minutes are added on their own while it stays on. Turn it off and nothing more is bought.',
+          rain: false,
+        },
+        {
+          time: 'Every 5 minutes',
+          label: 'weather check',
+          verb: 'Ride',
+          text: 'While you work, the weather in your area, about 5 km around you, is checked against several weather sources. You do nothing.',
+          rain: false,
+        },
+        {
+          time: '18:41',
+          label: 'heavy rain arrives',
+          verb: 'Get rained on',
+          text: `Heavy rain means 1 mm an hour or more. Every minute of it counts at the amount you chose: ${listOf(rates.map((rate) => formatDollars(perMinute(rate))))} a minute.`,
+          rain: true,
+        },
+        {
+          time: '18:45',
+          label: 'still raining',
+          verb: 'Get paid',
+          text: 'What the rain earned lands in your balance at the next weather check, while it is still raining. Nothing to fill in, nobody to call. Cash out when you like.',
+          rain: false,
+        },
+      ],
+    },
+    worked: {
+      heading: 'One rainy evening, worked through',
+      lede: (rate: string) =>
+        `Made-up weather, real prices. Warsaw, a dinner shift from 16:00 to 22:00, with cover paying ${rate} for every minute of heavy rain.`,
+      chartLabel: 'Chart of the example shift. On a small screen, slide it sideways.',
+      chartTitle: 'Rain in the area during the example shift, 16:00 to 22:00',
+      chartDesc: (minutes: number, parts: number) =>
+        `Rain stays under 1 mm an hour until 18:41, peaks at about 2.2 mm an hour near 18:52 and drops back under the line at 19:04. Cover runs from 16:00 to 22:00. The ${minutes} minutes above the line are paid in ${parts} parts, at the weather checks from 18:45 to 19:05.`,
+      line: 'Heavy rain starts at this line: 1 mm an hour',
+      on: 'cover on',
+      lock: 'locks the rest',
+      arrives: 'heavy rain arrives',
+      counts: 'the count starts',
+      eases: 'rain eases',
+      off: 'cover off',
+      paidLine1: (minutes: number, parts: number) => `paid for ${minutes} minutes, in ${parts} parts,`,
+      paidLine2: 'while it was still raining',
+      blocks: (count: number, amount: string) => `Pay as you go, ${count} blocks: ${amount}`,
+      locked: (amount: string) => `Price locked until 22:00: ${amount}`,
+      hint: 'Slide the chart sideways to follow the evening.',
+      story: (n: {
+        floorChance: number
+        dryPerMinute: string
+        blockCost: string
+        blockMinutes: number
+        eveningChance: number
+        locked: string
+        stormBlock: string
+        wetMinutes: number
+        cost: string
+      }) => [
+        `The afternoon is dry, so every slot is priced at the lowest chance of heavy rain there is, ${formatChance(n.floorChance)}. Cover costs ${n.dryPerMinute} a minute: ${n.blockMinutes} minutes for ${n.blockCost}.`,
+        `At 16:50 the hourly forecast gives the evening a small chance of rain, ${formatChance(n.eveningChance)}. Locking the price from 17:00 to 22:00 costs ${n.locked}, and that price can no longer move.`,
+        `At 18:30 the 15-minute forecast sees the rain coming. Bought then, the next ${n.blockMinutes} minutes would have cost ${n.stormBlock}. At 18:41 the rain crosses the line and stays above it for ${n.wetMinutes} minutes; each weather check in that stretch sends another part of the payout.`,
+        `Had the rain missed, the shift would have cost ${n.cost} and paid nothing. That is the deal, and it is the whole deal.`,
+      ],
+      receiptLabel: 'What the example shift cost and what it paid',
+      rows: {
+        payWhen: '16:00 to 17:00',
+        pay: (blocks: number, minutes: number, perMinuteCost: string) =>
+          `Pay as you go, ${blocks} blocks of ${minutes} minutes at ${perMinuteCost} a minute`,
+        lockWhen: '17:00 to 22:00',
+        lock: 'Lock the price for my shift, bought at 16:50',
+        rainWhen: '18:41 to 19:04',
+        rain: (minutes: number, rate: string) => `Heavy rain, ${minutes} minutes at ${rate}`,
+        total: 'Ahead when the shift ends',
+      },
+    },
+    pool: {
+      heading: 'Who pays when it rains',
+      paragraphs: [
+        'Payouts come from a shared pool. The people who back it put dollars in, and in return they earn what riders pay for cover.',
+        'The pool never promises more than it holds. Before any cover is sold, the most it could ever pay is set aside. If that would take your area, or the whole pool, past its limit, the sale is refused and nothing is charged.',
+        'Backers who want their money back give notice first, so the money behind cover already sold stays put.',
+      ],
+      button: 'See the pool',
+      figureCaption: 'An example: one area in the rain',
+      figureLine: (needed: string) =>
+        `left under the limit. The next ten minutes of cover could pay up to ${needed}, so they were not sold.`,
+      meterLabel: (used: string, limit: string) => `${used} of the ${limit} limit for this area is in use`,
+      used: ' set aside for cover already sold',
+      limit: ' the limit for this area',
+    },
+    nots: {
+      heading: 'What it doesn’t do',
+      items: [
+        {
+          title: 'It doesn’t refund minutes.',
+          text: 'Minutes you have paid for stay on and still pay if it rains. Turn cover off and no more are bought.',
+        },
+        {
+          title: 'It doesn’t pay for drizzle.',
+          text: 'Under 1 mm an hour doesn’t count, however long it lasts. Neither does wind, cold or a slow night.',
+        },
+        {
+          title: 'It doesn’t guess the weather.',
+          text: 'If the weather can’t be confirmed, new cover pauses, and time that was never confirmed pays nothing.',
+        },
+        {
+          title: 'It doesn’t sell what the pool can’t pay.',
+          text: 'When your area reaches its limit, new cover there waits until some room frees up. Cover you already have still pays.',
+        },
+        {
+          title: 'It doesn’t know exactly where you are.',
+          text: 'Only your area of about 5 km is used. Your exact route stays locked on your phone, in a private shift log only you can open.',
+        },
+        {
+          title: 'It isn’t insurance.',
+          text: 'Pitter is cover you switch on by the minute, with its price, its limits and every payout shown as they happen.',
+        },
+      ],
+    },
+    questions: {
+      heading: 'Questions',
+      items: (rates: readonly bigint[], maxSpendPerHour: bigint, lengthSeconds: number) => [
+        {
+          q: 'How do I sign in?',
+          a: 'With Face ID or your fingerprint. There is no app to install, no password and no email.',
+        },
+        {
+          q: 'What does it cost?',
+          a: 'The price follows the forecast for your area: the chance of heavy rain, times what cover would pay you, plus 25% on top for the people who back the pool and for running costs. The app shows that sum behind every price.',
+        },
+        {
+          q: 'Pay as you go, or lock the price?',
+          a: 'Pay as you go buys ten minutes at a time at the price of the moment, for as long as cover is on. Locking the price pays once for a whole shift of up to 12 hours, so the price can’t climb when the forecast turns.',
+        },
+        {
+          q: 'How much am I paid?',
+          a: `You choose: ${listOf(rates.map((rate) => formatDollars(perMinute(rate))))} for every minute of heavy rain. ${formatDollars(perMinute(rates[1] ?? rates[0] ?? 0n))} a minute is ${formatDollars(perMinute(rates[1] ?? rates[0] ?? 0n) * 60n)} an hour. A bigger payout costs more a minute.`,
+        },
+        {
+          q: 'What does the app do without asking me?',
+          a: `While you are signed in, for up to ${formatDuration(lengthSeconds)}, it keeps cover on without asking again, up to ${formatDollars(maxSpendPerHour)} an hour. Cashing out, adding to the pool and anything over that limit ask for Face ID or fingerprint every time.`,
+        },
+      ],
+      practice: {
+        q: 'Can I try it without real money?',
+        a: 'Yes. Practice mode runs everything with practice dollars, and a simulator area where you make it rain yourself.',
+      },
+    },
+    close: {
+      heading: 'Turn it on when you start.',
+      lede: 'If it rains where you are, the money starts counting.',
+      examples: 'Every figure on this page is an example, not a promise about your shift.',
+    },
+  },
+
+  /** The cover screen and the pool: captions, rows and the lines under the figures. */
+  screen: {
+    daylight: 'Daylight',
+    daylightHint: 'Dark type on a light screen, easier to read in direct sun',
+    session: {
+      label: 'Your sign-in',
+      scope: (maxSpendPerHour: bigint) =>
+        `Keeps cover on without asking, up to ${formatDollars(maxSpendPerHour)} an hour. Cashing out and the pool ask for Face ID or fingerprint every time.`,
+    },
+    gate: {
+      caption: 'paid to you for every minute of heavy rain where you are.',
+      ended: {
+        expired: 'Your sign-in ran out.',
+        idle: 'Signed out after a while unused.',
+        signed_out: 'You are signed out.',
+      },
+      endedLabel: 'No time left on your sign-in',
+      endedCaption: 'left on your sign-in. Cover you already have keeps running and still pays.',
+      endedLeft: 'Nothing new is bought while you are signed out',
+      endedRight: 'Sign in again to carry on',
+    },
+    state: {
+      dry: 'No rain where you are.',
+      raining: 'Heavy rain where you are. You are being paid.',
+    },
+    hair: {
+      line: '1 mm an hour: heavy rain starts at this line',
+      sources: 'Checked against several weather sources',
+      renews: (at: number) => `Next 10 minutes added at ${formatClock(at)}`,
+      noMore: 'Cover is off, so nothing more is added',
+      cent: (seconds: number) => `One more cent every ${seconds} second${seconds === 1 ? '' : 's'}`,
+      final: 'Final at the next weather check',
+      unconfirmed: 'The weather can’t be confirmed right now',
+      paused: 'New cover is paused',
+    },
+    cap: {
+      idle: 'paid to you for every minute of heavy rain. Choose your area to see what cover costs there.',
+      pricing: 'paid to you for every minute of heavy rain. Working out the price for your area…',
+      offer: (ratePerSecond: bigint) =>
+        `a minute right now. Cover pays you ${formatDollars(perMinute(ratePerSecond))} for every minute of heavy rain.`,
+      offerAgain: (costPerMinute: bigint, ratePerSecond: bigint) =>
+        `Cover costs ${formatDollars(costPerMinute)} a minute right now and pays you ${formatDollars(perMinute(ratePerSecond))} for every minute of heavy rain.`,
+      buying: 'Buying the first 10 minutes…',
+      onSinceLabel: (start: number) => `On cover since ${formatClock(start)}`,
+      dry: (start: number) => `on cover since ${formatClock(start)}.`,
+      earnedLabel: (amount: string) => `${amount} paid and counting this shift`,
+      raining: (ratePerSecond: bigint) =>
+        `paid and counting this shift, at ${formatDollars(perMinute(ratePerSecond))} for every minute of heavy rain.`,
+      summaryPaid: 'paid to you by the rain on your last shift.',
+      summaryDry: 'paid on your last shift. No heavy rain reached your area.',
+      room: (needed: bigint) =>
+        `is all the room left for new cover here. Ten minutes at your payout could pay up to ${formatDollars(needed)}, so they weren’t sold and nothing was charged.`,
+      meterLabel: (used: bigint, limit: bigint) =>
+        `${formatDollars(used)} of the ${formatDollars(limit)} limit for this area is in use`,
+      limit: 'limit',
+      age: (seconds: number) => (seconds < 120 ? `${Math.round(seconds)} s` : `${Math.round(seconds / 60)} min`),
+      silent: 'since the weather was last confirmed. We don’t guess: new cover waits until it is confirmed again.',
+      notNow: 'for every minute of heavy rain, once cover can be sold here again.',
+    },
+    rain: {
+      minutes: (seconds: number) => `${Math.floor(seconds / 60)} min ${Math.floor(seconds % 60)} s`,
+      minutesCaption: 'of heavy rain paid or counting',
+      rateCaption: 'for every minute of it',
+    },
+    payout: {
+      sub: 'for every minute of heavy rain',
+      unit: 'a minute',
+      minute: 'a minute',
+    },
+    balance: {
+      empty: 'Add money to turn cover on',
+      emptyPractice: 'Get practice dollars in the simulator below',
+      reading: 'Reading…',
+      unknown: 'Can’t read it now',
+    },
+    accrual: {
+      title: (start: number, end: number) => `This shift, ${formatClock(start)} to ${formatClock(end)}`,
+      paidSub: 'already in your balance',
+      confirmedSub: 'confirmed by a weather check, being sent',
+      countingSub: 'nothing since the last weather check',
+      net: 'This shift, all in',
+    },
+    switch: {
+      offSub: (blockSeconds: number) => `Pay as you go, ${Math.round(blockSeconds / 60)} minutes at a time`,
+      onSub: 'Tap to turn it off',
+      needArea: 'Choose your area to turn cover on.',
+    },
+    price: {
+      expectedLabel: 'What the rain is expected to cost, from the chances above',
+      perMinute: (costPerMinute: bigint) => `${formatDollars(costPerMinute)} a minute`,
+      splitExpected: 'Expected payout',
+      splitMargin: 'On top',
+      barsLabel: (slots: number, top: number) =>
+        `Chance of heavy rain in each of ${slots} quarter hours, at most ${formatChance(top)}`,
+      barsTop: (top: number) => `Top of the scale ${formatChance(top)}`,
+    },
+    lastBought: (start: number, end: number) => `Cover from ${formatClock(start)} to ${formatClock(end)}:`,
+    lock: {
+      upTo: 'It can pay you up to',
+      perMinute: 'That comes to',
+      noPrompt: 'Inside your hourly limit, so it doesn’t ask again.',
+    },
+    money: {
+      asks: 'Asks for Face ID or fingerprint',
+      asksLong: 'Asks for Face ID or fingerprint, every time',
+    },
+    history: {
+      paidAgainst: (premium: bigint) => `paid you, against a cost of ${formatDollars(premium)}`,
+    },
+    log: {
+      asks: 'Asks for Face ID or fingerprint to open',
+    },
+    sim: {
+      money: 'Practice money',
+      rain: 'Simulator rain',
+      check: 'Weather check',
+      signIn: 'Sign in first.',
+    },
+    pool: {
+      central: (city: string) => `Central ${city}`,
+      stateNone: 'No cover is running right now.',
+      stateDry: (areas: number) =>
+        `Cover is running in ${areas} area${areas === 1 ? '' : 's'}, with no heavy rain in any of them.`,
+      stateRaining: (wet: number, areas: number) =>
+        `Heavy rain in ${wet} of ${areas} area${areas === 1 ? '' : 's'} with cover. The pool is paying.`,
+      inUseLabel: (used: bigint) => `${formatDollars(used)} in use`,
+      inUseCaption: 'in use right now: set aside so that every cover already sold can be paid in full.',
+      meterLabel: (percent: string) => `${percent} of the pool’s limit is in use`,
+      ofLimit: 'of the limit',
+      room: 'left to sell',
+      limitIs: 'limit',
+      limitShare: (share: string) => `${share} of the money backing cover`,
+      leaving: (amount: bigint) => (amount > 0n ? `${formatDollars(amount)} of it is leaving` : 'none of it is leaving'),
+      activeSub: 'what the limits are measured against',
+      freeSub: 'not set aside for any cover',
+      areaLimitSub: (share: string) => `${share} of the money backing cover`,
+      areasLede: (limit: bigint) =>
+        `An area is about 5 km across. Each may have ${formatDollars(limit)} in use and no more; past that, a sale there is refused, whatever the price.`,
+      tilesLabel: 'Areas with cover. Each tile fills as cover is sold there; its top edge is the limit.',
+      tilePaying: (percent: string) => `${percent}, paying`,
+      tileLabel: (name: string, used: bigint, limit: bigint, raining: boolean) =>
+        `${name}: ${formatDollars(used)} of ${formatDollars(limit)} in use${raining ? ', heavy rain, paying' : ''}`,
+      keyWell: 'Fills as cover is sold; the top edge is the limit',
+      keyWet: 'Heavy rain now, paying',
+      keyFull: 'At its limit',
+      tableCaption: 'In use against the limit, area by area, fullest first',
+      colArea: 'Area',
+      colLimit: 'Against the limit',
+      colRoom: 'Room left',
+      colCovers: 'Covers running',
+      paying: 'heavy rain, paying',
+      rowMeter: (percent: string) => `${percent} of the limit in use`,
+      totalsHeading: 'Premiums in, payouts out',
+      totalsLede:
+        'Backers earn what riders pay for cover and carry the payouts when it rains. These are the totals since the pool opened.',
+      premiumsSub: 'paid by riders for cover',
+      payoutsSub: 'paid to riders for heavy rain',
+      feesSub: 'kept for running costs, out of the premiums',
+      net: (net: bigint) => `Kept by the pool so far: ${formatDollars(net, { sign: true })}`,
+      boughtLabel: 'Cover sold',
+      settledLabel: 'Payout to a rider',
+      eventWhen: (id: bigint) => `cover number ${id}`,
+      addAsks: 'Asks for Face ID or fingerprint, every time',
+      leaveAsks: 'Asks for Face ID or fingerprint, every time',
+    },
+    leave: {
+      step: (n: number) => `Step ${n} of 3`,
+      askTitle: 'Ask to leave',
+      askText: 'From the moment you ask, your money earns nothing more but still carries payouts.',
+      waitTitle: 'Wait out the notice',
+      waitText: (seconds: number) => `${formatDuration(seconds)}, so cover already sold stays backed.`,
+      takeTitle: 'Take it out',
+      takeText: 'Once the notice is over, your money goes back to your balance.',
+    },
+  },
 } as const
 
 function formatChance(probability: number): string {
   const percent = Math.max(0, Math.min(1, probability)) * 100
   if (percent >= 10 || Number.isInteger(percent)) return `${Math.round(percent)}%`
   return `${percent.toFixed(1).replace(/\.0$/, '')}%`
+}
+
+/** "a, b or c" */
+function listOf(items: readonly string[]): string {
+  if (items.length <= 1) return items.join('')
+  return `${items.slice(0, -1).join(', ')} or ${items.at(-1)}`
 }
