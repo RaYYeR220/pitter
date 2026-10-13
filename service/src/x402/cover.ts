@@ -127,6 +127,7 @@ export function coverHandler(context: Context): Handler {
         maxPayout: offer.maxPayout.toString(),
         cell: { key: offer.cell.key.toString(), lat: offer.cell.lat, lon: offer.cell.lon },
         inputs: offer.inputs,
+        warnings: offer.warnings,
         capacity: stringifyCapacity(offer.capacity),
         accepts: required.accepts,
       },

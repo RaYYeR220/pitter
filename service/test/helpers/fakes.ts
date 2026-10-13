@@ -115,13 +115,18 @@ export function fakePolicy(id: bigint, overrides: Partial<Policy> = {}): Policy 
 
 export class FakePricing implements Pricing {
   premium = 50_000n
+  warnings: string[] = []
   failure: Error | undefined
   requests: PriceRequest[] = []
 
   async price(request: PriceRequest): Promise<Price> {
     this.requests.push(request)
     if (this.failure) throw this.failure
-    return { premium: this.premium, inputs: { slots: [{ from: request.start, to: request.end, wetProbability: 0.1 }] } }
+    return {
+      premium: this.premium,
+      inputs: { slots: [{ from: request.start, to: request.end, wetProbability: 0.1 }] },
+      warnings: this.warnings,
+    }
   }
 }
 

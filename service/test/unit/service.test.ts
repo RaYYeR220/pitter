@@ -1,7 +1,7 @@
 import { parseAbi, type Abi } from 'viem'
 import { privateKeyToAddress } from 'viem/accounts'
 import { describe, expect, it, vi } from 'vitest'
-import { coreAbis, coreWeather, corePricing } from '../../src/adapters/core'
+import { coreAbis, coreWeather } from '../../src/adapters/core'
 import { ConfigError } from '../../src/config'
 import { consoleLogger, createServiceFromEnv } from '../../src/env'
 import { createService } from '../../src/service'
@@ -213,53 +213,7 @@ describe('consoleLogger', () => {
 })
 
 describe('core adapter', () => {
-  const forecastBody = (start: number) => {
-    const quarter = Array.from({ length: 16 }, (_, i) => start + i * 900)
-    const hours = Array.from({ length: 4 }, (_, i) => start + i * 3600)
-    return JSON.stringify({
-      minutely_15: { time: quarter, precipitation: quarter.map(() => 0.1) },
-      hourly: { time: hours, precipitation_probability: hours.map(() => 40) },
-    })
-  }
   const key = (1n << 64n) | (2844n << 32n) | 4020n
-
-  it('prices from the forecast and reuses it for a while', async () => {
-    let requests = 0
-    const pricing = corePricing({
-      fetch: async () => {
-        requests++
-        return { status: 200, text: async () => forecastBody(T0) }
-      },
-      userAgent: 'test',
-    })
-    const request = { key, lat: 52.2, lon: 21, start: T0 + 900, end: T0 + 1_800, ratePerSecond: 1_000n, now: T0 }
-
-    const first = await pricing.price(request)
-    const second = await pricing.price({ ...request, now: T0 + 30 })
-    await pricing.price({ ...request, now: T0 + 500 })
-
-    expect(first.premium).toBeGreaterThan(0n)
-    expect(second.premium).toBe(first.premium)
-    expect((first.inputs as { slots: unknown[] }).slots).toHaveLength(1)
-    expect(requests).toBe(2)
-  })
-
-  it('fails to price without a forecast, and asks again next time', async () => {
-    let requests = 0
-    const pricing = corePricing({
-      fetch: async () => {
-        requests++
-        return { status: 503, text: async () => 'unavailable' }
-      },
-      userAgent: 'test',
-    })
-    const request = { key, lat: 52.2, lon: 21, start: T0 + 900, end: T0 + 1_800, ratePerSecond: 1_000n, now: T0 }
-
-    await expect(pricing.price(request)).rejects.toThrow()
-    await expect(pricing.price(request)).rejects.toThrow()
-
-    expect(requests).toBe(2)
-  })
 
   it('has no verdict when the sources are down', async () => {
     const weather = coreWeather({

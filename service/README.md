@@ -66,6 +66,15 @@ maximum payout within the policy limit and within what the pool has free in tota
 floored at the book's `minPremium` and at `QUOTE_MIN_PREMIUM_BPS` of the maximum payout. A quote expires after
 `QUOTE_TTL_SECONDS`, and never later than the last moment the book would still take it.
 
+The pricing model reads the cell's forecast and what the settlement sources report there right now, both through
+the same `@cover/core` helpers the keeper uses. While a source reports rain, the slots of the coming hour are
+priced at the observation floor (90%). If the sources cannot be read within 4 seconds, or fewer than two answer,
+the quote is priced as if it might be raining now: those slots get the floor too, `inputs.observation.status` is
+`unavailable` and the response carries `"warnings": ["observations_unavailable"]`. A missing observation can make
+cover dearer, never cheaper. Each slot in `inputs.slots` names the forecast `model` that drove it and whether the
+`observationFloor` applied. Forecasts are reused for 2 minutes and observations for 1 minute per cell (15 seconds
+after a failure), so a burst of quotes asks the providers once.
+
 **Relayer.** One hot key, one gate for every transaction:
 
 1. the target and the four-byte selector must be on the allow-list (below), and the gas limit within bounds;

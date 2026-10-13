@@ -98,6 +98,15 @@ describe('GET /quote', () => {
     })
   })
 
+  it('passes on what pricing warns about, and nothing when it warns of nothing', async () => {
+    const plain = await body(await quote())
+    h.pricing.warnings = ['observations_unavailable']
+    const warned = await body(await quote())
+
+    expect(plain.warnings).toEqual([])
+    expect(warned.warnings).toEqual(['observations_unavailable'])
+  })
+
   it('gives every quote its own salt', async () => {
     const first = await body(await quote())
     const second = await body(await quote())

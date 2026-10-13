@@ -40,6 +40,8 @@ export interface SignedQuote {
   maxPayout: bigint
   cell: { key: bigint; lat: number; lon: number }
   inputs: unknown
+  /** Caveats from pricing, e.g. `observations_unavailable` when the price assumed it might be raining now. */
+  warnings: string[]
   capacity: Capacity
 }
 
@@ -53,6 +55,8 @@ export interface Offer {
   expiry: number
   cell: { key: bigint; lat: number; lon: number }
   inputs: unknown
+  /** Caveats from pricing, e.g. `observations_unavailable` when the price assumed it might be raining now. */
+  warnings: string[]
   capacity: Capacity
 }
 
@@ -205,6 +209,7 @@ export class QuoteEngine {
       expiry: Math.min(time + settings.quote.ttlSeconds, Number(start) - market.minLead, oracleFreshUntil),
       cell: { key, ...cells.locate(key) },
       inputs: price.inputs,
+      warnings: price.warnings ?? [],
       capacity,
     }
   }
@@ -250,6 +255,7 @@ export class QuoteEngine {
       maxPayout: offer.maxPayout,
       cell: offer.cell,
       inputs: offer.inputs,
+      warnings: offer.warnings,
       capacity: offer.capacity,
     }
   }
@@ -281,6 +287,7 @@ export function signedQuoteToJson(signed: SignedQuote): Record<string, unknown> 
     maxPayout: signed.maxPayout.toString(),
     cell: { key: signed.cell.key.toString(), lat: signed.cell.lat, lon: signed.cell.lon },
     inputs: signed.inputs,
+    warnings: signed.warnings,
     capacity: stringifyCapacity(signed.capacity),
   }
 }

@@ -46,6 +46,8 @@ export interface Price {
   premium: bigint
   /** The per-slot inputs behind the premium, shown to the buyer as "why this price". */
   inputs: unknown
+  /** Caveats about how the price was made, such as `observations_unavailable`. */
+  warnings?: string[]
 }
 
 export interface Pricing {
