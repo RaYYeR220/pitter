@@ -352,6 +352,45 @@ contract CoverBookBuyTest is CoverFixture {
         _expectBuyRevert(q, CoverBook.PolicyTooLarge.selector);
     }
 
+    function test_Buy_RevertWhen_PremiumTooSmall() public {
+        vm.prank(owner);
+        book.setMinPremium(1e6);
+
+        Quote memory q = _quote(holder, KEY, _now(), _now() + 10 minutes, RATE, 1e6 - 1);
+        _expectBuyRevert(q, CoverBook.PremiumTooSmall.selector);
+
+        // The same floor guards the gasless path.
+        bytes memory signature = _signQuote(q);
+        (Authorization memory a, uint8 v, bytes32 r, bytes32 s) = _premiumAuthorization(q, holderKey);
+        vm.expectRevert(CoverBook.PremiumTooSmall.selector);
+        vm.prank(relayer);
+        book.buyWithAuthorization(q, signature, a.validAfter, a.validBefore, v, r, s);
+
+        assertEq(book.activeCells().length, 0);
+    }
+
+    function test_Buy_AcceptsAPremiumAtTheFloor() public {
+        vm.prank(owner);
+        book.setMinPremium(1e6);
+        assertEq(_buy(_quote(holder, KEY, _now(), _now() + 10 minutes, RATE, 1e6)), 1);
+    }
+
+    function test_Buy_AFloorMakesHoldingEveryCellSlotCostly() public {
+        vm.startPrank(owner);
+        book.setMinPremium(2e6);
+        book.setMaxActiveCells(4);
+        vm.stopPrank();
+
+        // Occupying every slot now costs the floor each time, however small the policies are.
+        for (uint256 i = 0; i < 4; ++i) {
+            _buy(_quote(holder, KEY + i, _now(), _now() + 60, 1, 2e6));
+        }
+        assertEq(dollar.balanceOf(holder), HOLDER_FUNDS - 8e6);
+
+        Quote memory q = _quote(holder, KEY + 4, _now(), _now() + 60, 1, 2e6);
+        _expectBuyRevert(q, CoverBook.TooManyCells.selector);
+    }
+
     function test_Buy_RevertWhen_OracleStale() public {
         vm.warp(T0 + 20 minutes + 60);
         Quote memory q = _standardQuote(0);
@@ -482,6 +521,7 @@ contract CoverBookBuyTest is CoverFixture {
     function test_Buy_ChecksRunInTheDocumentedOrder() public {
         vm.startPrank(owner);
         book.setMinLead(10 minutes);
+        book.setMinPremium(10);
         book.setMaxActiveCells(0);
         pool.setMaxCellBps(0);
         vm.stopPrank();
@@ -516,6 +556,10 @@ contract CoverBookBuyTest is CoverFixture {
         _expectBuyRevert(q, CoverBook.PolicyTooLarge.selector);
 
         q.ratePerSecond = RATE;
+        q.premium = 9;
+        _expectBuyRevert(q, CoverBook.PremiumTooSmall.selector);
+
+        q.premium = PREMIUM;
         _expectBuyRevert(q, CoverBook.OracleStale.selector);
 
         _heartbeat();

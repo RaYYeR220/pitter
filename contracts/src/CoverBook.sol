@@ -101,6 +101,10 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient {
     /// @notice Largest maximum payout a single policy may have.
     uint256 public maxPolicyPayout;
 
+    /// @notice Smallest premium a policy can be sold for. Every policy holds a place among the active cells
+    /// until it is settled, so a floor puts a price on occupying them.
+    uint128 public minPremium;
+
     /// @notice Number of policies ever sold. Policy ids run from 1 to this value.
     uint256 public policyCount;
 
@@ -133,6 +137,7 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient {
     event MinLeadSet(uint256 minLead);
     event DurationBoundsSet(uint256 minDuration, uint256 maxDuration);
     event MaxPolicyPayoutSet(uint256 maxPolicyPayout);
+    event MinPremiumSet(uint256 minPremium);
     event MaxOracleAgeSet(uint256 maxOracleAge);
     event MaxActiveCellsSet(uint256 maxActiveCells);
     event ExpiryGraceSet(uint256 expiryGrace);
@@ -143,6 +148,7 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient {
     error WindowInvalid();
     error LeadTooShort();
     error PolicyTooLarge();
+    error PremiumTooSmall();
     error OracleStale();
     error TooManyCells();
     error PremiumNotReceived();
@@ -372,6 +378,12 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient {
         emit MaxPolicyPayoutSet(maxPolicyPayout_);
     }
 
+    /// @notice Sets the smallest premium a policy can be sold for. Zero removes the floor.
+    function setMinPremium(uint128 minPremium_) external onlyOwner {
+        minPremium = minPremium_;
+        emit MinPremiumSet(minPremium_);
+    }
+
     /// @notice Sets how old the index heartbeat may be before sales stop.
     function setMaxOracleAge(uint64 maxOracleAge_) external onlyOwner {
         if (maxOracleAge_ == 0) revert ConfigInvalid();
@@ -410,6 +422,7 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient {
 
         uint256 maxPayout = uint256(q.ratePerSecond) * duration;
         if (maxPayout > maxPolicyPayout) revert PolicyTooLarge();
+        if (q.premium < minPremium) revert PremiumTooSmall();
 
         if (block.timestamp > uint256(index.heartbeat()) + maxOracleAge) revert OracleStale();
 

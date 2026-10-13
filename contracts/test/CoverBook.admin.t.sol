@@ -26,6 +26,7 @@ contract CoverBookAdminTest is CoverFixture {
         assertEq(book.minDuration(), 60);
         assertEq(book.maxDuration(), 12 hours);
         assertEq(book.maxPolicyPayout(), MAX_POLICY_PAYOUT);
+        assertEq(book.minPremium(), 0);
         assertEq(book.maxOracleAge(), 20 minutes);
         assertEq(book.maxActiveCells(), 64);
         assertEq(book.expiryGrace(), 24 hours);
@@ -205,6 +206,23 @@ contract CoverBookAdminTest is CoverFixture {
     function test_SetMaxPolicyPayout_RevertWhen_CallerIsNotOwner() public {
         _notOwner();
         book.setMaxPolicyPayout(1);
+    }
+
+    function test_SetMinPremium() public {
+        vm.expectEmit(address(book));
+        emit CoverBook.MinPremiumSet(250_000);
+        vm.prank(owner);
+        book.setMinPremium(250_000);
+        assertEq(book.minPremium(), 250_000);
+
+        vm.prank(owner);
+        book.setMinPremium(0);
+        assertEq(book.minPremium(), 0);
+    }
+
+    function test_SetMinPremium_RevertWhen_CallerIsNotOwner() public {
+        _notOwner();
+        book.setMinPremium(1);
     }
 
     function test_SetMaxOracleAge() public {
