@@ -3,61 +3,13 @@ pragma solidity ^0.8.30;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
 import {CoverPool} from "../src/CoverPool.sol";
 import {TestDollar} from "../src/TestDollar.sol";
 import {BlockableDollar} from "./mocks/BlockableDollar.sol";
 import {SilentDollar} from "./mocks/SilentDollar.sol";
-import {Signing} from "./utils/Signing.sol";
+import {PoolFixture} from "./utils/PoolFixture.sol";
 
-contract CoverPoolTest is Signing {
-    BlockableDollar internal dollar;
-    CoverPool internal pool;
-
-    address internal owner = makeAddr("owner");
-    address internal book = makeAddr("book");
-    address internal relayer = makeAddr("relayer");
-    address internal holder = makeAddr("holder");
-    address internal attacker = makeAddr("attacker");
-    address internal lp;
-    uint256 internal lpKey;
-    address internal lp2 = makeAddr("lp2");
-
-    uint256 internal constant KEY = (uint256(1) << 64) | 7;
-    uint256 internal constant OTHER_KEY = (uint256(1) << 64) | 8;
-    uint256 internal constant SHARE_UNIT = 1e6;
-
-    function setUp() public {
-        vm.warp(1_760_000_400);
-        (lp, lpKey) = makeAddrAndKey("lp");
-        dollar = new BlockableDollar(owner);
-        pool = new CoverPool(dollar, owner, "Cover Pool Share", "cvUSD");
-        vm.prank(owner);
-        pool.setBook(book);
-
-        vm.startPrank(owner);
-        dollar.mint(lp, 1_000_000e6);
-        dollar.mint(lp2, 1_000_000e6);
-        dollar.mint(attacker, 1_000_000e6);
-        vm.stopPrank();
-        vm.prank(lp);
-        dollar.approve(address(pool), type(uint256).max);
-        vm.prank(lp2);
-        dollar.approve(address(pool), type(uint256).max);
-        vm.prank(attacker);
-        dollar.approve(address(pool), type(uint256).max);
-    }
-
-    function _deposit(address from, uint256 assets) internal returns (uint256 shares) {
-        vm.prank(from);
-        return pool.deposit(assets, from);
-    }
-
-    function _lock(uint256 key, uint256 amount) internal {
-        vm.prank(book);
-        pool.lock(key, amount);
-    }
-
+contract CoverPoolTest is PoolFixture {
     // ───────────────────────────── construction and administration ─────────────────────────────
 
     function test_InitialState() public view {
@@ -156,8 +108,8 @@ contract CoverPoolTest is Signing {
         assertEq(pool.balanceOf(lp), shares);
         assertEq(pool.totalAssets(), 1_000e6);
         assertEq(pool.freeAssets(), 1_000e6);
-        assertEq(pool.maxWithdraw(lp), 1_000e6);
-        assertEq(pool.maxRedeem(lp), shares);
+        assertEq(pool.convertToAssets(shares), 1_000e6);
+        assertEq(pool.activeAssets(), 1_000e6);
     }
 
     function test_Mint_PullsTheQuotedAssets() public {
@@ -173,7 +125,7 @@ contract CoverPoolTest is Signing {
         dollar.transfer(address(pool), 100e6);
 
         assertEq(pool.totalAssets(), 1_100e6);
-        assertApproxEqAbs(pool.maxWithdraw(lp), 1_100e6, 1);
+        assertApproxEqAbs(pool.convertToAssets(pool.balanceOf(lp)), 1_100e6, 1);
     }
 
     function test_InflationAttack_IsUnprofitable() public {
@@ -185,8 +137,8 @@ contract CoverPoolTest is Signing {
         uint256 shares = _deposit(lp, 1_000e6);
         assertGt(shares, 0);
 
-        uint256 victimValue = pool.previewRedeem(pool.balanceOf(lp));
-        uint256 attackerValue = pool.previewRedeem(pool.balanceOf(attacker));
+        uint256 victimValue = pool.convertToAssets(pool.balanceOf(lp));
+        uint256 attackerValue = pool.convertToAssets(pool.balanceOf(attacker));
 
         assertGe(victimValue, 1_000e6 * 9_999 / 10_000, "victim keeps their deposit");
         assertLt(attackerValue, 10_000e6 + 1, "attacker does not recover the donation");
@@ -396,7 +348,6 @@ contract CoverPoolTest is Signing {
         assertEq(pool.cellExposure(KEY), 80e6);
         assertEq(pool.totalAssets(), 880e6);
         assertEq(pool.freeAssets(), 800e6);
-        assertEq(pool.maxWithdraw(lp), 800e6);
     }
 
     function test_ClaimDeferred_PaysOnceTheRecipientCanReceive() public {
@@ -428,144 +379,6 @@ contract CoverPoolTest is Signing {
     function test_ClaimDeferred_RevertWhen_NothingIsOwed() public {
         vm.expectRevert(CoverPool.NothingDeferred.selector);
         pool.claimDeferred(holder);
-    }
-
-    // ───────────────────────────── withdrawals ─────────────────────────────
-
-    function test_MaxWithdraw_IsLimitedToFreeAssets() public {
-        uint256 shares = _deposit(lp, 1_000e6);
-        _lock(KEY, 250e6);
-        _lock(OTHER_KEY, 250e6);
-
-        assertEq(pool.freeAssets(), 500e6);
-        assertEq(pool.maxWithdraw(lp), 500e6);
-        assertEq(pool.maxRedeem(lp), shares / 2);
-    }
-
-    function test_MaxWithdraw_IsLimitedToTheOwnersShares() public {
-        _deposit(lp, 1_000e6);
-        _deposit(lp2, 100e6);
-        _lock(KEY, 250e6);
-
-        assertEq(pool.maxWithdraw(lp2), 100e6);
-        assertEq(pool.maxRedeem(lp2), pool.balanceOf(lp2));
-    }
-
-    function test_Withdraw_UpToFreeAssets() public {
-        _deposit(lp, 1_000e6);
-        _lock(KEY, 250e6);
-
-        vm.prank(lp);
-        pool.withdraw(750e6, lp, lp);
-
-        assertEq(pool.totalAssets(), 250e6);
-        assertEq(pool.freeAssets(), 0);
-        assertEq(pool.maxWithdraw(lp), 0);
-        assertEq(pool.maxRedeem(lp), 0);
-        assertGe(dollar.balanceOf(address(pool)), pool.lockedExposure());
-    }
-
-    function test_Withdraw_RevertWhen_AssetsBackLiveExposure() public {
-        _deposit(lp, 1_000e6);
-        _lock(KEY, 250e6);
-
-        vm.expectRevert(CoverPool.ExposureLocked.selector);
-        vm.prank(lp);
-        pool.withdraw(750e6 + 1, lp, lp);
-    }
-
-    function test_Redeem_RevertWhen_AssetsBackLiveExposure() public {
-        uint256 shares = _deposit(lp, 1_000e6);
-        _lock(KEY, 250e6);
-
-        vm.expectRevert(CoverPool.ExposureLocked.selector);
-        vm.prank(lp);
-        pool.redeem(shares, lp, lp);
-
-        uint256 redeemable = pool.maxRedeem(lp);
-        vm.prank(lp);
-        uint256 assets = pool.redeem(redeemable, lp, lp);
-        assertEq(assets, 750e6);
-    }
-
-    function test_Withdraw_RevertWhen_MoreThanTheOwnerHolds() public {
-        _deposit(lp, 1_000e6);
-        _deposit(lp2, 100e6);
-
-        vm.expectRevert(abi.encodeWithSelector(ERC4626.ERC4626ExceededMaxWithdraw.selector, lp2, 100e6 + 1, 100e6));
-        vm.prank(lp2);
-        pool.withdraw(100e6 + 1, lp2, lp2);
-    }
-
-    function test_Redeem_RevertWhen_MoreThanTheOwnerHolds() public {
-        _deposit(lp, 1_000e6);
-        uint256 shares = _deposit(lp2, 100e6);
-
-        vm.expectRevert(abi.encodeWithSelector(ERC4626.ERC4626ExceededMaxRedeem.selector, lp2, shares + 1, shares));
-        vm.prank(lp2);
-        pool.redeem(shares + 1, lp2, lp2);
-    }
-
-    function test_Withdraw_RacingAPurchase_EitherOrderKeepsExposureBacked() public {
-        _deposit(lp, 1_000e6);
-
-        // Purchase first: the withdrawal can no longer take what now backs the policy.
-        uint256 snapshot = vm.snapshotState();
-        _lock(KEY, 250e6);
-        vm.expectRevert(CoverPool.ExposureLocked.selector);
-        vm.prank(lp);
-        pool.withdraw(800e6, lp, lp);
-        vm.revertToState(snapshot);
-
-        // Withdrawal first: the purchase no longer fits under the caps and is refused.
-        vm.prank(lp);
-        pool.withdraw(800e6, lp, lp);
-        vm.expectRevert(CoverPool.GlobalCapExceeded.selector);
-        vm.prank(book);
-        pool.lock(KEY, 250e6);
-    }
-
-    function testFuzz_Withdraw_NeverTakesAssetsBackingExposure(uint256 deposited, uint256 locked, uint256 requested)
-        public
-    {
-        deposited = bound(deposited, 1e6, 1_000_000e6);
-        vm.prank(owner);
-        pool.setMaxCellBps(10_000);
-        _deposit(lp, deposited);
-        locked = bound(locked, 0, deposited * 8 / 10);
-        _lock(KEY, locked);
-        requested = bound(requested, 0, deposited);
-
-        uint256 limit = pool.maxWithdraw(lp);
-        assertLe(limit, pool.freeAssets());
-        if (requested > limit) vm.expectRevert();
-        vm.prank(lp);
-        pool.withdraw(requested, lp, lp);
-
-        assertGe(dollar.balanceOf(address(pool)), pool.lockedExposure());
-        assertLe(pool.maxWithdraw(lp), pool.freeAssets());
-        assertLe(pool.previewRedeem(pool.maxRedeem(lp)), pool.freeAssets());
-    }
-
-    function testFuzz_Redeem_NeverTakesAssetsBackingExposure(uint256 deposited, uint256 locked, uint256 donated)
-        public
-    {
-        deposited = bound(deposited, 1e6, 1_000_000e6);
-        donated = bound(donated, 0, 1_000e6);
-        vm.prank(owner);
-        pool.setMaxCellBps(10_000);
-        _deposit(lp, deposited);
-        locked = bound(locked, 0, deposited * 8 / 10);
-        _lock(KEY, locked);
-        vm.prank(attacker);
-        dollar.transfer(address(pool), donated);
-
-        uint256 shares = pool.maxRedeem(lp);
-        vm.prank(lp);
-        uint256 assets = pool.redeem(shares, lp, lp);
-
-        assertLe(assets, deposited + donated - locked);
-        assertGe(dollar.balanceOf(address(pool)), pool.lockedExposure());
     }
 
     // ───────────────────────────── gasless deposit ─────────────────────────────
@@ -615,7 +428,7 @@ contract CoverPoolTest is Signing {
         uint256 shares = pool.depositWithAuthorization(300e6, lp, a.validAfter, a.validBefore, a.nonce, v, r, s);
 
         assertEq(shares, expectedShares);
-        assertApproxEqAbs(pool.previewRedeem(shares), 300e6, 1);
+        assertApproxEqAbs(pool.convertToAssets(shares), 300e6, 1);
     }
 
     function test_DepositWithAuthorization_RevertWhen_Replayed() public {

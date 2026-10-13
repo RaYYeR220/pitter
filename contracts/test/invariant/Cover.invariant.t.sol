@@ -9,16 +9,18 @@ contract CoverInvariantTest is CoverFixture {
 
     function setUp() public override {
         super.setUp();
-        // Policies large enough to run into the pool's caps, and a grace period short enough to be reached.
+        // Policies large enough to run into the pool's caps, and a grace period and a redemption notice short
+        // enough to be reached.
         vm.startPrank(owner);
         book.setMaxPolicyPayout(20_000e6);
         book.setExpiryGrace(1 hours);
+        pool.setRedeemNotice(1 hours);
         vm.stopPrank();
 
         handler = new CoverHandler(dollar, index, pool, book, owner, underwriterKey, reporterKey);
         targetContract(address(handler));
 
-        bytes4[] memory selectors = new bytes4[](17);
+        bytes4[] memory selectors = new bytes4[](22);
         selectors[0] = CoverHandler.warp.selector;
         selectors[1] = CoverHandler.warpFar.selector;
         selectors[2] = CoverHandler.heartbeat.selector;
@@ -30,12 +32,17 @@ contract CoverInvariantTest is CoverFixture {
         selectors[8] = CoverHandler.settleMany.selector;
         selectors[9] = CoverHandler.expire.selector;
         selectors[10] = CoverHandler.deposit.selector;
-        selectors[11] = CoverHandler.withdraw.selector;
-        selectors[12] = CoverHandler.redeem.selector;
-        selectors[13] = CoverHandler.withdrawTooMuch.selector;
-        selectors[14] = CoverHandler.donate.selector;
-        selectors[15] = CoverHandler.setBlocked.selector;
-        selectors[16] = CoverHandler.claimDeferred.selector;
+        selectors[11] = CoverHandler.requestRedeem.selector;
+        selectors[12] = CoverHandler.cancelRedeem.selector;
+        selectors[13] = CoverHandler.claimRedeem.selector;
+        selectors[14] = CoverHandler.claimWithdraw.selector;
+        selectors[15] = CoverHandler.claimEarly.selector;
+        selectors[16] = CoverHandler.claimTooMuch.selector;
+        selectors[17] = CoverHandler.exitWithoutNotice.selector;
+        selectors[18] = CoverHandler.donate.selector;
+        selectors[19] = CoverHandler.setBlocked.selector;
+        selectors[20] = CoverHandler.claimDeferred.selector;
+        selectors[21] = CoverHandler.buyAboveTheCellCap.selector;
         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
     }
 
@@ -58,9 +65,19 @@ contract CoverInvariantTest is CoverFixture {
         _checkPolicies();
     }
 
-    /// No liquidity provider can withdraw or redeem assets that back live exposure.
-    function invariant_WithdrawalLimitsStayWithinFreeAssets() public view {
-        _checkWithdrawalLimits();
+    /// What the open policies can still be paid is covered by assets the pool holds for its providers.
+    function invariant_LockedExposureIsCoveredByAssets() public view {
+        assertLe(pool.lockedExposure(), dollar.balanceOf(address(pool)) - pool.totalDeferred());
+    }
+
+    /// No liquidity provider can claim assets that back live exposure, or anything before its notice is over.
+    function invariant_ClaimLimitsStayWithinFreeAssets() public view {
+        _checkClaimLimits();
+    }
+
+    /// The pool holds exactly the shares that were handed in for redemption and not yet claimed or returned.
+    function invariant_EscrowMatchesTheRequests() public view {
+        _checkEscrow();
     }
 
     /// A quote produces at most one policy.
@@ -86,7 +103,9 @@ contract CoverInvariantTest is CoverFixture {
         assertEq(handler.unjustifiedRefusals(), 0, "sale refused without cause");
         assertEq(handler.capBreaches(), 0, "sale above a cap");
         assertEq(handler.earlyExpiries(), 0, "expired inside the grace period");
-        assertEq(handler.overWithdrawals(), 0, "withdrew above the limit");
+        assertEq(handler.overWithdrawals(), 0, "claimed above the limit");
+        assertEq(handler.earlyClaims(), 0, "claimed before the notice was over");
+        assertEq(handler.overpaidClaims(), 0, "claim paid more than the shares were worth");
         assertEq(handler.claimableMismatches(), 0, "claimable differs from settle");
     }
 
@@ -131,13 +150,28 @@ contract CoverInvariantTest is CoverFixture {
         assertEq(pool.totalDeferred(), 0);
         _checkAll();
 
-        // Liquidity moves around the locked exposure.
+        // Liquidity arrives; some of it asks to leave, and cannot before its notice is over.
         handler.deposit(0, 100_000e6, true);
-        handler.deposit(1, 100_000e6, false);
-        handler.withdrawTooMuch(0, 1);
-        handler.withdraw(0, type(uint256).max);
-        handler.redeem(1, type(uint256).max);
+        handler.deposit(1, 10_000e6, false);
+        handler.requestRedeem(0, type(uint256).max);
+        handler.requestRedeem(1, 1e12);
+        handler.claimEarly(0);
+        handler.claimTooMuch(0, 1);
+        handler.exitWithoutNotice(1, 1);
+        handler.cancelRedeem(1);
         handler.donate(50e6);
+        assertEq(handler.requests(), 2);
+        assertEq(handler.cancellations(), 1);
+        assertGt(pool.escrowedShares(), 0);
+        assertLt(pool.activeAssets(), pool.totalAssets());
+        _checkAll();
+
+        // The pool now holds well over twice the capital, but most of the addition is leaving: a sale that only
+        // fits under the cap of the larger figure is refused.
+        uint256 refusedBefore = handler.refused();
+        handler.buyAboveTheCellCap(1, 0, 0, true);
+        assertEq(handler.capProbes(), 1);
+        assertEq(handler.refused(), refusedBefore + 1, "sold against retiring capital");
         _checkAll();
 
         // The oracle goes silent; the open policies are expired after the grace period.
@@ -150,6 +184,14 @@ contract CoverInvariantTest is CoverFixture {
         assertGt(handler.expiries(), 0, "nothing expired");
         assertEq(pool.lockedExposure(), 0);
         _checkAll();
+
+        // The notice is long over: the retiring provider collects, in assets and in shares.
+        handler.claimWithdraw(0, 1_000e6);
+        handler.claimRedeem(0, type(uint256).max);
+        assertEq(handler.claims(), 2, "nothing claimed");
+        assertEq(pool.escrowedShares(), 0);
+        assertEq(pool.activeAssets(), pool.totalAssets());
+        _checkAll();
     }
 
     // ───────────────────────────── checks ─────────────────────────────
@@ -158,8 +200,10 @@ contract CoverInvariantTest is CoverFixture {
         _checkExposure();
         _checkSolvency();
         _checkPolicies();
-        _checkWithdrawalLimits();
+        _checkClaimLimits();
+        _checkEscrow();
         _checkHolderBalances();
+        invariant_LockedExposureIsCoveredByAssets();
         invariant_QuotesAreUsableOnce();
         invariant_ForgedReportsAreNeverAccepted();
         invariant_NoUnexpectedBehaviour();
@@ -234,16 +278,40 @@ contract CoverInvariantTest is CoverFixture {
         }
     }
 
-    function _checkWithdrawalLimits() internal view {
+    function _checkClaimLimits() internal view {
         uint256 free = pool.freeAssets();
-        uint256 lpCount = handler.lpCount();
-        for (uint256 i = 0; i < lpCount; ++i) {
-            address provider = handler.lps(i);
-            assertLe(pool.maxWithdraw(provider), free, "maxWithdraw above free assets");
-            assertLe(pool.previewRedeem(pool.maxRedeem(provider)), free, "maxRedeem above free assets");
+        uint256 providers = handler.lpCount();
+        for (uint256 i = 0; i <= providers; ++i) {
+            address provider = i == providers ? lp : handler.lps(i);
+            (uint256 requested,, uint64 claimableAt) = pool.redeemRequests(provider);
+            uint256 maxAssets = pool.maxWithdraw(provider);
+            uint256 maxShares = pool.maxRedeem(provider);
+
+            assertLe(maxAssets, free, "maxWithdraw above free assets");
+            assertLe(maxShares, requested, "maxRedeem above the request");
+            if (vm.getBlockTimestamp() < claimableAt) {
+                assertEq(maxAssets, 0, "claimable before the notice is over");
+                assertEq(maxShares, 0, "claimable before the notice is over");
+                assertEq(pool.claimableRedeemRequest(0, provider), 0);
+                assertEq(pool.pendingRedeemRequest(0, provider), requested);
+            } else {
+                assertEq(pool.claimableRedeemRequest(0, provider), requested);
+                assertEq(pool.pendingRedeemRequest(0, provider), 0);
+            }
         }
-        assertLe(pool.maxWithdraw(lp), free);
-        assertLe(pool.previewRedeem(pool.maxRedeem(lp)), free);
+        assertLe(pool.activeAssets(), pool.totalAssets());
+    }
+
+    function _checkEscrow() internal view {
+        uint256 requestedTotal;
+        uint256 providers = handler.lpCount();
+        for (uint256 i = 0; i <= providers; ++i) {
+            address provider = i == providers ? lp : handler.lps(i);
+            (uint256 requested,,) = pool.redeemRequests(provider);
+            requestedTotal += requested;
+        }
+        assertEq(pool.escrowedShares(), requestedTotal, "escrow differs from the requests");
+        assertEq(pool.balanceOf(address(pool)), requestedTotal, "the pool does not hold the escrowed shares");
     }
 
     function _checkHolderBalances() internal view {

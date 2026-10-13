@@ -9,8 +9,8 @@ import {BlockableDollar} from "../mocks/BlockableDollar.sol";
 import {Signing} from "../utils/Signing.sol";
 
 /// @dev Drives the whole system with bounded random actions: purchases on both payment paths, replays of used
-/// quotes, oracle reports (genuine and forged), settlements, expiries, LP deposits and withdrawals, direct
-/// donations, issuer blocks on holders and clock movement.
+/// quotes, oracle reports (genuine and forged), settlements, expiries, LP deposits, redemption requests,
+/// cancellations and claims, direct donations, issuer blocks on holders and clock movement.
 ///
 /// Every action either must succeed or may only be refused for a reason the handler has checked. Anything
 /// else is counted in a ghost counter that the invariants require to stay at zero.
@@ -62,6 +62,8 @@ contract CoverHandler is Signing {
     uint256 public forgeriesAccepted;
     uint256 public earlyExpiries;
     uint256 public overWithdrawals;
+    uint256 public earlyClaims;
+    uint256 public overpaidClaims;
     uint256 public claimableMismatches;
 
     // Activity counters.
@@ -71,6 +73,10 @@ contract CoverHandler is Signing {
     uint256 public settlements;
     uint256 public expiries;
     uint256 public deferrals;
+    uint256 public capProbes;
+    uint256 public requests;
+    uint256 public cancellations;
+    uint256 public claims;
 
     constructor(
         BlockableDollar dollar_,
@@ -206,15 +212,13 @@ contract CoverHandler is Signing {
         bool viaAuthorization,
         bool refreshOracle
     ) external {
-        address holder = holders[holderSeed % holders.length];
         if (refreshOracle && _oracleStale()) heartbeat();
 
-        Purchase memory p;
-        {
-            uint64 start = (_now() + 59) / 60 * 60 + 60 * uint64(delaySeed % 6);
-            uint64 duration = 60 * uint64(1 + minutesSeed % 90);
-            p.quote = Quote({
-                holder: holder,
+        uint64 start = (_now() + 59) / 60 * 60 + 60 * uint64(delaySeed % 6);
+        uint64 duration = 60 * uint64(1 + minutesSeed % 90);
+        _attempt(
+            Quote({
+                holder: holders[holderSeed % holders.length],
                 key: keys[keySeed % keys.length],
                 start: start,
                 end: start + duration,
@@ -222,8 +226,49 @@ contract CoverHandler is Signing {
                 premium: uint128(bound(premiumSeed, 0, 20e6)),
                 expiry: _now() + 5 minutes,
                 salt: bytes32(++salt)
-            });
-        }
+            }),
+            viaAuthorization
+        );
+    }
+
+    /// @dev Asks for a policy just larger than the cell can still take. It must be refused, also when the pool
+    /// holds plenty of capital that is on its way out.
+    function buyAboveTheCellCap(uint256 holderSeed, uint256 keySeed, uint256 excessSeed, bool viaAuthorization)
+        external
+    {
+        if (_oracleStale()) heartbeat();
+
+        uint256 key = keys[keySeed % keys.length];
+        uint256 cap = pool.activeAssets() * pool.maxCellBps() / 10_000;
+        uint256 used = pool.cellExposure(key);
+        uint64 duration = 1 hours;
+        uint256 rate = (cap > used ? cap - used : 0) / duration + 1 + excessSeed % 100;
+        // Above the book's own size limit the refusal would say nothing about the pool.
+        if (rate * duration > book.maxPolicyPayout()) return;
+
+        uint64 start = (_now() + 59) / 60 * 60;
+        ++capProbes;
+        _attempt(
+            Quote({
+                holder: holders[holderSeed % holders.length],
+                key: key,
+                start: start,
+                end: start + duration,
+                ratePerSecond: uint128(rate),
+                premium: 1e6,
+                expiry: _now() + 5 minutes,
+                salt: bytes32(++salt)
+            }),
+            viaAuthorization
+        );
+    }
+
+    /// @dev Submits a purchase and checks the outcome against the state it met: a sale must fit under both caps
+    /// of the active assets, and a refusal must have a cause.
+    function _attempt(Quote memory quote, bool viaAuthorization) internal {
+        address holder = quote.holder;
+        Purchase memory p;
+        p.quote = quote;
         bytes32 digest = _quoteDigest(book.DOMAIN_SEPARATOR(), p.quote);
         p.quoteSig = _signDigest(underwriterKey, digest);
         p.validBefore = p.quote.expiry;
@@ -234,7 +279,7 @@ contract CoverHandler is Signing {
         );
 
         uint256 maxPayout = uint256(p.quote.ratePerSecond) * (p.quote.end - p.quote.start);
-        uint256 assetsBefore = pool.totalAssets();
+        uint256 assetsBefore = pool.activeAssets();
         uint256 lockedBefore = pool.lockedExposure();
         uint256 cellBefore = pool.cellExposure(p.quote.key);
         bool stale = _oracleStale();
@@ -261,7 +306,7 @@ contract CoverHandler is Signing {
             ++bought;
             purchases.push(p);
             premiumsPaid[holder] += p.quote.premium;
-            // The caps hold against the assets the pool had when the exposure was locked.
+            // The caps hold against the active assets the pool had when the exposure was locked.
             if (
                 lockedBefore + maxPayout > assetsBefore * pool.maxUtilizationBps() / 10_000
                     || cellBefore + maxPayout > assetsBefore * pool.maxCellBps() / 10_000
@@ -381,26 +426,87 @@ contract CoverHandler is Signing {
         }
     }
 
-    function withdraw(uint256 lpSeed, uint256 amount) external {
+    function requestRedeem(uint256 lpSeed, uint256 shares) external {
         address lp = lps[lpSeed % lps.length];
-        amount = bound(amount, 0, pool.maxWithdraw(lp));
+        uint256 balance = pool.balanceOf(lp);
+        if (balance == 0) return;
+        shares = bound(shares, 1, balance);
         vm.prank(lp);
-        pool.withdraw(amount, lp, lp);
+        pool.requestRedeem(shares, lp, lp);
+        ++requests;
     }
 
-    function redeem(uint256 lpSeed, uint256 shares) external {
+    function cancelRedeem(uint256 lpSeed) external {
+        address lp = lps[lpSeed % lps.length];
+        (uint256 requested,,) = pool.redeemRequests(lp);
+        if (requested == 0) return;
+        vm.prank(lp);
+        pool.cancelRedeemRequest();
+        ++cancellations;
+    }
+
+    /// @dev Claims part of a matured request in shares. The payout may not exceed what the shares are worth
+    /// now, nor their part of what the request was worth when it was made.
+    function claimRedeem(uint256 lpSeed, uint256 shares) external {
         address lp = lps[lpSeed % lps.length];
         shares = bound(shares, 0, pool.maxRedeem(lp));
+        (uint256 requested, uint256 atRequest,) = pool.redeemRequests(lp);
+        uint256 fair = pool.convertToAssets(shares);
+        uint256 balanceBefore = dollar.balanceOf(lp);
+
         vm.prank(lp);
-        pool.redeem(shares, lp, lp);
+        uint256 assets = pool.redeem(shares, lp, lp);
+
+        if (assets > fair || dollar.balanceOf(lp) - balanceBefore != assets) ++overpaidClaims;
+        if (requested != 0 && assets * requested > atRequest * shares) ++overpaidClaims;
+        if (shares != 0) ++claims;
+    }
+
+    /// @dev Claims part of a matured request in assets.
+    function claimWithdraw(uint256 lpSeed, uint256 assets) external {
+        address lp = lps[lpSeed % lps.length];
+        assets = bound(assets, 0, pool.maxWithdraw(lp));
+        uint256 poolAssets = pool.totalAssets();
+        uint256 supply = pool.totalSupply();
+        uint256 balanceBefore = dollar.balanceOf(lp);
+
+        vm.prank(lp);
+        uint256 shares = pool.withdraw(assets, lp, lp);
+
+        // Value of the burned shares at the price before the claim.
+        uint256 fair = shares * (poolAssets + 1) / (supply + 1e6);
+        if (assets > fair || dollar.balanceOf(lp) - balanceBefore != assets) ++overpaidClaims;
+        if (assets != 0) ++claims;
+    }
+
+    /// @dev A request cannot be claimed before its notice is over.
+    function claimEarly(uint256 lpSeed) external {
+        address lp = lps[lpSeed % lps.length];
+        (uint256 requested,, uint64 claimableAt) = pool.redeemRequests(lp);
+        if (requested == 0 || _now() >= claimableAt) return;
+        vm.prank(lp);
+        try pool.redeem(requested, lp, lp) {
+            ++earlyClaims;
+        } catch {}
     }
 
     /// @dev Asking for more than the limit must be refused, whatever backs the excess.
-    function withdrawTooMuch(uint256 lpSeed, uint256 excess) external {
+    function claimTooMuch(uint256 lpSeed, uint256 excess) external {
         address lp = lps[lpSeed % lps.length];
         uint256 amount = pool.maxWithdraw(lp) + bound(excess, 1, 1_000e6);
         vm.prank(lp);
         try pool.withdraw(amount, lp, lp) {
+            ++overWithdrawals;
+        } catch {}
+    }
+
+    /// @dev Shares that were never handed in cannot be redeemed, however long they have been held.
+    function exitWithoutNotice(uint256 lpSeed, uint256 shares) external {
+        address lp = lps[lpSeed % lps.length];
+        (uint256 requested,,) = pool.redeemRequests(lp);
+        shares = requested + bound(shares, 1, 1_000e12);
+        vm.prank(lp);
+        try pool.redeem(shares, lp, lp) {
             ++overWithdrawals;
         } catch {}
     }

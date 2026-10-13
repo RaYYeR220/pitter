@@ -182,10 +182,19 @@ contract ReentrancyTest is Signing {
         assertEq(pool.deferred(address(reenterer)), 0, "the payout itself went through");
     }
 
-    function test_Withdraw_CannotBeReenteredWhileTheAssetsMove() public {
-        vm.prank(address(reenterer));
-        pool.deposit(500e6, address(reenterer));
+    /// @dev Leaves the reenterer with a matured redemption request for 500 dollars.
+    function _maturedRequest() internal {
+        vm.startPrank(address(reenterer));
+        uint256 shares = pool.deposit(500e6, address(reenterer));
+        pool.requestRedeem(shares, address(reenterer), address(reenterer));
+        vm.stopPrank();
+        vm.warp(vm.getBlockTimestamp() + pool.redeemNotice());
+    }
 
+    function test_Claim_CannotBeReenteredWhileTheAssetsMove() public {
+        _maturedRequest();
+
+        // Claiming the same escrowed shares again from inside the first claim would pay them twice.
         reenterer.arm(
             address(pool), abi.encodeCall(pool.withdraw, (100e6, address(reenterer), address(reenterer))), false
         );
@@ -194,6 +203,33 @@ contract ReentrancyTest is Signing {
 
         _assertRefused();
         assertEq(pool.maxWithdraw(address(reenterer)), 400e6);
+    }
+
+    function test_Claim_CannotReenterACancellation() public {
+        _maturedRequest();
+
+        // Taking the shares back out of escrow while they are being paid would keep both.
+        reenterer.arm(address(pool), abi.encodeCall(pool.cancelRedeemRequest, ()), false);
+        vm.prank(address(reenterer));
+        pool.redeem(100e6 * 1e6, address(reenterer), address(reenterer));
+
+        _assertRefused();
+        assertEq(pool.balanceOf(address(reenterer)), 0);
+        assertEq(pool.escrowedShares(), 400e6 * 1e6);
+    }
+
+    function test_Deposit_CannotReenterARedemptionRequest() public {
+        vm.prank(address(reenterer));
+        pool.deposit(500e6, address(reenterer));
+
+        reenterer.arm(
+            address(pool), abi.encodeCall(pool.requestRedeem, (1, address(reenterer), address(reenterer))), false
+        );
+        vm.prank(address(reenterer));
+        pool.deposit(100e6, address(reenterer));
+
+        _assertRefused();
+        assertEq(pool.escrowedShares(), 0);
     }
 
     function test_Deposit_CannotReenterARedemption() public {
