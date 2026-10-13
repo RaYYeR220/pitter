@@ -19,7 +19,8 @@ import {WeatherIndex} from "../src/WeatherIndex.sol";
 /// - `TREASURY`     required  recipient of the protocol fee
 /// - `TOKEN`        optional  dollar token; when unset a TestDollar is deployed, on test networks only
 /// - `FORWARDERS`   optional  comma-separated Chainlink forwarders allowed to deliver reports; may be empty
-/// - `OWNER`        optional  final owner of every contract; defaults to the deployer
+/// - `OWNER`        optional  final owner of every contract; defaults to the deployer. Required on chain 143,
+///                            where it may name the deployer but has to be stated
 /// - `MIN_LEAD`     optional  seconds between a purchase and its window; defaults to 600 on mainnet, else 0
 /// - `MAX_POLICY_PAYOUT` optional  largest payout of one policy in token base units; defaults to 500e6
 /// - `MIN_PREMIUM`  optional  smallest premium of one policy in token base units; defaults to none, and is
@@ -34,7 +35,8 @@ import {WeatherIndex} from "../src/WeatherIndex.sol";
 /// - `SHARE_NAME`, `SHARE_SYMBOL` optional  pool share token metadata
 ///
 /// The deployer owns the contracts while wiring them. When `OWNER` is another account, ownership is offered
-/// to it at the end and it must call `acceptOwnership()` on each contract.
+/// to it at the end and it must call `acceptOwnership()` on each contract; until then the deployer still owns
+/// them. The record names both `owner` and `pendingOwner` as read from the chain.
 contract Deploy is Script {
     uint256 internal constant MONAD_MAINNET = 143;
     uint256 internal constant MONAD_TESTNET = 10143;
@@ -69,6 +71,7 @@ contract Deploy is Script {
     error TokenRequired(uint256 chainId);
     error HorizonBeyondNotice(uint256 maxHorizon, uint256 redeemNotice);
     error MinPremiumRequired();
+    error OwnerRequired();
 
     function run() external returns (Deployment memory d) {
         vm.startBroadcast();
@@ -91,7 +94,12 @@ contract Deploy is Script {
         p.reporter = vm.envAddress("REPORTER");
         p.underwriter = vm.envAddress("UNDERWRITER");
         p.treasury = vm.envAddress("TREASURY");
-        p.owner = vm.envOr("OWNER", deployer);
+        if (bytes(vm.envOr("OWNER", string(""))).length == 0) {
+            if (block.chainid == MONAD_MAINNET) revert OwnerRequired();
+            p.owner = deployer;
+        } else {
+            p.owner = vm.envAddress("OWNER");
+        }
         p.minLead = uint64(vm.envOr("MIN_LEAD", block.chainid == MONAD_MAINNET ? uint256(600) : uint256(0)));
         p.maxPolicyPayout = vm.envOr("MAX_POLICY_PAYOUT", uint256(500e6));
         p.minPremium = uint128(vm.envOr("MIN_PREMIUM", uint256(0)));
@@ -121,6 +129,7 @@ contract Deploy is Script {
         // On the main network a free policy would let anyone hold cell slots and make the relayer, the keeper
         // and the oracle pay for them.
         if (block.chainid == MONAD_MAINNET && p.minPremium == 0) revert MinPremiumRequired();
+        if (p.owner == address(0)) revert OwnerRequired();
 
         d.index = new WeatherIndex(deployer, p.reporter);
         for (uint256 i = 0; i < p.forwarders.length; ++i) {
@@ -163,7 +172,8 @@ contract Deploy is Script {
         vm.serializeUint(root, "chainId", block.chainid);
         vm.serializeUint(root, "startBlock", block.number);
         vm.serializeAddress(root, "deployer", deployer);
-        vm.serializeAddress(root, "owner", p.owner);
+        vm.serializeAddress(root, "owner", d.book.owner());
+        vm.serializeAddress(root, "pendingOwner", d.book.pendingOwner());
         vm.serializeAddress(root, "token", d.token);
         vm.serializeBool(root, "testDollar", d.testDollar);
         vm.serializeAddress(root, "weatherIndex", address(d.index));

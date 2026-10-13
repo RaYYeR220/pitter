@@ -175,6 +175,13 @@ contract DeployTest is Signing {
         assertEq(TestDollar(d.token).owner(), finalOwner);
     }
 
+    function test_Deploy_RevertWhen_OwnerIsZero() public {
+        Deploy.Params memory p = _params();
+        p.owner = address(0);
+        vm.expectRevert(Deploy.OwnerRequired.selector);
+        script.deploy(p, address(script));
+    }
+
     function test_Deploy_UsesAnExistingTokenWhenGiven() public {
         TestDollar existing = new TestDollar(address(this));
         Deploy.Params memory p = _params();
@@ -290,7 +297,10 @@ contract DeployTest is Signing {
         assertEq(vm.parseJsonAddress(json, ".weatherIndex"), address(d.index));
         assertEq(vm.parseJsonAddress(json, ".coverPool"), address(d.pool));
         assertEq(vm.parseJsonAddress(json, ".coverBook"), address(d.book));
-        assertEq(vm.parseJsonAddress(json, ".owner"), finalOwner);
+        // The deployer still owns everything until the new owner accepts; the record says both.
+        assertEq(vm.parseJsonAddress(json, ".owner"), d.book.owner());
+        assertTrue(d.book.owner() != finalOwner);
+        assertEq(vm.parseJsonAddress(json, ".pendingOwner"), finalOwner);
         assertEq(vm.parseJsonAddress(json, ".reporter"), reporter);
         assertEq(vm.parseJsonAddress(json, ".underwriter"), underwriter);
         assertEq(vm.parseJsonAddressArray(json, ".forwarders").length, 2);
@@ -303,9 +313,20 @@ contract DeployTest is Signing {
         assertEq(vm.parseJsonUint(json, ".minPremium"), 250_000);
         vm.removeFile(path);
 
+        // On the main network the owner has to be stated, even when it is the deployer.
+        vm.setEnv("OWNER", "");
+        vm.chainId(143);
+        vm.expectRevert(Deploy.OwnerRequired.selector);
+        script.paramsFromEnv(address(this));
+        vm.setEnv("OWNER", vm.toString(address(this)));
+        assertEq(script.paramsFromEnv(address(this)).owner, address(this));
+        vm.chainId(31337);
+        vm.setEnv("OWNER", "");
+
         // An empty forwarder list and the defaults for everything optional.
         vm.setEnv("FORWARDERS", "");
         Deploy.Params memory p = script.paramsFromEnv(address(this));
+        assertEq(p.owner, address(this));
         assertEq(p.forwarders.length, 0);
         assertEq(p.token, address(0));
         assertEq(p.shareName, "Cover Pool Share");
