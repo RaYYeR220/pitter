@@ -320,7 +320,7 @@ describe('reading the sources', () => {
     const fetch = replayFetch()
     await fetchObservations([warsaw], {
       fetch: (url, init) => {
-        seen[new URL(url).host] = init?.headers?.['User-Agent']
+        seen[url.split('/')[2] ?? ''] = init?.headers?.['User-Agent']
         return fetch(url, init)
       },
       now: recordedAt,
