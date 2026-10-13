@@ -1,0 +1,201 @@
+/*
+ * Design tokens. Layout, type, shape and motion follow "quiet ground"; the colours follow "machine hud".
+ *
+ * Three colour sets share one set of names:
+ * - dark (default): ink on a near-black ground;
+ * - daylight: the same screen turned over for direct sun, by the toggle or `prefers-contrast: more`;
+ * - raining: the whole screen floods with the accent and the ink turns near-black. It wins over both.
+ *
+ * The accent means one thing everywhere: heavy rain, and money moving to a rider because of it. It is never
+ * used for text and never for decoration.
+ *
+ * Contrast (WCAG 2, flat colours):
+ *   dark      ink 16.6 / ink-2 7.7 / ink-3 4.9 on ground; ink-3 4.6 on ground-3; accent marks 6.4
+ *   raining   ink 6.4 / ink-2 5.7 on the flood; 5.5 and 4.9 where the grain darkens it most
+ *   daylight  ink 16.6 / ink-2 9.3 / ink-3 5.9 on ground; accent marks 4.4 (#c2410c)
+ */
+
+:root {
+  /* colour: dark */
+  --ground: #0a0a0b;
+  --ground-2: #101012;
+  --ground-3: #16161a;
+  --ground-4: #1f1f24;
+  --ink: #edebe6;
+  --ink-2: #a3a19c;
+  /* V14's #7d7b76 is 4.3:1 on ground-3, under the line; one step lighter passes on every ground it sits on. */
+  --ink-3: #85837e;
+  --on-ink: #0a0a0b;
+  --on-ink-2: #3d3c39;
+  --line: rgb(237 235 230 / 0.12);
+  --line-2: rgb(237 235 230 / 0.24);
+  --line-3: rgb(237 235 230 / 0.5);
+  --rule: rgb(237 235 230 / 0.055);
+  --rule-fine: rgb(237 235 230 / 0.022);
+  --accent: #ff5a1f;
+  /* the accent as a mark: lines, fills, hatching */
+  --mark: #ff5a1f;
+  --mark-soft: rgb(255 90 31 / 0.22);
+  --well: inset 0 0 0 1px rgb(237 235 230 / 0.1), inset 6px 6px 16px rgb(0 0 0 / 0.55),
+    inset -6px -8px 18px rgb(237 235 230 / 0.035);
+  --pebble: inset 0 0 0 1px rgb(255 255 255 / 0.5), inset -8px -10px 22px rgb(10 10 11 / 0.22),
+    inset 6px 6px 16px rgb(255 255 255 / 0.75);
+  --knob: inset -5px -6px 12px rgb(0 0 0 / 0.6), inset 4px 4px 10px rgb(237 235 230 / 0.12);
+  --grain-blend: screen;
+  --grain-opacity: 0.32;
+  --streak: rgb(237 235 230 / 0.5);
+  --pool-light: rgb(237 235 230 / 0.045);
+  --pool-warm: rgb(255 90 31 / 0.06);
+  color-scheme: dark;
+
+  /* type */
+  --font-display: var(--outfit), system-ui, sans-serif;
+  --font-body: var(--figtree), system-ui, sans-serif;
+  --font-mono: var(--geist-mono), ui-monospace, monospace;
+  --track-figure: -0.055em;
+  --track-heading: -0.05em;
+  --track-sentence: -0.025em;
+  --track-mono: -0.01em;
+  --size-mono: 13px;
+  --size-small: 15px;
+  --size-body: 17px;
+  --size-lede: clamp(19px, 1.75vw, 25px);
+  --size-claim: clamp(26px, 2.6vw, 38px);
+  --size-state: clamp(22px, 2.3vw, 32px);
+  --size-h1: clamp(44px, 5.6vw, 80px);
+  --size-h2: clamp(36px, 4.4vw, 60px);
+  --size-h3: 24px;
+  --fig-hero: clamp(112px, 18.4vw, 264px);
+  --fig-screen: clamp(124px, 16.1vw, 232px);
+  --fig-slip: 72px;
+  --fig-second: clamp(36px, 4.4vw, 64px);
+
+  /* space */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 44px;
+  --s-8: 64px;
+  --s-9: 80px;
+  --s-10: 128px;
+  --s-11: 168px;
+  --gutter: 24px;
+  --w-col: 720px;
+  --w-page: 1040px;
+  --w-desk: 1200px;
+  --w-side: 400px;
+
+  /* shape: a full pill for what you press or what fills, a square edge for paper */
+  --pill: 999px;
+  --square: 0;
+
+  /* motion */
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --t-hover: 200ms;
+  --t-knob: 420ms;
+  --t-sheet: 450ms;
+  --t-flood: 800ms;
+  --t-wipe: 900ms;
+}
+
+@media (max-width: 600px) {
+  :root {
+    --gutter: 20px;
+  }
+}
+
+/* daylight: chosen, or asked for by the system */
+:root[data-theme='daylight'] {
+  --ground: #edebe6;
+  --ground-2: #e3e1db;
+  --ground-3: #d8d6d0;
+  --ground-4: #cfcdc6;
+  --ink: #0a0a0b;
+  --ink-2: #3d3c39;
+  --ink-3: #5a5955;
+  --on-ink: #edebe6;
+  --on-ink-2: #c9c7c1;
+  --line: rgb(10 10 11 / 0.14);
+  --line-2: rgb(10 10 11 / 0.26);
+  --line-3: rgb(10 10 11 / 0.55);
+  --rule: rgb(10 10 11 / 0.075);
+  --rule-fine: rgb(10 10 11 / 0.03);
+  /* #ff5a1f is 2.6:1 on this ground; marks take a deeper step of the same hue */
+  --mark: #c2410c;
+  --mark-soft: rgb(194 65 12 / 0.2);
+  --well: inset 0 0 0 1px rgb(255 255 255 / 0.7), inset -8px -10px 22px rgb(10 10 11 / 0.12),
+    inset 6px 6px 16px rgb(255 255 255 / 0.8);
+  --pebble: inset 0 0 0 1px rgb(255 255 255 / 0.12), inset -8px -10px 22px rgb(0 0 0 / 0.72),
+    inset 6px 6px 16px rgb(255 255 255 / 0.18);
+  --knob: inset -5px -6px 12px rgb(10 10 11 / 0.2), inset 4px 4px 10px rgb(255 255 255 / 0.9);
+  --grain-blend: multiply;
+  --grain-opacity: 0.5;
+  --streak: rgb(10 10 11 / 0.55);
+  --pool-light: rgb(255 255 255 / 0.55);
+  --pool-warm: rgb(194 65 12 / 0.05);
+  color-scheme: light;
+}
+
+@media (prefers-contrast: more) {
+  :root:not([data-theme='dark']) {
+    --ground: #edebe6;
+    --ground-2: #e3e1db;
+    --ground-3: #d8d6d0;
+    --ground-4: #cfcdc6;
+    --ink: #0a0a0b;
+    --ink-2: #3d3c39;
+    --ink-3: #5a5955;
+    --on-ink: #edebe6;
+    --on-ink-2: #c9c7c1;
+    --line: rgb(10 10 11 / 0.2);
+    --line-2: rgb(10 10 11 / 0.34);
+    --line-3: rgb(10 10 11 / 0.6);
+    --rule: rgb(10 10 11 / 0.075);
+    --rule-fine: rgb(10 10 11 / 0.03);
+    --mark: #c2410c;
+    --mark-soft: rgb(194 65 12 / 0.2);
+    --well: inset 0 0 0 1px rgb(10 10 11 / 0.3);
+    --pebble: none;
+    --knob: inset 0 0 0 1px rgb(10 10 11 / 0.4);
+    --grain-blend: multiply;
+    --grain-opacity: 0.25;
+    --streak: rgb(10 10 11 / 0.4);
+    --pool-light: transparent;
+    --pool-warm: transparent;
+    color-scheme: light;
+  }
+}
+
+/* raining: the flood. Same names, so every component turns over with it. */
+:root[data-weather='raining'] {
+  --ground: #ff5a1f;
+  --ground-2: #ff5a1f;
+  --ground-3: rgb(10 10 11 / 0.08);
+  --ground-4: #0a0a0b;
+  --ink: #0a0a0b;
+  --ink-2: #2a1004;
+  --ink-3: #2a1004;
+  --on-ink: #ff5a1f;
+  --on-ink-2: #ff5a1f;
+  --line: rgb(10 10 11 / 0.26);
+  --line-2: rgb(10 10 11 / 0.42);
+  --line-3: rgb(10 10 11 / 0.6);
+  --rule: rgb(10 10 11 / 0.11);
+  --rule-fine: rgb(10 10 11 / 0.045);
+  /* on the flood the money mark is the ink itself */
+  --mark: #0a0a0b;
+  --mark-soft: rgb(10 10 11 / 0.22);
+  --well: inset 0 0 0 2px #0a0a0b;
+  --pebble: inset 0 0 0 1px rgb(255 255 255 / 0.12), inset -6px -8px 18px rgb(0 0 0 / 0.7),
+    inset 5px 5px 14px rgb(255 255 255 / 0.12);
+  --knob: inset -5px -6px 12px rgb(0 0 0 / 0.6), inset 4px 4px 10px rgb(255 255 255 / 0.14);
+  --grain-blend: multiply;
+  --grain-opacity: 0.3;
+  --streak: rgb(10 10 11 / 0.55);
+  --pool-light: transparent;
+  --pool-warm: transparent;
+  color-scheme: light;
+}
