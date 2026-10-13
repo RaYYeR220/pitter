@@ -3,3 +3,4 @@ binary.wasm
 .cre_build_tmp.*
 .workflow-temp-*
 .env
+test/.tmp/
