@@ -1,0 +1,213 @@
+{
+  "data": {
+    "_meta": [
+      {
+        "progressBlock": 70689818,
+        "isReady": true
+      }
+    ],
+    "PoolState_by_pk": {
+      "policyCount": 11,
+      "totalPremiums": "4923000",
+      "totalFees": "246150",
+      "totalPayouts": "3000000",
+      "totalDeposits": "500000000",
+      "lossRatio": "0.609384",
+      "lockedExposure": "1920000",
+      "updatedAt": 1791896708
+    },
+    "PoolDay": [
+      {
+        "id": "2026-10-13",
+        "startsAt": 1791849600,
+        "premiums": "4923000",
+        "payouts": "3000000",
+        "deposits": "500000000",
+        "lossRatio": "0.609384"
+      }
+    ],
+    "Cell": [
+      {
+        "id": "18446751804650688016",
+        "exposure": "1920000",
+        "openPolicies": 2,
+        "lastWetAt": 1791896640,
+        "lastReadingAt": 1791896700
+      }
+    ],
+    "Policy": [
+      {
+        "id": "11",
+        "premium": "270000",
+        "boughtAt": 1791896528,
+        "boughtTxHash": "0xc20cec0a8085300508849931f77be5c2a9fdb0739f8059c04e20938e386bb766"
+      },
+      {
+        "id": "10",
+        "premium": "300000",
+        "boughtAt": 1791896082,
+        "boughtTxHash": "0x81039e614b5a307e42c5650ccfbd79450fab92a53f2c5b3d7133ed5a9a1e9979"
+      },
+      {
+        "id": "9",
+        "premium": "315000",
+        "boughtAt": 1791895969,
+        "boughtTxHash": "0xf4a0e27109225c63e8259f7c6fdacea379df3955ca3cae7e413456aedcd59837"
+      },
+      {
+        "id": "8",
+        "premium": "345000",
+        "boughtAt": 1791895692,
+        "boughtTxHash": "0xdad6b43a637bf82a2f6850b5377b186963a4385c6928c8f11162c84ba0a1c0cc"
+      },
+      {
+        "id": "7",
+        "premium": "345000",
+        "boughtAt": 1791894917,
+        "boughtTxHash": "0x8c2c387fdf4be8fac0e6f31b13a852fe3d9e9cfeabcad4186845df85ce2106cb"
+      },
+      {
+        "id": "6",
+        "premium": "1350000",
+        "boughtAt": 1791894438,
+        "boughtTxHash": "0xcc9cd7e6a58ac1bf6d494c2b8f179b8d9ad05c0c43ea64d7ec6b453a67613cdb"
+      },
+      {
+        "id": "5",
+        "premium": "345000",
+        "boughtAt": 1791894178,
+        "boughtTxHash": "0x5ee3e41f06848635344188aff191303c6ab5f58d8a5e3194ed1f54cc4a9ccfed"
+      },
+      {
+        "id": "4",
+        "premium": "345000",
+        "boughtAt": 1791893482,
+        "boughtTxHash": "0x87322015e956fe392c9c1520879ebf3468113e6cf3021a5e18f8db1869b1ebb1"
+      }
+    ],
+    "Settlement": [
+      {
+        "amount": "240000",
+        "timestamp": 1791896662,
+        "txHash": "0xf72deb0afa7f93fae61be918938269a856d5ae1f3de7dc1be4fa0bb6cadd0eaf",
+        "policy": {
+          "id": "9"
+        }
+      },
+      {
+        "amount": "120000",
+        "timestamp": 1791896662,
+        "txHash": "0xf72deb0afa7f93fae61be918938269a856d5ae1f3de7dc1be4fa0bb6cadd0eaf",
+        "policy": {
+          "id": "11"
+        }
+      },
+      {
+        "amount": "240000",
+        "timestamp": 1791896662,
+        "txHash": "0xf72deb0afa7f93fae61be918938269a856d5ae1f3de7dc1be4fa0bb6cadd0eaf",
+        "policy": {
+          "id": "10"
+        }
+      },
+      {
+        "amount": "0",
+        "timestamp": 1791896401,
+        "txHash": "0x927dcbc72b2b7faa1e3987d5c3dbc0dc49c7fc57821dd288b95db7f763a30d77",
+        "policy": {
+          "id": "8"
+        }
+      },
+      {
+        "amount": "120000",
+        "timestamp": 1791896242,
+        "txHash": "0x7a39ee538717ee2533246183149d02c631afcb8f583c3fe458e419dc0040f910",
+        "policy": {
+          "id": "10"
+        }
+      },
+      {
+        "amount": "240000",
+        "timestamp": 1791896242,
+        "txHash": "0x7a39ee538717ee2533246183149d02c631afcb8f583c3fe458e419dc0040f910",
+        "policy": {
+          "id": "8"
+        }
+      },
+      {
+        "amount": "240000",
+        "timestamp": 1791896242,
+        "txHash": "0x7a39ee538717ee2533246183149d02c631afcb8f583c3fe458e419dc0040f910",
+        "policy": {
+          "id": "9"
+        }
+      },
+      {
+        "amount": "120000",
+        "timestamp": 1791896116,
+        "txHash": "0x807306aca09ea99e6a72135d2d52536f83781d93cd7e9c2fd81eb444c0c3e283",
+        "policy": {
+          "id": "9"
+        }
+      }
+    ],
+    "WeatherReading": [
+      {
+        "key": "18446751804650688016",
+        "wetSeconds": 0,
+        "to": 1791896700,
+        "timestamp": 1791896708,
+        "txHash": "0x8670086c3c847440de313996b4c6468d1f781c497b20db99dfd2f844b4432e8b"
+      },
+      {
+        "key": "18446751804650688016",
+        "wetSeconds": 120,
+        "to": 1791896640,
+        "timestamp": 1791896662,
+        "txHash": "0xb334e433f56f867f542bad0ce893edac8bb7a028fb45cafb8343863c4556d7ec"
+      },
+      {
+        "key": "18446751804650688016",
+        "wetSeconds": 0,
+        "to": 1791896520,
+        "timestamp": 1791896523,
+        "txHash": "0x44eb90acdda3db5d1d2f0e949c74a27206d74a1a76195364ba6c3c48845413c2"
+      },
+      {
+        "key": "18446751804650688016",
+        "wetSeconds": 0,
+        "to": 1791896400,
+        "timestamp": 1791896401,
+        "txHash": "0x4eb8fd1a571417d4918ba8ec5c40a255e50dea7a7fe416d87647303b12361aa3"
+      },
+      {
+        "key": "18446751804650688016",
+        "wetSeconds": 120,
+        "to": 1791896220,
+        "timestamp": 1791896242,
+        "txHash": "0x8136bda84c41a5c7f2eec11cb9bdf4369045a983ecbdea4798c5712bdc6ee124"
+      },
+      {
+        "key": "18446751804650688016",
+        "wetSeconds": 60,
+        "to": 1791896100,
+        "timestamp": 1791896116,
+        "txHash": "0xa381cae614db870212d17c159b6e2ca25e270be1d0504e099958deb47268bc75"
+      },
+      {
+        "key": "18446751804650688016",
+        "wetSeconds": 0,
+        "to": 1791896040,
+        "timestamp": 1791896077,
+        "txHash": "0xa92241a97a7ba4f3123668bae19c98cfd2562f7ae3d1d10daa499ef2df1055e5"
+      },
+      {
+        "key": "18446751804650688016",
+        "wetSeconds": 0,
+        "to": 1791895920,
+        "timestamp": 1791895958,
+        "txHash": "0xb8bb4c450ee5afc94df145035468692df21d3db4de001ff43b4a3ba8207d7ebd"
+      }
+    ]
+  }
+}

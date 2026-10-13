@@ -1,0 +1,86 @@
+{
+  "data": {
+    "_meta": [
+      {
+        "progressBlock": 113048953,
+        "isReady": true
+      }
+    ],
+    "Holder_by_pk": {
+      "policyCount": 3,
+      "totalPremiums": "73894",
+      "totalPaid": "54000"
+    },
+    "Policy": [
+      {
+        "id": "3",
+        "key": "18446756288596545460",
+        "start": 1791890700,
+        "end": 1791894300,
+        "ratePerSecond": "55",
+        "premium": "6394",
+        "maxPayout": "198000",
+        "paid": "0",
+        "settledUntil": 1791894300,
+        "status": "SETTLED",
+        "boughtAt": 1791890006,
+        "boughtTxHash": "0xca707a0afd31fa8584f110c61ae63498564d29be385c305344c1a004f0709cf2",
+        "settlements": [
+          {
+            "amount": "0",
+            "settledUntil": 1791894300,
+            "closed": true,
+            "txHash": "0x2896f64552de223f48c3db54b26ca1300bfb2c86c091335cca5f5843f097db78",
+            "timestamp": 1791894571
+          }
+        ]
+      },
+      {
+        "id": "2",
+        "key": "18446752410241079264",
+        "start": 1791889860,
+        "end": 1791891660,
+        "ratePerSecond": "15",
+        "premium": "33750",
+        "maxPayout": "27000",
+        "paid": "27000",
+        "settledUntil": 1791891660,
+        "status": "SETTLED",
+        "boughtAt": 1791889164,
+        "boughtTxHash": "0xbaa65f1964cc336542dcaf8ac154a73b991377891b8e2a130bd83710ccc01100",
+        "settlements": [
+          {
+            "amount": "27000",
+            "settledUntil": 1791891660,
+            "closed": true,
+            "txHash": "0xfe2ef821a04a6fa2ecd0b1f6f5b10700a3708be3912b202dc2b3aaa0fec18f1d",
+            "timestamp": 1791891889
+          }
+        ]
+      },
+      {
+        "id": "1",
+        "key": "18446752397356176461",
+        "start": 1791889860,
+        "end": 1791891660,
+        "ratePerSecond": "15",
+        "premium": "33750",
+        "maxPayout": "27000",
+        "paid": "27000",
+        "settledUntil": 1791891660,
+        "status": "SETTLED",
+        "boughtAt": 1791889159,
+        "boughtTxHash": "0xaa4875afe79fe404b689550bf6ef72573ef899e8fdeec031cb626b267ef8f862",
+        "settlements": [
+          {
+            "amount": "27000",
+            "settledUntil": 1791891660,
+            "closed": true,
+            "txHash": "0xfe2ef821a04a6fa2ecd0b1f6f5b10700a3708be3912b202dc2b3aaa0fec18f1d",
+            "timestamp": 1791891889
+          }
+        ]
+      }
+    ]
+  }
+}
