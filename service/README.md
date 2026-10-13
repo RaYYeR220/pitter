@@ -29,7 +29,7 @@ each handler for hosts that route themselves.
 | `POST` | `/relay/deposit` | provider's signature | `{ assets, receiver, nonce, validAfter, validBefore, v, r, s }` → pool `depositWithAuthorization`. |
 | `POST` | `/relay/transfer` | sender's signature | `{ from, to, value, nonce, validAfter, validBefore, v, r, s }` → token `transferWithAuthorization` (cash-out). |
 | `POST` | `/relay/settle` | open, rate-limited | `{ ids }` (at most 10) → one `settleMany` for the policies with something to settle, as many as fit one transaction's gas (six that close); the rest come back in `skipped` and can be asked for again. Sends nothing when nothing is due. |
-| `POST`, `GET` | `/cron/tick` | `x-cron-secret` or bearer token | One keeper run: weather report, then settlements. |
+| `POST`, `GET` | `/cron/tick` | `x-cron-secret` or bearer token | One keeper run: weather report (held back while no cover is open, see **Keeper**), then settlements. |
 | `POST` | `/v1/cover` | x402 payment | `{ lat, lon, start, end, rate, holder }`. Answers 402 with the price; with a `PAYMENT-SIGNATURE` header it settles the payment and buys the policy for `holder`. |
 | `PUT`, `GET` | `/blobs/:address/:name` | owner's EIP-712 signature | Stores and returns opaque bytes. |
 | `POST` | `/sandbox/drip` | `x-sandbox-secret`, test networks | `{ address }` → test dollar `drip`. |
@@ -129,6 +129,19 @@ cover sold before the request. It then settles the policies that have a payout d
 in batches, and closes with `expire` the policies whose window ended more than the book's `expiryGrace` ago
 without the oracle reporting all of it (`expire` pays what was reported, then releases the rest of the
 exposure). Schedule it every five minutes; `KEEPER_FIRST_READING_SECONDS` should equal the interval.
+
+While no cover is open (the book's `activeCells()` is empty) a report would only refresh the heartbeat, and
+each one is charged its 75,000 gas limit. The tick then reports only once the heartbeat is
+`KEEPER_IDLE_HEARTBEAT_SECONDS` old (default 900); before that it answers `report.status: "skipped_idle"` with
+`nextDueAt`, the chain time from which a tick refreshes it, without asking the weather sources; the
+settlement half of the tick runs as usual. The setting is checked against the book's `maxOracleAge` on every idle tick and held at
+least 300 seconds (one tick) below it, so the heartbeat is refreshed before the book stops selling; a higher
+value is lowered to that and logged as a warning, and 0 refreshes the heartbeat on every tick as before. With
+open cover every tick reports. The margin assumes the five-minute schedule: with the defaults (900 against a
+`maxOracleAge` of 1,200) a tick that runs late can let the heartbeat age past the point where quotes stop
+(`oracle_stale`, 10 seconds before `maxOracleAge`) for a moment before the report lands. The web app's
+practice-mode weather check calls the same handler with the path `/sandbox/tick`; on a test network with the
+sandbox on, that run reports even while idle, so the check answers at once.
 
 The keeper walks the book with a cursor kept in the state store: every policy below its low mark is closed,
 and each tick reads the next `KEEPER_SCAN_LIMIT` ids, wrapping back to the low mark at the end. A policy that
