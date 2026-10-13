@@ -68,13 +68,13 @@ free capital, and cover ends before the capital behind it can leave.
 - **One provider behind three sources.** Three of the five sources are models served by Open-Meteo. If that
   provider is wrong, down or tampered with, it can decide the median on its own. A second commercial data
   provider is the fix; it needs a licence.
-- **The pilot shares keys with the test network.** The reporter and underwriter addresses are the same in
-  [`10143.json`](../contracts/deployments/10143.json) and [`143.json`](../contracts/deployments/143.json), so
-  the live testnet app's server holds keys that also act on mainnet. Bounded by the mainnet caps on a pool of
-  under one USDC; separate keys come before the pool holds more than cents.
+- **Separate keys per network.** The test network has its own reporter, underwriter and relayer keys (the
+  rotation is recorded in [`10143.json`](../contracts/deployments/10143.json) with its `setReporter` and
+  `setUnderwriter` transactions). The live web deployment holds only those; the mainnet keys stay off the
+  hosted server.
 - **The owner is one key with no delay.** It should be a multisig behind a timelock before the pilot grows.
-- **Hot keys on a hosted server.** The underwriter, reporter and relayer keys are environment secrets of the
-  web deployment. Each is bounded as above; none can take free capital.
+- **Hot keys on a hosted server.** The test network's underwriter, reporter and relayer keys are environment
+  secrets of the web deployment. Each is bounded as above; none can take free capital.
 - **The token.** The pool assumes a USDC-like token: no transfer fees, no rebasing, no callbacks. The issuer
   can block an address; a payout to a blocked holder is set aside in `deferred[holder]`, not lost, and the
   cover still closes.

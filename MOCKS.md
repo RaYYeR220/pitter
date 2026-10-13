@@ -64,8 +64,8 @@ with `cre workflow simulate --broadcast` on the maintainers' machine:
   deploying a workflow to their production DON needs a commercial agreement. Nothing in the code changes for
   it.
 
-On the test network the live app's keeper also reports, with `WeatherIndex.submit` and the same reporter
-key. The decision logic is the same `@cover/core` code in both.
+On the test network the live app's keeper also reports, with `WeatherIndex.submit` and the test network's
+reporter key. The decision logic is the same `@cover/core` code in both.
 
 ## Passkeys in tests
 

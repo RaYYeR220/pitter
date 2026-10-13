@@ -157,7 +157,7 @@ cd contracts && forge test
 - **The underwriter and relayer are hot keys** on the server. The underwriter can commit pool capital only up to the on-chain caps; the relayer only pays gas.
 - **Pricing uses free forecast models.** Open-Meteo's free tier is for non-commercial use; a commercial deployment needs a commercial weather licence. Three of the five sources are models served by that one provider. The pricing model has not been tested against real loss data.
 - **It is cover, not regulated insurance.** There is no insurer, no regulator and no claims process.
-- **Mainnet is a pilot with cents.** The pool holds under one USDC and one cover pays at most 0.20 USDC. The contract owner on both networks is the deployer key, not a multisig, and the pilot uses the same reporter and underwriter keys as the test network.
+- **Mainnet is a pilot with cents.** The pool holds under one USDC and one cover pays at most 0.20 USDC. The contract owner on both networks is the deployer key, not a multisig. Each network has its own reporter, underwriter and relayer keys, and the hosted app holds only the test network's.
 - **Leaving the pool needs MON for gas.** Requests and claims act on the sender and cannot be relayed.
 - **Passkeys need PRF.** See the list under "Try it in 60 seconds".
 
