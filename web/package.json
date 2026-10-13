@@ -1,0 +1,41 @@
+{
+  "name": "@cover/web",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write \"app/**/*.{ts,tsx,css}\" \"components/**/*.{ts,tsx}\" \"hooks/**/*.ts\" \"lib/**/*.ts\" \"test/**/*.ts\" \"e2e/**/*.ts\" \"*.ts\""
+  },
+  "dependencies": {
+    "@category-labs/mera": "0.2.0",
+    "@cover/core": "workspace:*",
+    "@cover/service": "workspace:*",
+    "@scure/bip32": "2.4.0",
+    "@scure/bip39": "2.4.0",
+    "next": "16.4.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "viem": "2.57.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.0",
+    "@types/node": "^24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "prettier": "^3.6.2",
+    "typescript": "5.9.3",
+    "vitest": "^5.0.4"
+  },
+  "prettier": {
+    "semi": false,
+    "singleQuote": true,
+    "printWidth": 120
+  }
+}
