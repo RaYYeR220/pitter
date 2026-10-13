@@ -190,7 +190,12 @@ export function fakeMarket(options: { balance?: bigint; minLead?: number; premiu
       const found: Array<[Purchase, Purchase]> = []
       purchases.forEach((a, i) =>
         purchases.slice(i + 1).forEach((b) => {
-          if (a.quote.holder === b.quote.holder && a.quote.key === b.quote.key && a.quote.start < b.quote.end && b.quote.start < a.quote.end) {
+          if (
+            a.quote.holder === b.quote.holder &&
+            a.quote.key === b.quote.key &&
+            a.quote.start < b.quote.end &&
+            b.quote.start < a.quote.end
+          ) {
             found.push([a, b])
           }
         }),

@@ -134,7 +134,10 @@ export interface ServiceClient {
   health(): Promise<HealthReport>
   quote(request: QuoteRequest): Promise<SignedQuote>
   relayBuy(quote: SignedQuote, authorization: Authorization): Promise<BuyReceipt>
-  relayDeposit(deposit: { assets: bigint; receiver: Address; nonce: Hex }, authorization: Authorization): Promise<DepositReceipt>
+  relayDeposit(
+    deposit: { assets: bigint; receiver: Address; nonce: Hex },
+    authorization: Authorization,
+  ): Promise<DepositReceipt>
   relayTransfer(
     transfer: { from: Address; to: Address; value: bigint; nonce: Hex },
     authorization: Authorization,
@@ -187,7 +190,8 @@ function number(value: unknown, name: string): number {
   return value
 }
 
-const numberOrNull = (value: unknown, name: string) => (value === null || value === undefined ? null : number(value, name))
+const numberOrNull = (value: unknown, name: string) =>
+  value === null || value === undefined ? null : number(value, name)
 
 function hex(value: unknown, name: string, bytes?: number): Hex {
   if (typeof value !== 'string' || !isHex(value, { strict: true })) throw new Malformed(name)
@@ -232,7 +236,10 @@ function parseInputs(value: unknown): PriceInputs | null {
           end: number(slot.end, 'inputs.slots.end'),
           seconds: number(slot.seconds, 'inputs.slots.seconds'),
           forecastMmPerHour: numberOrNull(slot.forecastMmPerHour, 'inputs.slots.forecastMmPerHour'),
-          precipitationProbability: numberOrNull(slot.precipitationProbability, 'inputs.slots.precipitationProbability'),
+          precipitationProbability: numberOrNull(
+            slot.precipitationProbability,
+            'inputs.slots.precipitationProbability',
+          ),
           probabilityWet: number(slot.probabilityWet, 'inputs.slots.probabilityWet'),
           basis: slot.basis as PriceSlot['basis'],
         }
@@ -281,7 +288,8 @@ function parseSignedQuote(value: unknown): SignedQuote {
   }
 }
 
-const integerOrNull = (value: unknown, name: string) => (value === null || value === undefined ? null : integer(value, name))
+const integerOrNull = (value: unknown, name: string) =>
+  value === null || value === undefined ? null : integer(value, name)
 
 function parseWeatherCheck(value: unknown): WeatherCheck {
   const body = object(value, 'body')
@@ -315,7 +323,9 @@ function parseWeatherCheck(value: unknown): WeatherCheck {
           closed: settled.closed === true,
         }
       }),
-      transactions: list(settlement.transactions, 'settlement.transactions').map((hash) => hex(hash, 'transaction', 32)),
+      transactions: list(settlement.transactions, 'settlement.transactions').map((hash) =>
+        hex(hash, 'transaction', 32),
+      ),
       failures: list(settlement.failures, 'settlement.failures').map(String),
     },
   }

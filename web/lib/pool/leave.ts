@@ -19,7 +19,8 @@ export function leaveState(position: PoolPosition, nowMs: number): LeaveState {
   const { request } = position
   if (request) {
     const remainingMs = request.claimableAt * 1000 - nowMs
-    if (remainingMs > 0) return { phase: 'waiting', shares: request.shares, claimableAt: request.claimableAt, remainingMs }
+    if (remainingMs > 0)
+      return { phase: 'waiting', shares: request.shares, claimableAt: request.claimableAt, remainingMs }
     return {
       phase: 'ready',
       shares: request.shares,

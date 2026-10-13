@@ -24,7 +24,10 @@ type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
 function parse(text: string | null): AccountHint | null {
   if (!text) return null
   try {
-    const value = JSON.parse(text) as { credential?: { credentialId?: unknown; transports?: unknown }; address?: unknown }
+    const value = JSON.parse(text) as {
+      credential?: { credentialId?: unknown; transports?: unknown }
+      address?: unknown
+    }
     const credentialId = value.credential?.credentialId
     if (typeof credentialId !== 'string' || !/^[A-Za-z0-9_-]{8,1024}$/.test(credentialId)) return null
     if (typeof value.address !== 'string' || !isAddress(value.address, { strict: false })) return null

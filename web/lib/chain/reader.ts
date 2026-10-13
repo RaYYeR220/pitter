@@ -183,7 +183,11 @@ export function viemChainReader(
     functionName,
     args,
   })
-  const clock: Call = { address: config.multicall3, abi: multicall3Extras as Abi, functionName: 'getCurrentBlockTimestamp' }
+  const clock: Call = {
+    address: config.multicall3,
+    abi: multicall3Extras as Abi,
+    functionName: 'getCurrentBlockTimestamp',
+  }
   const native = (owner: Address): Call => ({
     address: config.multicall3,
     abi: multicall3Extras as Abi,
@@ -237,19 +241,29 @@ export function viemChainReader(
     },
 
     async rules() {
-      const [time, minLead, minDuration, maxDuration, maxHorizon, maxOracleAge, feeBps, maxPolicyPayout, minPremium, heartbeat] =
-        await read<[bigint, bigint, bigint, bigint, bigint, bigint, number, bigint, bigint, bigint]>([
-          clock,
-          book('minLead'),
-          book('minDuration'),
-          book('maxDuration'),
-          book('maxHorizon'),
-          book('maxOracleAge'),
-          book('feeBps'),
-          book('maxPolicyPayout'),
-          book('minPremium'),
-          index('heartbeat'),
-        ])
+      const [
+        time,
+        minLead,
+        minDuration,
+        maxDuration,
+        maxHorizon,
+        maxOracleAge,
+        feeBps,
+        maxPolicyPayout,
+        minPremium,
+        heartbeat,
+      ] = await read<[bigint, bigint, bigint, bigint, bigint, bigint, number, bigint, bigint, bigint]>([
+        clock,
+        book('minLead'),
+        book('minDuration'),
+        book('maxDuration'),
+        book('maxHorizon'),
+        book('maxOracleAge'),
+        book('feeBps'),
+        book('maxPolicyPayout'),
+        book('minPremium'),
+        index('heartbeat'),
+      ])
       return {
         time: Number(time),
         minLead: Number(minLead),
@@ -323,7 +337,22 @@ export function viemChainReader(
         maxOracleAge,
         keys,
       ] = await read<
-        [bigint, bigint, bigint, bigint, bigint, number, number, bigint, bigint, bigint, number, bigint, bigint, readonly bigint[]]
+        [
+          bigint,
+          bigint,
+          bigint,
+          bigint,
+          bigint,
+          number,
+          number,
+          bigint,
+          bigint,
+          bigint,
+          number,
+          bigint,
+          bigint,
+          readonly bigint[],
+        ]
       >([
         clock,
         pool('totalAssets'),
@@ -374,7 +403,8 @@ export function viemChainReader(
         native(owner),
       ])
       const [value] = shares > 0n ? await read<[bigint]>([pool('convertToAssets', [shares])]) : [0n]
-      const field = (name: string) => BigInt((request as readonly unknown[])[REDEEM_REQUEST_FIELDS.indexOf(name)] as bigint)
+      const field = (name: string) =>
+        BigInt((request as readonly unknown[])[REDEEM_REQUEST_FIELDS.indexOf(name)] as bigint)
       const requested = field('shares')
       return {
         time: Number(time),
@@ -382,7 +412,11 @@ export function viemChainReader(
         value,
         request:
           requested > 0n
-            ? { shares: requested, assetsAtRequest: field('assetsAtRequest'), claimableAt: Number(field('claimableAt')) }
+            ? {
+                shares: requested,
+                assetsAtRequest: field('assetsAtRequest'),
+                claimableAt: Number(field('claimableAt')),
+              }
             : null,
         claimableShares,
         claimableAssets,

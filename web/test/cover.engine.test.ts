@@ -66,7 +66,12 @@ describe('turning cover on', () => {
 
     expect(market.purchases).toHaveLength(1)
     const { quote, digest, authorization } = market.purchases[0]!
-    expect(quote).toMatchObject({ holder: signer().address, key: warsaw.key, start: BigInt(T0 + 60), end: BigInt(T0 + 660) })
+    expect(quote).toMatchObject({
+      holder: signer().address,
+      key: warsaw.key,
+      start: BigInt(T0 + 60),
+      end: BigInt(T0 + 660),
+    })
     expect(authorization.validBefore).toBe(quote.expiry)
     expect(digest).toMatch(/^0x[0-9a-f]{64}$/)
 
@@ -77,7 +82,11 @@ describe('turning cover on', () => {
       stopped: null,
       blocks: [{ key: warsaw.key, start: T0 + 60, end: T0 + 660, kind: 'block', premium: quote.premium, policyId: 1n }],
     })
-    expect(engine.getState().price).toMatchObject({ premium: quote.premium, seconds: BLOCK, costPerMinute: quote.premium / 10n })
+    expect(engine.getState().price).toMatchObject({
+      premium: quote.premium,
+      seconds: BLOCK,
+      costPerMinute: quote.premium / 10n,
+    })
     expect(awake).toEqual([true])
   })
 
@@ -253,11 +262,23 @@ describe('an answer that never arrived', () => {
 describe('stopping cleanly', () => {
   const refusals = [
     ['area full', new ServiceFailure(409, 'capacity_exhausted', 'x', { scope: 'cell' }), 'area_full'],
-    ['area full at the contract', new ServiceFailure(409, 'would_revert', 'x', { reason: 'CellCapExceeded' }), 'area_full'],
+    [
+      'area full at the contract',
+      new ServiceFailure(409, 'would_revert', 'x', { reason: 'CellCapExceeded' }),
+      'area_full',
+    ],
     ['pool at its limit', new ServiceFailure(409, 'capacity_exhausted', 'x', { scope: 'pool' }), 'pool_full'],
-    ['pool at its limit at the contract', new ServiceFailure(409, 'would_revert', 'x', { reason: 'GlobalCapExceeded' }), 'pool_full'],
+    [
+      'pool at its limit at the contract',
+      new ServiceFailure(409, 'would_revert', 'x', { reason: 'GlobalCapExceeded' }),
+      'pool_full',
+    ],
     ['weather sources silent', new ServiceFailure(503, 'oracle_stale', 'x'), 'weather_silent'],
-    ['weather sources silent at the contract', new ServiceFailure(409, 'would_revert', 'x', { reason: 'OracleStale' }), 'weather_silent'],
+    [
+      'weather sources silent at the contract',
+      new ServiceFailure(409, 'would_revert', 'x', { reason: 'OracleStale' }),
+      'weather_silent',
+    ],
     ['too small', new ServiceFailure(409, 'would_revert', 'x', { reason: 'PremiumTooSmall' }), 'too_small'],
     ['too far ahead', new ServiceFailure(422, 'window_too_far', 'x'), 'too_far'],
     ['too long', new ServiceFailure(422, 'window_too_long', 'x'), 'too_long'],
@@ -288,9 +309,17 @@ describe('stopping cleanly', () => {
   it('keeps the capacity figures of a refusal for the area', async () => {
     const { market, engine } = setup()
     const capacity = Object.fromEntries(
-      ['assets', 'lockedExposure', 'cellExposure', 'globalLimit', 'cellLimit', 'globalRemaining', 'cellRemaining', 'maxPolicyPayout', 'available'].map(
-        (name) => [name, '1000'],
-      ),
+      [
+        'assets',
+        'lockedExposure',
+        'cellExposure',
+        'globalLimit',
+        'cellLimit',
+        'globalRemaining',
+        'cellRemaining',
+        'maxPolicyPayout',
+        'available',
+      ].map((name) => [name, '1000']),
     )
     market.failQuote(new ServiceFailure(409, 'capacity_exhausted', 'x', { scope: 'cell', capacity }))
     await engine.turnOn(warsaw, RATE)

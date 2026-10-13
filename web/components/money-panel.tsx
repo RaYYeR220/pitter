@@ -199,7 +199,10 @@ export function PracticePanel() {
         {practice.check.status === 'working' ? copy.practice.checking : copy.practice.check}
       </button>
       {practice.check.status === 'done' && check ? (
-        <p data-testid="weather-check-done" data-payouts={check.settlement.settled.filter((entry) => entry.paid > 0n).length}>
+        <p
+          data-testid="weather-check-done"
+          data-payouts={check.settlement.settled.filter((entry) => entry.paid > 0n).length}
+        >
           {check.report.readings.length === 0 && check.settlement.settled.length === 0
             ? copy.practice.checkedNothing
             : copy.practice.checked(

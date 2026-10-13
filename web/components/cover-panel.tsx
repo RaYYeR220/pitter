@@ -32,11 +32,22 @@ export function AreaPicker() {
         </p>
       ) : null}
       <div className="row">
-        <button type="button" className="secondary" disabled={locked || area.locating} onClick={() => void area.useLocation()}>
+        <button
+          type="button"
+          className="secondary"
+          disabled={locked || area.locating}
+          onClick={() => void area.useLocation()}
+        >
           {area.locating ? copy.area.locating : copy.area.useLocation}
         </button>
         {area.simulatorAvailable ? (
-          <button type="button" className="secondary" disabled={locked} onClick={area.useSimulator} data-testid="use-simulator">
+          <button
+            type="button"
+            className="secondary"
+            disabled={locked}
+            onClick={area.useSimulator}
+            data-testid="use-simulator"
+          >
             {copy.practice.useArea}
           </button>
         ) : null}
@@ -45,7 +56,11 @@ export function AreaPicker() {
         {copy.area.pickCity}
         <select
           disabled={locked}
-          value={area.area?.source === 'city' ? area.cities.find((city) => area.area?.label.endsWith(city.name))?.name ?? '' : ''}
+          value={
+            area.area?.source === 'city'
+              ? (area.cities.find((city) => area.area?.label.endsWith(city.name))?.name ?? '')
+              : ''
+          }
           onChange={(event) => area.chooseCity(event.target.value)}
         >
           <option value="">{copy.area.choose}</option>
@@ -140,7 +155,12 @@ export function CoverPanel() {
   if (cover.status === 'on' && cover.blocks.length === 0) headline = copy.cover.starting
 
   return (
-    <section data-testid="cover" data-status={cover.status} data-activity={cover.activity} data-raining={String(raining)}>
+    <section
+      data-testid="cover"
+      data-status={cover.status}
+      data-activity={cover.activity}
+      data-raining={String(raining)}
+    >
       <h2>{copy.cover.heading}</h2>
       <p className="big" data-testid="cover-headline">
         {headline}
@@ -252,14 +272,15 @@ export function LockShiftPanel() {
       <RefusalNote refusal={lock.refusal} />
       {lock.problem ? <p className="note bad">{lock.problem.title}</p> : null}
       <div className="row">
-        <button type="button" className="secondary" disabled={lock.status === 'pricing' || lock.status === 'buying'} onClick={() => void lock.getPrice()}>
-          {copy.cover.lock.getPrice}
-        </button>
         <button
           type="button"
-          disabled={!lock.offer || lock.status !== 'priced'}
-          onClick={() => void lock.lock()}
+          className="secondary"
+          disabled={lock.status === 'pricing' || lock.status === 'buying'}
+          onClick={() => void lock.getPrice()}
         >
+          {copy.cover.lock.getPrice}
+        </button>
+        <button type="button" disabled={!lock.offer || lock.status !== 'priced'} onClick={() => void lock.lock()}>
           {copy.cover.lock.confirm}
         </button>
       </div>
@@ -298,9 +319,7 @@ export function AccrualPanel() {
           ) : (
             <p className="muted">{copy.accrual.noCheck}</p>
           )}
-          {accrual.ratePerSecond !== null ? (
-            <p className="muted">{copy.cover.pays(accrual.ratePerSecond)}</p>
-          ) : null}
+          {accrual.ratePerSecond !== null ? <p className="muted">{copy.cover.pays(accrual.ratePerSecond)}</p> : null}
           <p className="muted">{copy.history.row(accrual.shift.start, accrual.shift.end)}</p>
         </>
       ) : (

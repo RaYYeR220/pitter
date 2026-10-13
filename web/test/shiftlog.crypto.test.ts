@@ -179,10 +179,18 @@ describe('sealLog and openLog', () => {
     const { encryption } = await deriveShiftLogKeys(PRF)
     const sealed = await sealLog(encryption, text('route'), IV)
     await expect(
-      crypto.subtle.decrypt({ name: 'AES-GCM', iv: IV, additionalData: text('another.namespace') }, encryption, sealed.subarray(16)),
+      crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: IV, additionalData: text('another.namespace') },
+        encryption,
+        sealed.subarray(16),
+      ),
     ).rejects.toThrow()
     await expect(
-      crypto.subtle.decrypt({ name: 'AES-GCM', iv: IV, additionalData: text(SHIFT_LOG_NAMESPACE) }, encryption, sealed.subarray(16)),
+      crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: IV, additionalData: text(SHIFT_LOG_NAMESPACE) },
+        encryption,
+        sealed.subarray(16),
+      ),
     ).resolves.toBeInstanceOf(ArrayBuffer)
   })
 

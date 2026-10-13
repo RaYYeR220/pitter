@@ -34,7 +34,13 @@ export function AccountPanel() {
               <button type="button" className="secondary" disabled={busy} onClick={() => account.signIn(true)}>
                 {copy.account.signInAny}
               </button>
-              <button type="button" className="secondary" disabled={busy} onClick={() => account.signUp()} data-testid="sign-up">
+              <button
+                type="button"
+                className="secondary"
+                disabled={busy}
+                onClick={() => account.signUp()}
+                data-testid="sign-up"
+              >
                 {copy.account.start}
               </button>
             </>
@@ -43,7 +49,13 @@ export function AccountPanel() {
               <button type="button" disabled={busy} onClick={() => account.signUp()} data-testid="sign-up">
                 {copy.account.start}
               </button>
-              <button type="button" className="secondary" disabled={busy} onClick={() => account.signIn(true)} data-testid="sign-in">
+              <button
+                type="button"
+                className="secondary"
+                disabled={busy}
+                onClick={() => account.signIn(true)}
+                data-testid="sign-in"
+              >
                 {copy.account.haveAccount}
               </button>
             </>

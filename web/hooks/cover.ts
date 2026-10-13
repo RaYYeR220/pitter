@@ -6,7 +6,13 @@ import type { AccountBalances } from '@/lib/chain/reader'
 import { COVER_DEFAULTS } from '@/lib/config'
 import { computeAccrual, type Accrual } from '@/lib/cover/accrual'
 import { CITIES, type City, type ExactPosition } from '@/lib/cover/area'
-import { NeedsConfirmation, RefusalError, type CoverBlock, type CoverEngineState, type ShiftOffer } from '@/lib/cover/engine'
+import {
+  NeedsConfirmation,
+  RefusalError,
+  type CoverBlock,
+  type CoverEngineState,
+  type ShiftOffer,
+} from '@/lib/cover/engine'
 import type { CoverSnapshot } from '@/lib/cover/history'
 import { refusal, refusalFrom, type Refusal } from '@/lib/cover/refusals'
 import type { SelectionState } from '@/lib/cover/selection'
@@ -174,7 +180,9 @@ export function useLockShift(): UseLockShift {
     offer,
     needsConfirmation,
     bought,
-    refusal: refused ?? (status === 'priced' && offer && Date.now() / 1000 > offer.price.expiresAt ? refusal('quote_expired') : null),
+    refusal:
+      refused ??
+      (status === 'priced' && offer && Date.now() / 1000 > offer.price.expiresAt ? refusal('quote_expired') : null),
     problem,
     getPrice,
     lock,
@@ -219,6 +227,8 @@ export function useBalance(): FeedState<AccountBalances> & { refresh(): Promise<
 const EMPTY_STATE: FeedState<never> = { data: null, error: null, loading: false, updatedAt: null }
 const EMPTY_FEED = { subscribe: () => () => undefined, getState: () => EMPTY_STATE }
 
-export function useFeedOrEmpty<T>(feed: { subscribe(listener: () => void): () => void; getState(): FeedState<T> } | null) {
+export function useFeedOrEmpty<T>(
+  feed: { subscribe(listener: () => void): () => void; getState(): FeedState<T> } | null,
+) {
   return useStore((feed ?? EMPTY_FEED) as { subscribe(listener: () => void): () => void; getState(): FeedState<T> })
 }

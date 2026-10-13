@@ -97,7 +97,9 @@ export function PoolOverview() {
         <h3>{copy.pool.recent}</h3>
         {pool.recent.data ? (
           <>
-            <p className="muted">{copy.pool.recentRange(pool.recent.data.blocks, Math.round(pool.recent.data.blocks * 0.4))}</p>
+            <p className="muted">
+              {copy.pool.recentRange(pool.recent.data.blocks, Math.round(pool.recent.data.blocks * 0.4))}
+            </p>
             {pool.recent.data.events.length === 0 ? <p>{copy.pool.recentNone}</p> : null}
             <ul className="plain">
               {pool.recent.data.events.map((event) => (
@@ -185,7 +187,12 @@ export function PoolPosition() {
         >
           <label>
             {copy.pool.position.amount}
-            <input value={amount} onChange={(event) => setAmount(event.target.value)} inputMode="decimal" data-testid="pool-amount" />
+            <input
+              value={amount}
+              onChange={(event) => setAmount(event.target.value)}
+              inputMode="decimal"
+              data-testid="pool-amount"
+            />
           </label>
           <button type="submit" disabled={busy} data-testid="pool-add">
             {copy.pool.position.add}
@@ -228,7 +235,11 @@ export function PoolPosition() {
               <p>{copy.pool.leave.ready(leave.claimableAssets)}</p>
               {leave.partly ? <p className="muted">{copy.pool.leave.readyPartly}</p> : null}
               <div className="row">
-                <button type="button" disabled={busy || leave.claimableShares === 0n} onClick={() => void position.takeOut()}>
+                <button
+                  type="button"
+                  disabled={busy || leave.claimableShares === 0n}
+                  onClick={() => void position.takeOut()}
+                >
                   {copy.pool.leave.take}
                 </button>
                 <button type="button" className="secondary" disabled={busy} onClick={() => void position.stay()}>
@@ -237,7 +248,9 @@ export function PoolPosition() {
               </div>
             </>
           ) : null}
-          {position.action !== 'add' && position.status === 'confirming' ? <p>{copy.account.confirm.pool_leave}</p> : null}
+          {position.action !== 'add' && position.status === 'confirming' ? (
+            <p>{copy.account.confirm.pool_leave}</p>
+          ) : null}
           {position.action !== 'add' && position.status === 'done' ? (
             <p className="good">
               {position.action === 'cancel'
@@ -247,7 +260,9 @@ export function PoolPosition() {
                   : copy.pool.leave.asked}
             </p>
           ) : null}
-          {actionProblem(position.actionProblem) ? <p className="note bad">{actionProblem(position.actionProblem)}</p> : null}
+          {actionProblem(position.actionProblem) ? (
+            <p className="note bad">{actionProblem(position.actionProblem)}</p>
+          ) : null}
         </section>
       ) : null}
     </>

@@ -9,9 +9,7 @@ const CASH_OUT_VALIDITY_SECONDS = 10 * 60
 
 export type CashOutInputProblem = 'invalid_to' | 'same_account' | 'invalid_amount' | 'too_much'
 
-export type CashOutInput =
-  | { ok: true; to: Address; amount: bigint }
-  | { ok: false; problem: CashOutInputProblem }
+export type CashOutInput = { ok: true; to: Address; amount: bigint } | { ok: false; problem: CashOutInputProblem }
 
 /** Checks what the person typed before any prompt is shown. */
 export function checkCashOut(input: { to: string; amount: string }, from: Address, balance: bigint): CashOutInput {

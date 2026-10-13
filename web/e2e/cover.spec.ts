@@ -138,7 +138,8 @@ test('sign up, get covered in the simulator area and get paid while it rains; th
   await test.step('the private shift log is sealed on the device with its own prompt', async () => {
     const stored: Buffer[] = []
     page.on('request', (request) => {
-      if (request.method() === 'PUT' && request.url().includes('/api/blobs/')) stored.push(request.postDataBuffer() ?? Buffer.alloc(0))
+      if (request.method() === 'PUT' && request.url().includes('/api/blobs/'))
+        stored.push(request.postDataBuffer() ?? Buffer.alloc(0))
     })
     const prompts = (await authenticator.credentials())[0]!.signCount
 

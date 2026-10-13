@@ -2,7 +2,14 @@ import type { Hex } from 'viem'
 import { ScopeError } from '../account/scope'
 import { copy } from '../copy'
 import { parseCapacity, type Capacity } from '../service/client'
-import { BAD_RESPONSE, NETWORK, TIMEOUT, isServiceFailure, outcomeUnknown, type ServiceFailure } from '../service/errors'
+import {
+  BAD_RESPONSE,
+  NETWORK,
+  TIMEOUT,
+  isServiceFailure,
+  outcomeUnknown,
+  type ServiceFailure,
+} from '../service/errors'
 
 /** Every way a request for cover, or for moving money, can be turned down. */
 export type RefusalKind =
@@ -147,7 +154,10 @@ export function refusal(kind: RefusalKind, cause: string = kind, extra: Partial<
 function kindOf(failure: ServiceFailure): { kind: RefusalKind; cause: string } {
   if (failure.code === 'would_revert') {
     const reason = typeof failure.details.reason === 'string' ? failure.details.reason : 'unknown'
-    return { kind: REVERTS[reason] ?? (/insufficient|exceeds balance/i.test(reason) ? 'insufficient_balance' : 'failed'), cause: reason }
+    return {
+      kind: REVERTS[reason] ?? (/insufficient|exceeds balance/i.test(reason) ? 'insufficient_balance' : 'failed'),
+      cause: reason,
+    }
   }
   if (failure.code === 'capacity_exhausted') {
     return { kind: failure.details.scope === 'cell' ? 'area_full' : 'pool_full', cause: failure.code }

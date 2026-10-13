@@ -16,7 +16,14 @@ import {
   type PoolState,
   type RecentActivity,
 } from './chain/reader'
-import { COVER_DEFAULTS, PRODUCT_NAME, SESSION_DEFAULTS, configFromHealth, type AppConfig, type HealthReport } from './config'
+import {
+  COVER_DEFAULTS,
+  PRODUCT_NAME,
+  SESSION_DEFAULTS,
+  configFromHealth,
+  type AppConfig,
+  type HealthReport,
+} from './config'
 import { CoverEngine } from './cover/engine'
 import {
   PolicyTable,

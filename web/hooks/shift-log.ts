@@ -26,7 +26,10 @@ export function useShiftLog(): UseShiftLog {
     unlock: useCallback(() => shiftLog.unlock(), [shiftLog]),
     lock: useCallback(() => shiftLog.lock(), [shiftLog]),
     startShift: useCallback((label: string) => shiftLog.startShift(label), [shiftLog]),
-    editShift: useCallback((id: string, changes: { label?: string; note?: string }) => shiftLog.editShift(id, changes), [shiftLog]),
+    editShift: useCallback(
+      (id: string, changes: { label?: string; note?: string }) => shiftLog.editShift(id, changes),
+      [shiftLog],
+    ),
     endShift: useCallback((id: string) => shiftLog.endShift(id), [shiftLog]),
     removeShift: useCallback((id: string) => shiftLog.removeShift(id), [shiftLog]),
     addCurrentSpot: useCallback(

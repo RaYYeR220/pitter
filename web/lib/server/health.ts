@@ -33,7 +33,11 @@ async function build(): Promise<HealthReport> {
   const [balance, heartbeat, maxAge, block] = await Promise.all([
     read(() => client.getBalance({ address: service.relayerAddress as Address })),
     read(() =>
-      client.readContract({ address: settings.contracts.weatherIndex, abi: weatherIndexAbi, functionName: 'heartbeat' }),
+      client.readContract({
+        address: settings.contracts.weatherIndex,
+        abi: weatherIndexAbi,
+        functionName: 'heartbeat',
+      }),
     ),
     read(() =>
       client.readContract({ address: settings.contracts.coverBook, abi: coverBookAbi, functionName: 'maxOracleAge' }),
@@ -60,7 +64,9 @@ async function build(): Promise<HealthReport> {
     practice: {
       enabled: settings.sandbox.enabled && simulator !== null,
       simulator:
-        simulatorKey !== null && simulator ? { key: simulatorKey.toString(), lat: simulator.lat, lon: simulator.lon } : null,
+        simulatorKey !== null && simulator
+          ? { key: simulatorKey.toString(), lat: simulator.lat, lon: simulator.lon }
+          : null,
     },
     paidCover: { enabled: settings.x402.enabled },
   }

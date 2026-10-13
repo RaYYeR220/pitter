@@ -71,7 +71,11 @@ describe('the log itself', () => {
 
   it('drops the oldest routes first when the log outgrows storage, and says so', () => {
     let log = emptyLog()
-    for (const [id, startedAt] of [['old', 1000], ['mid', 2000], ['new', 3000]] as const) {
+    for (const [id, startedAt] of [
+      ['old', 1000],
+      ['mid', 2000],
+      ['new', 3000],
+    ] as const) {
       log = addShift(log, newShift(id, startedAt, `shift ${id}`))
       for (let i = 0; i < 400; i++) log = addPoint(log, id, point(startedAt + i))
     }

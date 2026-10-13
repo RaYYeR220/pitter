@@ -1,6 +1,16 @@
 import { COVER_DEFAULTS } from '../config'
 import { copy } from '../copy'
-import { CITIES, LocationError, areaFromKey, areaOf, cityArea, locate, type Area, type ExactPosition, type LocationFailure } from './area'
+import {
+  CITIES,
+  LocationError,
+  areaFromKey,
+  areaOf,
+  cityArea,
+  locate,
+  type Area,
+  type ExactPosition,
+  type LocationFailure,
+} from './area'
 
 export interface SelectionState {
   area: Area | null

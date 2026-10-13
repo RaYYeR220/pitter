@@ -18,7 +18,12 @@ export function ShiftLogPanel() {
       {log.error === 'cannot_open' ? <p className="note bad">{copy.shiftLog.cantOpen}</p> : null}
 
       {log.status !== 'unlocked' ? (
-        <button type="button" disabled={log.status === 'unlocking'} onClick={() => void log.unlock()} data-testid="unlock-log">
+        <button
+          type="button"
+          disabled={log.status === 'unlocking'}
+          onClick={() => void log.unlock()}
+          data-testid="unlock-log"
+        >
           {log.status === 'unlocking' ? copy.shiftLog.unlocking : copy.shiftLog.unlock}
         </button>
       ) : (
@@ -51,7 +56,10 @@ export function ShiftLogPanel() {
               <li key={shift.id} data-testid="shift-entry">
                 <label>
                   {copy.shiftLog.label}
-                  <input value={shift.label} onChange={(event) => log.editShift(shift.id, { label: event.target.value })} />
+                  <input
+                    value={shift.label}
+                    onChange={(event) => log.editShift(shift.id, { label: event.target.value })}
+                  />
                 </label>
                 <p className="muted">{copy.shiftLog.shiftOn(shift.startedAt)}</p>
                 <label>
@@ -97,7 +105,12 @@ export function ShiftLogPanel() {
                     : ''}
           </p>
           <div className="row">
-            <button type="button" onClick={() => void log.save()} disabled={log.sync === 'saving'} data-testid="save-log">
+            <button
+              type="button"
+              onClick={() => void log.save()}
+              disabled={log.sync === 'saving'}
+              data-testid="save-log"
+            >
               {copy.shiftLog.save}
             </button>
             <button type="button" className="secondary" onClick={log.lock} data-testid="lock-log">

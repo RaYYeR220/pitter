@@ -101,7 +101,12 @@ describe('checking a quote', () => {
     const signed = await market.ports.quote(request(holder))
     expect(() => checkQuote(signed, request(holder), { ...deployment, chainId: 143 }, T0)).toThrow(QuoteMismatch)
     expect(() =>
-      checkQuote(signed, request(holder), { ...deployment, coverBook: '0x0000000000000000000000000000000000000001' }, T0),
+      checkQuote(
+        signed,
+        request(holder),
+        { ...deployment, coverBook: '0x0000000000000000000000000000000000000001' },
+        T0,
+      ),
     ).toThrow('digest')
   })
 
@@ -147,7 +152,11 @@ describe('refusals', () => {
     [new ServiceFailure(422, 'window_too_long', 'x'), 'too_long', 'never'],
     [new ServiceFailure(422, 'policy_too_large', 'x'), 'too_large', 'never'],
     [new ServiceFailure(422, 'rate_too_high', 'x'), 'rate_too_high', 'never'],
-    [new ServiceFailure(409, 'would_revert', 'x', { reason: 'ERC20InsufficientBalance' }), 'insufficient_balance', 'never'],
+    [
+      new ServiceFailure(409, 'would_revert', 'x', { reason: 'ERC20InsufficientBalance' }),
+      'insufficient_balance',
+      'never',
+    ],
     [new ServiceFailure(409, 'would_revert', 'x', { reason: 'QuoteUsed' }), 'already_bought', 'never'],
     [new ServiceFailure(503, 'pricing_unavailable', 'x'), 'price_unavailable', 'later'],
     [new ServiceFailure(429, 'rate_limited', 'x'), 'busy', 'later'],
@@ -176,16 +185,24 @@ describe('refusals', () => {
     expect(refusalFrom(new ServiceFailure(0, 'network', 'x')).outcomeUnknown).toBe(true)
     expect(refusalFrom(new ServiceFailure(502, 'broadcast_failed', 'x')).outcomeUnknown).toBe(true)
     expect(refusalFrom(new ServiceFailure(503, 'oracle_stale', 'x')).outcomeUnknown).toBe(false)
-    expect(refusalFrom(new ServiceFailure(409, 'would_revert', 'x', { reason: 'CellCapExceeded' })).outcomeUnknown).toBe(
-      false,
-    )
+    expect(
+      refusalFrom(new ServiceFailure(409, 'would_revert', 'x', { reason: 'CellCapExceeded' })).outcomeUnknown,
+    ).toBe(false)
   })
 
   it('carry what the service said about waiting, room left and the transaction', () => {
     const capacity = Object.fromEntries(
-      ['assets', 'lockedExposure', 'cellExposure', 'globalLimit', 'cellLimit', 'globalRemaining', 'cellRemaining', 'maxPolicyPayout', 'available'].map(
-        (name, i) => [name, String(i)],
-      ),
+      [
+        'assets',
+        'lockedExposure',
+        'cellExposure',
+        'globalLimit',
+        'cellLimit',
+        'globalRemaining',
+        'cellRemaining',
+        'maxPolicyPayout',
+        'available',
+      ].map((name, i) => [name, String(i)]),
     )
     const hash = `0x${'ab'.repeat(32)}`
     const refused = refusalFrom(
@@ -201,7 +218,9 @@ describe('refusals', () => {
   })
 
   it('never show the service’s own words, and survive anything thrown', () => {
-    const refused = refusalFrom(new ServiceFailure(409, 'capacity_exhausted', 'The pool cannot back more cover in this cell'))
+    const refused = refusalFrom(
+      new ServiceFailure(409, 'capacity_exhausted', 'The pool cannot back more cover in this cell'),
+    )
     expect(refused.message).not.toMatch(/cell|pool cannot/i)
     expect(refusalFrom(new Error('boom'))).toMatchObject({ kind: 'unknown' })
     expect(refusalFrom(undefined)).toMatchObject({ kind: 'unknown' })
@@ -211,9 +230,27 @@ describe('refusals', () => {
   it('use none of the words the product never says', () => {
     const banned = /\b(blockchain|wallet|token|usdc|crypto|oracle|gas|policy|claim|cell|transaction|testnet|faucet)\b/i
     const kinds: RefusalKind[] = [
-      'area_full', 'pool_full', 'no_more_areas', 'weather_silent', 'quote_expired', 'too_small', 'too_far',
-      'too_soon', 'too_long', 'too_large', 'rate_too_high', 'insufficient_balance', 'already_bought',
-      'price_unavailable', 'busy', 'service_unavailable', 'network', 'pending', 'failed', 'invalid', 'unknown',
+      'area_full',
+      'pool_full',
+      'no_more_areas',
+      'weather_silent',
+      'quote_expired',
+      'too_small',
+      'too_far',
+      'too_soon',
+      'too_long',
+      'too_large',
+      'rate_too_high',
+      'insufficient_balance',
+      'already_bought',
+      'price_unavailable',
+      'busy',
+      'service_unavailable',
+      'network',
+      'pending',
+      'failed',
+      'invalid',
+      'unknown',
     ]
     for (const kind of kinds) expect(refusal(kind).message, kind).not.toMatch(banned)
   })
@@ -319,7 +356,9 @@ describe('accrual', () => {
       record(2n, { start: T0 + 600, end: T0 + 1200, paid: 30_000n }),
       record(3n, { start: T0 + 20_000, end: T0 + 20_600 }),
     ])
-    expect(shifts.map((shift) => [shift.start - T0, shift.end - T0, shift.records.length, shift.cost, shift.paid])).toEqual([
+    expect(
+      shifts.map((shift) => [shift.start - T0, shift.end - T0, shift.records.length, shift.cost, shift.paid]),
+    ).toEqual([
       [20_000, 20_600, 1, 12_000n, 0n],
       [0, 1200, 2, 24_000n, 30_000n],
     ])
@@ -338,10 +377,7 @@ describe('accrual', () => {
   it('shows paid, confirmed and provisional apart', () => {
     const snapshot: CoverSnapshot = {
       at: T0 + 700,
-      records: [
-        record(2n, { start: T0 + 600, end: T0 + 1200, confirmed: 20_000n }),
-        record(1n, { paid: 600_000n }),
-      ],
+      records: [record(2n, { start: T0 + 600, end: T0 + 1200, confirmed: 20_000n }), record(1n, { paid: 600_000n })],
       weather: new Map([[KEY, { lastCheckedAt: T0 + 610, raining: true }]]),
     }
     const accrual = computeAccrual(snapshot, T0 + 700)

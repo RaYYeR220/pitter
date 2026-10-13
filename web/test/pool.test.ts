@@ -51,7 +51,12 @@ const state = (overrides: Partial<PoolState> = {}): PoolState => ({
 describe('pool meters', () => {
   it('measure open cover against the limits of the capital still backing it', () => {
     const meters = poolMeters(state())
-    expect(meters).toMatchObject({ total: 1_200_000_000n, active: 1_000_000_000n, leaving: 200_000_000n, free: 600_000_000n })
+    expect(meters).toMatchObject({
+      total: 1_200_000_000n,
+      active: 1_000_000_000n,
+      leaving: 200_000_000n,
+      free: 600_000_000n,
+    })
     expect(meters.pool).toEqual({ used: 600_000_000n, limit: 800_000_000n, room: 200_000_000n, share: 0.75 })
     expect(meters.areaLimit).toBe(250_000_000n)
     expect(meters.areas.map((area) => [area.key, area.share, area.room])).toEqual([
@@ -99,9 +104,30 @@ describe('pool totals', () => {
       fromBlock: 1_000n,
       toBlock: 1_499n,
       events: [
-        { kind: 'bought', id: 1n, holder: account.address, amount: 12_000n, blockNumber: 1_100n, transactionHash: hash },
-        { kind: 'bought', id: 2n, holder: account.address, amount: 13_000n, blockNumber: 1_200n, transactionHash: hash },
-        { kind: 'settled', id: 1n, holder: account.address, amount: 600_000n, blockNumber: 1_300n, transactionHash: hash },
+        {
+          kind: 'bought',
+          id: 1n,
+          holder: account.address,
+          amount: 12_000n,
+          blockNumber: 1_100n,
+          transactionHash: hash,
+        },
+        {
+          kind: 'bought',
+          id: 2n,
+          holder: account.address,
+          amount: 13_000n,
+          blockNumber: 1_200n,
+          transactionHash: hash,
+        },
+        {
+          kind: 'settled',
+          id: 1n,
+          holder: account.address,
+          amount: 600_000n,
+          blockNumber: 1_300n,
+          transactionHash: hash,
+        },
       ],
     })
     expect(totals).toMatchObject({ blocks: 500, sold: 2, premiums: 25_000n, payouts: 600_000n })
@@ -194,8 +220,11 @@ describe('leaving the pool', () => {
       throw new BaseError('execution reverted', { cause: reverted })
     }
     const kindFor = async (name: Parameters<typeof revert>[0]) =>
-      ((await leavePool('take', 5n, context(chainWith(10n ** 18n, revert(name)))).catch((e: unknown) => e)) as PoolActionError)
-        .problem.kind
+      (
+        (await leavePool('take', 5n, context(chainWith(10n ** 18n, revert(name)))).catch(
+          (e: unknown) => e,
+        )) as PoolActionError
+      ).problem.kind
     expect(await kindFor('NoticeNotOver')).toBe('notice')
     expect(await kindFor('ExposureLocked')).toBe('locked')
     expect(await kindFor('NoRedeemRequest')).toBe('nothing')
@@ -204,7 +233,9 @@ describe('leaving the pool', () => {
 
 describe('moving money without a fee', () => {
   it('adds to the pool with a payment only the pool can collect', async () => {
-    let sent: { deposit: unknown; authorization: { v: number; r: `0x${string}`; s: `0x${string}`; validBefore: bigint } } | undefined
+    let sent:
+      | { deposit: unknown; authorization: { v: number; r: `0x${string}`; s: `0x${string}`; validBefore: bigint } }
+      | undefined
     const receipt = await depositToPool({
       account,
       amount: 5_000_000n,
@@ -214,7 +245,13 @@ describe('moving money without a fee', () => {
       service: {
         relayDeposit: async (deposit, authorization) => {
           sent = { deposit, authorization }
-          return { transactionHash: `0x${'11'.repeat(32)}`, blockNumber: 1n, receiver: account.address, assets: 5_000_000n, shares: 5n }
+          return {
+            transactionHash: `0x${'11'.repeat(32)}`,
+            blockNumber: 1n,
+            receiver: account.address,
+            assets: 5_000_000n,
+            shares: 5n,
+          }
         },
       },
     })
@@ -248,7 +285,13 @@ describe('moving money without a fee', () => {
       service: {
         relayTransfer: async (...args) => {
           sent = args
-          return { transactionHash: `0x${'22'.repeat(32)}`, blockNumber: 2n, from: account.address, to, value: 1_250_000n }
+          return {
+            transactionHash: `0x${'22'.repeat(32)}`,
+            blockNumber: 2n,
+            from: account.address,
+            to,
+            value: 1_250_000n,
+          }
         },
       },
     })
@@ -269,9 +312,16 @@ describe('moving money without a fee', () => {
       to: other,
       amount: 12_500_000n,
     })
-    expect(checkCashOut({ to: 'not an account', amount: '1' }, from, 20_000_000n)).toEqual({ ok: false, problem: 'invalid_to' })
-    expect(checkCashOut({ to: `0x${'0'.repeat(40)}`, amount: '1' }, from, 20_000_000n)).toMatchObject({ problem: 'invalid_to' })
-    expect(checkCashOut({ to: from.toLowerCase(), amount: '1' }, from, 20_000_000n)).toMatchObject({ problem: 'same_account' })
+    expect(checkCashOut({ to: 'not an account', amount: '1' }, from, 20_000_000n)).toEqual({
+      ok: false,
+      problem: 'invalid_to',
+    })
+    expect(checkCashOut({ to: `0x${'0'.repeat(40)}`, amount: '1' }, from, 20_000_000n)).toMatchObject({
+      problem: 'invalid_to',
+    })
+    expect(checkCashOut({ to: from.toLowerCase(), amount: '1' }, from, 20_000_000n)).toMatchObject({
+      problem: 'same_account',
+    })
     expect(checkCashOut({ to: other, amount: 'lots' }, from, 20_000_000n)).toMatchObject({ problem: 'invalid_amount' })
     expect(checkCashOut({ to: other, amount: '0' }, from, 20_000_000n)).toMatchObject({ problem: 'invalid_amount' })
     expect(checkCashOut({ to: other, amount: '20.01' }, from, 20_000_000n)).toMatchObject({ problem: 'too_much' })

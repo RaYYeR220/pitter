@@ -84,7 +84,11 @@ export function startFailure(error: unknown): Response {
     return errorJson(503, 'not_configured', 'The service is not configured')
   }
   console.error(
-    JSON.stringify({ level: 'error', message: 'service failed to start', error: error instanceof Error ? error.name : 'unknown' }),
+    JSON.stringify({
+      level: 'error',
+      message: 'service failed to start',
+      error: error instanceof Error ? error.name : 'unknown',
+    }),
   )
   return errorJson(503, 'unavailable', 'The service is not available right now')
 }

@@ -136,9 +136,7 @@ export class AccountManager {
    */
   async signIn(policy: Partial<SessionPolicy> = {}, anyAccount = false): Promise<boolean> {
     const hint = anyAccount ? null : this.hints.load()
-    return this.open('signing_in', policy, () =>
-      this.passkeys.evaluate(hint ? { credential: hint.credential } : {}),
-    )
+    return this.open('signing_in', policy, () => this.passkeys.evaluate(hint ? { credential: hint.credential } : {}))
   }
 
   signOut(): void {

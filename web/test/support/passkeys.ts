@@ -60,7 +60,12 @@ export function fakeAuthenticator(): FakeAuthenticator {
       const credentialId = credential?.credentialId ?? selected
       if (!credentialId) throw new MeraError('PASSKEY_OPERATION_FAILED', 'no passkey for this site')
       const salt = prfSalt ?? MERA_DEFAULT_SALT
-      authenticator.ceremonies.push({ kind: 'evaluate', credentialId, salt: hex(salt), hinted: credential !== undefined })
+      authenticator.ceremonies.push({
+        kind: 'evaluate',
+        credentialId,
+        salt: hex(salt),
+        hinted: credential !== undefined,
+      })
       const result: CredentialHint = { credentialId }
       return { credential: result, prfOutput: evaluate(credentialId, salt) }
     },

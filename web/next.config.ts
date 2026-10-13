@@ -41,7 +41,10 @@ const securityHeaders = [
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   { key: 'X-Frame-Options', value: 'DENY' },
-  { key: 'Permissions-Policy', value: 'geolocation=(self), publickey-credentials-get=(self), publickey-credentials-create=(self)' },
+  {
+    key: 'Permissions-Policy',
+    value: 'geolocation=(self), publickey-credentials-get=(self), publickey-credentials-create=(self)',
+  },
   ...(production ? [{ key: 'Content-Security-Policy', value: contentSecurityPolicy }] : []),
 ]
 

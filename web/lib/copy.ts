@@ -58,8 +58,7 @@ export const copy = {
     scope: (maxSpendPerHour: bigint, lengthSeconds: number) =>
       `While you are signed in, the app keeps cover on without asking again, for up to ${formatDollars(maxSpendPerHour)} an hour and for ${formatDuration(lengthSeconds)}. Cashing out always asks for Face ID or fingerprint.`,
     ended: {
-      expired:
-        'Your sign-in ran out. Cover you already have keeps running and still pays. Sign in again to carry on.',
+      expired: 'Your sign-in ran out. Cover you already have keeps running and still pays. Sign in again to carry on.',
       idle: 'You were signed out because the app sat unused. Cover you already have still pays. Sign in again to carry on.',
       signed_out: 'You are signed out. Cover you already have still pays.',
     },
@@ -81,7 +80,9 @@ export const copy = {
       },
       cancelled: {
         title: 'Nothing happened',
-        guidance: ['The Face ID or fingerprint prompt was closed before it finished. Nothing was changed. Try again when you are ready.'],
+        guidance: [
+          'The Face ID or fingerprint prompt was closed before it finished. Nothing was changed. Try again when you are ready.',
+        ],
       },
       unsupported: {
         title: 'This browser can’t sign you in',
@@ -124,7 +125,8 @@ export const copy = {
     heading: 'Your area',
     none: 'Cover needs your area to know when it rains on you.',
     about: (place: string) => `About 5 km around ${place}`,
-    coordinates: (lat: number, lon: number) => `${Math.abs(lat).toFixed(2)}° ${lat >= 0 ? 'N' : 'S'}, ${Math.abs(lon).toFixed(2)}° ${lon >= 0 ? 'E' : 'W'}`,
+    coordinates: (lat: number, lon: number) =>
+      `${Math.abs(lat).toFixed(2)}° ${lat >= 0 ? 'N' : 'S'}, ${Math.abs(lon).toFixed(2)}° ${lon >= 0 ? 'E' : 'W'}`,
     useLocation: 'Use where I am',
     locating: 'Finding where you are…',
     pickCity: 'Or choose a city',
@@ -148,7 +150,8 @@ export const copy = {
     turnOff: 'Turn cover off',
     costs: (premium: bigint, seconds: number) =>
       `costs ${formatDollars((premium * 60n) / BigInt(Math.max(seconds, 1)))} a minute`,
-    pays: (ratePerSecond: bigint) => `pays you ${formatDollars(perMinute(ratePerSecond))} for every minute of heavy rain`,
+    pays: (ratePerSecond: bigint) =>
+      `pays you ${formatDollars(perMinute(ratePerSecond))} for every minute of heavy rain`,
     offer: (premium: bigint, seconds: number, ratePerSecond: bigint) =>
       `Cover costs ${formatDollars((premium * 60n) / BigInt(Math.max(seconds, 1)))} a minute right now and pays you ${formatDollars(perMinute(ratePerSecond))} for every minute of heavy rain.`,
     heavyRain: 'Heavy rain means 1 mm an hour or more, checked against several weather sources.',
@@ -162,7 +165,8 @@ export const copy = {
     coveredUntil: (end: number) => `Paid up until ${formatClock(end)}.`,
     renews: 'The next 10 minutes are added on their own while cover is on.',
     noRefund: 'Minutes you have paid for stay on and still pay if it rains. They can’t be handed back.',
-    turnedOff: (end: number) => `Cover is off. The minutes you already paid for run until ${formatClock(end)} and still pay.`,
+    turnedOff: (end: number) =>
+      `Cover is off. The minutes you already paid for run until ${formatClock(end)} and still pay.`,
     gap: (from: number, to: number) => `You had no cover from ${formatClock(from)} to ${formatClock(to)}.`,
     stopped: {
       session_expired:
@@ -171,7 +175,8 @@ export const copy = {
         `Cover has cost ${formatDollars(limit)} this hour, the most it may without asking you. Cover you already have still pays.`,
       insufficient_balance: 'Your balance is too low for the next 10 minutes. Add money to turn cover on again.',
       location: 'We lost your area, so cover stopped being added. Cover you already have still pays.',
-      unavailable: 'We couldn’t add more cover after several tries. Cover you already have still pays. Try turning it on again.',
+      unavailable:
+        'We couldn’t add more cover after several tries. Cover you already have still pays. Try turning it on again.',
     },
     lock: {
       heading: 'Lock the price for my shift',
@@ -280,7 +285,8 @@ export const copy = {
     sameAccount: 'That is your own account number.',
     done: (amount: bigint) => `Cashed out ${formatDollars(amount)}.`,
     failed: 'The cash-out didn’t go through. Your balance is unchanged.',
-    pending: 'The cash-out was sent and is waiting to be confirmed. Check your balance in a minute before trying again.',
+    pending:
+      'The cash-out was sent and is waiting to be confirmed. Check your balance in a minute before trying again.',
   },
 
   shiftLog: {
@@ -396,7 +402,8 @@ export const copy = {
       taken: 'Your money is out of the pool and back in your balance.',
       cancelled: 'You are staying in the pool.',
       fee: 'Leaving is the one thing here that carries a network fee, paid in MON from your own account.',
-      noFee: 'Your account holds no MON, so leaving can’t be sent from it yet. There is no way to add MON from this page.',
+      noFee:
+        'Your account holds no MON, so leaving can’t be sent from it yet. There is no way to add MON from this page.',
       failed: 'That didn’t go through. Nothing changed.',
     },
   },
@@ -429,16 +436,19 @@ export const copy = {
     refusals:
       'A refusal says why in its code: the area is full, the pool is at its limit, the weather can’t be confirmed right now, or the shift is too long, too far ahead or too small. Nothing is charged for a refusal.',
     enabled: 'Paid cover over HTTP is switched on here.',
-    disabled: 'Paid cover over HTTP is switched off on this deployment. The address answers 503 until it is switched on.',
+    disabled:
+      'Paid cover over HTTP is switched off on this deployment. The address answers 503 until it is switched on.',
     quoteHeading: 'Ask for a price first',
     quote: 'To see a price without paying, ask for a quote. It is free and limited to a few requests a minute.',
     practiceHeading: 'Practice mode',
     practiceOn:
       'This deployment runs in practice mode. Its dollars are practice money with no value, handed out free in the app, and it has one simulator area where the rain is switched on and off by hand instead of coming from the weather sources. Everything else works exactly as it does live: the same prices, the same limits, the same payouts.',
     practiceOff: 'This deployment is live: real dollars and real weather. There is no simulator here.',
-    simulatorArea: (lat: number, lon: number) => `The simulator area is the one around latitude ${lat}, longitude ${lon}.`,
+    simulatorArea: (lat: number, lon: number) =>
+      `The simulator area is the one around latitude ${lat}, longitude ${lon}.`,
     healthHeading: 'Is it up?',
-    health: 'The health address reports the contracts in use, when the weather was last checked and whether sending is working.',
+    health:
+      'The health address reports the contracts in use, when the weather was last checked and whether sending is working.',
   },
 } as const
 

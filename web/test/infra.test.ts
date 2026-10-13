@@ -68,7 +68,14 @@ describe('the service client', () => {
   it('turns a refusal into a failure with the service’s code, status and details', async () => {
     const local = await localService(() => T0)
     const error = await local.client
-      .quote({ lat: 0, lon: 0, start: T0 + 61, end: T0 + 600, rate: 2000n, holder: '0x000000000000000000000000000000000000dEaD' })
+      .quote({
+        lat: 0,
+        lon: 0,
+        start: T0 + 61,
+        end: T0 + 600,
+        rate: 2000n,
+        holder: '0x000000000000000000000000000000000000dEaD',
+      })
       .catch((caught: unknown) => caught)
     expect(error).toBeInstanceOf(ServiceFailure)
     expect(error).toMatchObject({ status: 422, code: 'window_invalid' })
@@ -104,7 +111,14 @@ describe('the service client', () => {
       fetch: async () => new Response(JSON.stringify({ quote: { holder: 'x' } }), { status: 200 }),
     })
     await expect(
-      odd.quote({ lat: 0, lon: 0, start: T0, end: T0 + 60, rate: 1n, holder: '0x000000000000000000000000000000000000dEaD' }),
+      odd.quote({
+        lat: 0,
+        lon: 0,
+        start: T0,
+        end: T0 + 60,
+        rate: 1n,
+        holder: '0x000000000000000000000000000000000000dEaD',
+      }),
     ).rejects.toMatchObject({ code: 'bad_response' })
   })
 
@@ -231,7 +245,11 @@ describe('the cover selection', () => {
 })
 
 describe('the chain reader', () => {
-  const config = { chainId: 10143, contracts: health.contracts, multicall3: '0xcA11bde05977b3631167028862bE2a173976CA11' as const }
+  const config = {
+    chainId: 10143,
+    contracts: health.contracts,
+    multicall3: '0xcA11bde05977b3631167028862bE2a173976CA11' as const,
+  }
 
   function fakeClient(answer: (call: { functionName: string; args?: readonly unknown[] }) => unknown) {
     const calls: Array<{ functionName: string; args?: readonly unknown[] }> = []

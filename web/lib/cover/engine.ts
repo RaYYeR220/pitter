@@ -569,7 +569,13 @@ export class CoverEngine {
 
   private stop(reason: StopReason): void {
     this.clearRetry()
-    this.update({ status: 'off', activity: this.unresolved ? 'confirming' : 'idle', stopped: reason, retrying: null, retryAt: null })
+    this.update({
+      status: 'off',
+      activity: this.unresolved ? 'confirming' : 'idle',
+      stopped: reason,
+      retrying: null,
+      retryAt: null,
+    })
     this.ports.keepAwake?.(false)
   }
 

@@ -81,7 +81,12 @@ describe('the cover payment', () => {
     const session = new SigningSession({
       privateKey,
       credential: { credentialId: 'test-credential' },
-      scope: { actions: ['cover.buy'], maxSpendPerHour: 1_000_000n, expiresAt: Number.MAX_SAFE_INTEGER, idleTimeoutMs: 1e12 },
+      scope: {
+        actions: ['cover.buy'],
+        maxSpendPerHour: 1_000_000n,
+        expiresAt: Number.MAX_SAFE_INTEGER,
+        idleTimeoutMs: 1e12,
+      },
       terms: async () => ({ domain: testDollar, payee: COVER_BOOK }),
       now: () => 1_800_000_000_000,
     })
