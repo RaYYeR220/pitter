@@ -117,6 +117,16 @@ export class Relayer {
     return { ...receipt, function: allowed.name }
   }
 
+  /**
+   * Simulates an allow-listed call from the relayer without sending it. Throws `SimulationReverted` when it
+   * would fail.
+   */
+  async preflight(call: RelayCall): Promise<void> {
+    this.options.allowlist.check(call.to, call.data)
+    if (call.gas <= 0n || call.gas > MAX_RELAY_GAS) throw new RelayRefused('gas_out_of_bounds')
+    await this.options.rpc.simulate({ from: this.address, to: call.to, data: call.data, gas: call.gas })
+  }
+
   private async assertReady(): Promise<void> {
     const { rpc, chainId, minBalance, maxFeePerGas, maxPriorityFeePerGas, now } = this.options
 

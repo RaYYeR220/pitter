@@ -71,6 +71,8 @@ export interface CoverReader {
   /** The token's EIP-712 domain, confirmed against the domain separator the token reports. */
   tokenDomain(): Promise<TokenDomain>
   allowance(owner: Address, spender: Address): Promise<bigint>
+  /** Whether a quote with this digest has been bought. */
+  quoteUsed(digest: Hex): Promise<boolean>
 }
 
 const hasFunction = (abi: Abi, name: string) => abi.some((item) => item.type === 'function' && item.name === name)
@@ -230,5 +232,7 @@ export function viemCoverReader(
     },
 
     allowance: (owner, spender) => dollar<bigint>('allowance', [owner, spender]),
+
+    quoteUsed: (digest) => book<boolean>('quoteUsed', [digest]),
   }
 }

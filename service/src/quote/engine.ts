@@ -40,6 +40,19 @@ export interface SignedQuote {
   capacity: Capacity
 }
 
+/** A priced request that passed every check, not yet signed. */
+export interface Offer {
+  request: CoverRequest
+  key: bigint
+  premium: bigint
+  maxPayout: bigint
+  /** Last moment a quote for this offer may be used. */
+  expiry: number
+  cell: { key: bigint; lat: number; lon: number }
+  inputs: unknown
+  capacity: Capacity
+}
+
 export interface QuoteEngineDeps {
   settings: Pick<Settings, 'chainId' | 'contracts' | 'quote'>
   reader: CoverReader
@@ -85,12 +98,11 @@ export class QuoteEngine {
   }
 
   /**
-   * @param paid When the caller has already committed to paying an amount, the quote is written for exactly
-   * that premium, provided it covers the current price; otherwise the request is refused with `price_changed`.
+   * Checks a request against the book, the pool and the oracle, and prices it. Signs nothing.
    */
-  async quote(request: CoverRequest, paid?: bigint): Promise<SignedQuote> {
-    const { settings, reader, cells, pricing, signing, underwriter, now, logger } = this.deps
-    const { start, end, rate, holder, lat, lon } = request
+  async offer(request: CoverRequest): Promise<Offer> {
+    const { settings, reader, cells, pricing, now, logger } = this.deps
+    const { start, end, rate, lat, lon } = request
 
     if (start % BigInt(MINUTE) !== 0n || end % BigInt(MINUTE) !== 0n) {
       throw unprocessable('window_invalid', 'The window must start and end on a whole minute')
@@ -172,32 +184,64 @@ export class QuoteEngine {
     }
 
     const floor = (maxPayout * BigInt(settings.quote.minPremiumBps) + BPS - 1n) / BPS
-    let premium = [price.premium, market.minPremium, floor, 1n].reduce((a, b) => (b > a ? b : a))
+    const premium = [price.premium, market.minPremium, floor, 1n].reduce((a, b) => (b > a ? b : a))
+    if (premium > UINT128_MAX) throw unprocessable('policy_too_large', 'The premium is out of range')
+
+    return {
+      request,
+      key,
+      premium,
+      maxPayout,
+      expiry: Math.min(time + settings.quote.ttlSeconds, Number(start) - market.minLead, oracleFreshUntil),
+      cell: { key, ...cells.locate(key) },
+      inputs: price.inputs,
+      capacity,
+    }
+  }
+
+  /**
+   * Prices a request and signs the quote.
+   *
+   * @param paid When the caller has already committed to paying an amount, the quote is written for exactly
+   * that premium, provided it covers the current price; otherwise the request is refused with `price_changed`.
+   */
+  async quote(request: CoverRequest, paid?: bigint): Promise<SignedQuote> {
+    const { settings, signing, underwriter } = this.deps
+    const offer = await this.offer(request)
+
+    let premium = offer.premium
     if (paid !== undefined) {
       if (paid < premium) {
         throw conflict('price_changed', 'The price is now higher than the amount paid', {
           premium: premium.toString(),
         })
       }
+      if (paid > UINT128_MAX) throw unprocessable('policy_too_large', 'The premium is out of range')
       premium = paid
     }
-    if (premium > UINT128_MAX) throw unprocessable('policy_too_large', 'The premium is out of range')
 
-    const expiry = Math.min(time + settings.quote.ttlSeconds, Number(start) - market.minLead, oracleFreshUntil)
     const quote: Quote = {
-      holder,
-      key,
-      start,
-      end,
-      ratePerSecond: rate,
+      holder: request.holder,
+      key: offer.key,
+      start: request.start,
+      end: request.end,
+      ratePerSecond: request.rate,
       premium,
-      expiry: BigInt(expiry),
+      expiry: BigInt(offer.expiry),
       salt: toHex(crypto.getRandomValues(new Uint8Array(32))),
     }
     const digest = signing.quoteDigest(quote, settings.chainId, settings.contracts.coverBook)
     const quoteSig = await underwriter.sign({ hash: digest })
 
-    return { quote, quoteSig, digest, maxPayout, cell: { key, ...cells.locate(key) }, inputs: price.inputs, capacity }
+    return {
+      quote,
+      quoteSig,
+      digest,
+      maxPayout: offer.maxPayout,
+      cell: offer.cell,
+      inputs: offer.inputs,
+      capacity: offer.capacity,
+    }
   }
 }
 

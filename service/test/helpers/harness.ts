@@ -12,7 +12,7 @@ import { validEnv } from './env'
 import { FakePricing, FakeReader, FakeRpc, FakeWeather, RecordingLogger, T0 } from './fakes'
 
 /** The service wired to an in-memory chain, fake weather and pricing, and freshly generated keys. */
-export function harness(env: Record<string, string | undefined> = {}) {
+export function harness(env: Record<string, string | undefined> = {}, extra: Pick<ServiceDeps, 'facilitator'> = {}) {
   const { settings, secrets } = loadConfig(validEnv(env))
   const underwriter = privateKeyToAccount(secrets.underwriterKey)
   const relayerAccount = privateKeyToAccount(secrets.relayerKey)
@@ -52,6 +52,7 @@ export function harness(env: Record<string, string | undefined> = {}) {
     stores,
     now: () => clock.time,
     logger,
+    ...extra,
   }
   const context: Context = buildContext(deps)
 

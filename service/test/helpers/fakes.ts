@@ -87,6 +87,12 @@ export class FakeReader implements CoverReader {
   async allowance(owner: Address, spender: Address): Promise<bigint> {
     return this.allowances.get(`${owner}:${spender}`) ?? 0n
   }
+
+  usedQuotes = new Set<Hex>()
+
+  async quoteUsed(digest: Hex): Promise<boolean> {
+    return this.usedQuotes.has(digest)
+  }
 }
 
 export function fakePolicy(id: bigint, overrides: Partial<Policy> = {}): Policy {

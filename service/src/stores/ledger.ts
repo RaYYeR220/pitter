@@ -24,9 +24,14 @@ export type Claim =
  */
 export interface Ledger {
   claim(key: string, now: number): Promise<Claim>
-  /** Records progress for a claimed key and gives up the claim. */
+  /** Records progress for a claimed key while keeping the claim. */
+  checkpoint(key: string, data: Json, now: number): Promise<void>
+  /** Records the outcome of a claimed key and gives up the claim. */
   save(key: string, status: 'settled' | 'done', data: Json, now: number): Promise<void>
-  /** Forgets a claimed key on which nothing irreversible happened, so it can be attempted again. */
+  /**
+   * Gives up a claim without an outcome. A key with nothing recorded is forgotten and can be attempted afresh;
+   * a key with recorded progress becomes `settled`, so that progress is never lost and can only be resumed.
+   */
   release(key: string): Promise<void>
 }
 
@@ -62,8 +67,14 @@ export class MemoryLedger implements Ledger {
     }
   }
 
+  async checkpoint(key: string, data: Json, now: number): Promise<void> {
+    this.entries.set(key, { status: 'processing', data, updatedAt: now })
+  }
+
   async release(key: string): Promise<void> {
     const entry = this.entries.get(key)
-    if (entry?.status === 'processing') this.entries.delete(key)
+    if (entry?.status !== 'processing') return
+    if (entry.data === null) this.entries.delete(key)
+    else this.entries.set(key, { ...entry, status: 'settled' })
   }
 }
