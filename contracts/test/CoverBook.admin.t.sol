@@ -4,6 +4,7 @@ pragma solidity ^0.8.30;
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {CoverBook} from "../src/CoverBook.sol";
+import {TestDollar} from "../src/TestDollar.sol";
 import {Quote} from "../src/Types.sol";
 import {ICoverPool} from "../src/interfaces/ICoverPool.sol";
 import {IWeatherIndex} from "../src/interfaces/IWeatherIndex.sol";
@@ -344,6 +345,45 @@ contract CoverBookAdminTest is CoverFixture {
     function test_SetExpiryGrace_RevertWhen_CallerIsNotOwner() public {
         _notOwner();
         book.setExpiryGrace(1 days);
+    }
+
+    function test_Rescue_ReturnsTokensSentToTheBookByMistake() public {
+        TestDollar other = new TestDollar(address(this));
+        other.mint(address(book), 7e6);
+        vm.prank(holder);
+        dollar.transfer(address(book), 5e6);
+
+        vm.expectEmit(address(book));
+        emit CoverBook.Rescued(address(dollar), holder, 5e6);
+        vm.startPrank(owner);
+        book.rescue(address(dollar), holder, 5e6);
+        book.rescue(address(other), holder, 7e6);
+        vm.stopPrank();
+
+        assertEq(dollar.balanceOf(holder), HOLDER_FUNDS);
+        assertEq(other.balanceOf(holder), 7e6);
+        assertEq(dollar.balanceOf(address(book)), 0);
+    }
+
+    function test_Rescue_ThereIsNothingAtRestToTake() public {
+        // A gasless purchase passes the premium through the book within the transaction and leaves nothing.
+        _buyWithAuthorization(_standardQuote(60), holderKey, relayer);
+        assertEq(dollar.balanceOf(address(book)), 0);
+
+        vm.expectRevert();
+        vm.prank(owner);
+        book.rescue(address(dollar), owner, 1);
+    }
+
+    function test_Rescue_RevertWhen_RecipientIsZero() public {
+        vm.expectRevert(CoverBook.ZeroAddress.selector);
+        vm.prank(owner);
+        book.rescue(address(dollar), address(0), 1);
+    }
+
+    function test_Rescue_RevertWhen_CallerIsNotOwner() public {
+        _notOwner();
+        book.rescue(address(dollar), attacker, 1);
     }
 
     function test_OwnershipTransferTakesTwoSteps() public {

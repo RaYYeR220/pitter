@@ -168,6 +168,7 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient, ICoverBook
     event MaxActiveCellsSet(uint256 maxActiveCells);
     event ServedSet(uint256 indexed key, bool served);
     event ServedOnlySet(bool servedOnly);
+    event Rescued(address indexed token, address indexed to, uint256 amount);
     event ExpiryGraceSet(uint256 expiryGrace);
 
     error QuoteExpired();
@@ -416,6 +417,15 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient, ICoverBook
         minDuration = minDuration_;
         maxDuration = maxDuration_;
         emit DurationBoundsSet(minDuration_, maxDuration_);
+    }
+
+    /// @notice Sends `amount` of `token` held by the book to `to`. The book holds nothing at rest: a premium
+    /// only passes through it inside a purchase, which this cannot interrupt. What it can find here was sent by
+    /// mistake.
+    function rescue(address token, address to, uint256 amount) external onlyOwner nonReentrant {
+        if (to == address(0)) revert ZeroAddress();
+        emit Rescued(token, to, amount);
+        IERC20(token).safeTransfer(to, amount);
     }
 
     /// @notice Sets how far ahead of its purchase a window may end. The horizon has to span the longest window

@@ -115,6 +115,27 @@ contract ReentrancyTest is Signing {
         _report(_readings(Reading(KEY, q.start, q.end, 600)), q.end);
     }
 
+    function test_Rescue_CannotRunWhileAPurchaseIsInFlight() public {
+        // The owner key sits behind the hooked account and tries to sweep the book mid-purchase.
+        vm.prank(owner);
+        book.transferOwnership(address(reenterer));
+        vm.prank(address(reenterer));
+        book.acceptOwnership();
+        reenterer.arm(
+            address(book), abi.encodeCall(CoverBook.rescue, (address(dollar), address(reenterer), 1e6)), false
+        );
+
+        (Quote memory q, bytes memory signature) = _quote(1);
+        uint256 poolBefore = dollar.balanceOf(address(pool));
+        vm.prank(address(reenterer));
+        book.buy(q, signature);
+
+        _assertRefused();
+        assertEq(dollar.balanceOf(treasury), q.premium * 500 / 10_000);
+        assertEq(dollar.balanceOf(address(pool)), poolBefore + q.premium - q.premium * 500 / 10_000);
+        assertEq(dollar.balanceOf(address(book)), 0);
+    }
+
     function test_Buy_CannotBeReenteredWhileThePremiumMoves() public {
         (Quote memory first, bytes memory firstSig) = _quote(1);
         (Quote memory second, bytes memory secondSig) = _quote(2);

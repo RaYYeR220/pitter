@@ -129,6 +129,7 @@ contract CoverPool is ERC4626, Ownable2Step, ReentrancyGuardTransient, ICoverPoo
 
     event RedeemNoticeSet(uint256 notice);
     event TreasurySet(address indexed treasury);
+    event SharesRescued(address indexed to, uint256 shares);
 
     /// @notice A claim of `controller` was capped at its value at the request; what its shares gained since,
     /// `amount`, went to `treasury`.
@@ -153,6 +154,7 @@ contract CoverPool is ERC4626, Ownable2Step, ReentrancyGuardTransient, ICoverPoo
     error CoverStillOpen();
     error NoticeInvalid();
     error PreviewUnavailable();
+    error ExceedsStrayShares();
 
     modifier onlyBook() {
         if (msg.sender != book) revert NotBook();
@@ -467,6 +469,15 @@ contract CoverPool is ERC4626, Ownable2Step, ReentrancyGuardTransient, ICoverPoo
         if (bps > BPS) revert BpsInvalid();
         maxCellBps = bps;
         emit MaxCellSet(bps);
+    }
+
+    /// @notice Sends `shares` held by the pool beyond the redemption escrow to `to`: shares transferred to the
+    /// pool by mistake, which are neither a request nor anyone's claim. The escrow cannot be touched.
+    function rescueShares(address to, uint256 shares) external onlyOwner nonReentrant {
+        if (to == address(0)) revert ZeroAddress();
+        if (shares > balanceOf(address(this)) - escrowedShares) revert ExceedsStrayShares();
+        _transfer(address(this), to, shares);
+        emit SharesRescued(to, shares);
     }
 
     /// @notice Sets the recipient of the surplus of capped claims.

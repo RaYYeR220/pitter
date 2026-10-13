@@ -364,6 +364,47 @@ contract CoverPoolRedeemTest is PoolFixture {
         assertEq(pool.pendingRedeemRequest(0, lp2), 0);
     }
 
+    function test_RescueShares_ReturnsSharesSentToThePoolButNeverTheEscrow() public {
+        _request(lp, 400e6 * SHARE_UNIT);
+        vm.prank(lp);
+        pool.transfer(address(pool), 10e6 * SHARE_UNIT);
+
+        // A transfer to the pool is not a request.
+        assertEq(pool.escrowedShares(), 400e6 * SHARE_UNIT);
+        assertEq(pool.balanceOf(address(pool)), 410e6 * SHARE_UNIT);
+
+        vm.prank(owner);
+        vm.expectRevert(CoverPool.ExceedsStrayShares.selector);
+        pool.rescueShares(lp, 10e6 * SHARE_UNIT + 1);
+
+        vm.expectEmit(address(pool));
+        emit CoverPool.SharesRescued(lp, 10e6 * SHARE_UNIT);
+        vm.prank(owner);
+        pool.rescueShares(lp, 10e6 * SHARE_UNIT);
+
+        assertEq(pool.balanceOf(lp), 600e6 * SHARE_UNIT);
+        assertEq(pool.balanceOf(address(pool)), pool.escrowedShares());
+        vm.prank(owner);
+        vm.expectRevert(CoverPool.ExceedsStrayShares.selector);
+        pool.rescueShares(lp, 1);
+
+        // The request is whole.
+        vm.warp(T0 + NOTICE);
+        assertEq(_redeem(lp, 400e6 * SHARE_UNIT), 400e6);
+    }
+
+    function test_RescueShares_RevertWhen_RecipientIsZero() public {
+        vm.prank(owner);
+        vm.expectRevert(CoverPool.ZeroAddress.selector);
+        pool.rescueShares(address(0), 0);
+    }
+
+    function test_RescueShares_RevertWhen_CallerIsNotOwner() public {
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, attacker));
+        vm.prank(attacker);
+        pool.rescueShares(attacker, 0);
+    }
+
     // ───────────────────────────── cancelling ─────────────────────────────
 
     function test_CancelRedeemRequest_ReturnsTheShares() public {
