@@ -10,6 +10,7 @@ remappings = [
 ]
 solc = "0.8.30"
 evm_version = "cancun"
+network = "monad"
 optimizer = true
 optimizer_runs = 200
 via_ir = true
