@@ -19,7 +19,8 @@ import {Reading} from "./Types.sol";
 ///
 /// Reports arrive either through an allowlisted Chainlink forwarder (`onReport`) or directly (`submit`). A
 /// forwarder only proves that *a* workflow produced the bytes, and a simulation forwarder proves nothing at
-/// all, so every report carries its own EIP-712 signature from the `reporter` key.
+/// all, so every report carries its own EIP-712 signature from the `reporter` key, and that signature is
+/// checked on both paths, always. The allowlist is a second gate on `onReport`, not a substitute.
 ///
 /// @dev Invariants:
 /// - a timeline only ever grows forward in time, so `wetSeconds(key, a, b)` is final once `b <= lastTo(key)`;
@@ -51,10 +52,6 @@ contract WeatherIndex is IReceiver, IWeatherIndex, EIP712, Ownable2Step {
     /// @notice `issuedAt` of the last accepted report.
     uint64 public lastIssuedAt;
 
-    /// @notice Whether reports delivered by a forwarder must carry the reporter's signature. Reports sent
-    /// through `submit` always must.
-    bool public requireReporterSig = true;
-
     /// @inheritdoc IWeatherIndex
     uint64 public heartbeat;
 
@@ -75,7 +72,6 @@ contract WeatherIndex is IReceiver, IWeatherIndex, EIP712, Ownable2Step {
 
     event ForwarderSet(address indexed forwarder, bool allowed);
     event ReporterSet(address indexed reporter);
-    event RequireReporterSigSet(bool required);
     event MaxReportAgeSet(uint64 maxReportAge);
 
     error NotForwarder();
@@ -101,20 +97,20 @@ contract WeatherIndex is IReceiver, IWeatherIndex, EIP712, Ownable2Step {
     // ───────────────────────────── reports ─────────────────────────────
 
     /// @notice Chainlink forwarder entry point.
-    /// @dev Reverts with `NotForwarder` unless the caller is allowlisted. The reporter's signature is verified
-    /// when `requireReporterSig` is set; otherwise the allowlisted forwarder alone is trusted.
-    /// @param metadata Workflow metadata attached by the forwarder; unused.
+    /// @dev Reverts with `NotForwarder` unless the caller is allowlisted, and `BadReporterSignature` unless the
+    /// report carries the reporter's signature.
+    /// @param metadata Workflow metadata attached by the forwarder; unused, as the signature authenticates.
     /// @param report `abi.encode(Reading[] readings, uint64 issuedAt, bytes signature)`.
     function onReport(bytes calldata metadata, bytes calldata report) external {
         metadata;
         if (!isForwarder[msg.sender]) revert NotForwarder();
-        _ingest(report, requireReporterSig);
+        _ingest(report);
     }
 
     /// @notice Delivers a report directly. Anyone may call; the reporter's signature is always verified.
     /// @param report `abi.encode(Reading[] readings, uint64 issuedAt, bytes signature)`.
     function submit(bytes calldata report) external {
-        _ingest(report, true);
+        _ingest(report);
     }
 
     /// @notice EIP-712 digest the reporter signs for a report.
@@ -183,14 +179,6 @@ contract WeatherIndex is IReceiver, IWeatherIndex, EIP712, Ownable2Step {
         emit ReporterSet(reporter_);
     }
 
-    /// @notice Sets whether forwarder-delivered reports must carry the reporter's signature.
-    /// @dev Turning this off makes every allowlisted forwarder fully trusted. Only do so when each of them
-    /// authenticates the workflow that produced the report.
-    function setRequireReporterSig(bool required) external onlyOwner {
-        requireReporterSig = required;
-        emit RequireReporterSigSet(required);
-    }
-
     /// @notice Sets the maximum accepted report age in seconds.
     function setMaxReportAge(uint64 maxReportAge_) external onlyOwner {
         if (maxReportAge_ == 0) revert MaxReportAgeInvalid();
@@ -202,7 +190,7 @@ contract WeatherIndex is IReceiver, IWeatherIndex, EIP712, Ownable2Step {
 
     /// @dev Shared by both entry points: orders the report, authenticates it, then records every reading. Any
     /// invalid reading reverts the whole report, leaving no partial state behind.
-    function _ingest(bytes calldata report, bool checkSignature) private {
+    function _ingest(bytes calldata report) private {
         (Reading[] memory readings, uint64 issuedAt, bytes memory signature) =
             abi.decode(report, (Reading[], uint64, bytes));
 
@@ -210,13 +198,11 @@ contract WeatherIndex is IReceiver, IWeatherIndex, EIP712, Ownable2Step {
         if (issuedAt > block.timestamp + MAX_CLOCK_SKEW) revert ReportFromFuture();
         if (block.timestamp > issuedAt && block.timestamp - issuedAt > maxReportAge) revert ReportTooOld();
 
-        if (checkSignature) {
-            address signer = reporter;
-            if (
-                signer == address(0)
-                    || !SignatureChecker.isValidSignatureNow(signer, _hashReport(readings, issuedAt), signature)
-            ) revert BadReporterSignature();
-        }
+        address signer = reporter;
+        if (
+            signer == address(0)
+                || !SignatureChecker.isValidSignatureNow(signer, _hashReport(readings, issuedAt), signature)
+        ) revert BadReporterSignature();
 
         // Liveness is when the reporter spoke, not when its words arrived: a report held back and delivered
         // late must not make a silent oracle look alive.

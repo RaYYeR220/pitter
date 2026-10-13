@@ -89,7 +89,6 @@ contract WeatherIndexReportTest is WeatherIndexFixture {
     function test_InitialState() public view {
         assertEq(index.owner(), owner);
         assertEq(index.reporter(), reporter);
-        assertTrue(index.requireReporterSig());
         assertEq(index.maxReportAge(), 30 minutes);
         assertEq(index.heartbeat(), 0);
         assertEq(index.lastIssuedAt(), 0);
@@ -214,29 +213,12 @@ contract WeatherIndexReportTest is WeatherIndexFixture {
         index.onReport("", payload);
     }
 
-    function test_OnReport_AcceptsAnUnsignedReportWhenTheSignatureIsNotRequired() public {
+    function test_ReporterSignature_CannotBeSwitchedOff() public {
+        (bool ok,) = address(index).call(abi.encodeWithSignature("requireReporterSig()"));
+        assertFalse(ok);
         vm.prank(owner);
-        index.setRequireReporterSig(false);
-        bytes memory payload = abi.encode(_sample(), _now(), bytes(""));
-
-        vm.prank(forwarder);
-        index.onReport("", payload);
-
-        assertEq(index.lastTo(KEY), T0 + 300);
-        assertEq(index.wetSeconds(KEY, T0, T0 + 300), 120);
-        assertEq(index.lastIssuedAt(), _now());
-    }
-
-    function test_OnReport_StillOrdersUnsignedReports() public {
-        vm.prank(owner);
-        index.setRequireReporterSig(false);
-        bytes memory payload = abi.encode(new Reading[](0), _now(), bytes(""));
-        vm.prank(forwarder);
-        index.onReport("", payload);
-
-        vm.expectRevert(WeatherIndex.StaleReport.selector);
-        vm.prank(forwarder);
-        index.onReport("", payload);
+        (ok,) = address(index).call(abi.encodeWithSignature("setRequireReporterSig(bool)", false));
+        assertFalse(ok);
     }
 
     // ───────────────────────────── spoofing through an open forwarder ─────────────────────────────
@@ -267,6 +249,21 @@ contract WeatherIndexReportTest is WeatherIndexFixture {
         assertEq(index.lastTo(KEY), 0);
         assertEq(index.heartbeat(), 0);
         assertEq(index.wetSeconds(KEY, T0, T0 + 300), 0);
+    }
+
+    function test_Spoof_AnyoneBehindAForwarderCannotMoveTheClockAhead() public {
+        vm.prank(owner);
+        index.setForwarder(address(openForwarder), true);
+
+        // An empty report dated a minute ahead would make the reporter's next report stale. Unsigned, it is
+        // refused, and the reporter's report dated now lands.
+        vm.expectRevert(WeatherIndex.BadReporterSignature.selector);
+        vm.prank(attacker);
+        openForwarder.report(address(index), "", abi.encode(new Reading[](0), _now() + 60, bytes("")));
+        assertEq(index.lastIssuedAt(), 0);
+
+        index.submit(_signedReport(reporterKey, domain, new Reading[](0), _now()));
+        assertEq(index.lastIssuedAt(), _now());
     }
 
     function test_Spoof_ReplayThroughAPermissionlessForwarderReverts() public {
@@ -304,10 +301,7 @@ contract WeatherIndexReportTest is WeatherIndexFixture {
         assertEq(index.heartbeat(), T0 + 300);
     }
 
-    function test_Submit_RevertWhen_SignatureIsBadEvenIfNotRequiredForForwarders() public {
-        vm.prank(owner);
-        index.setRequireReporterSig(false);
-
+    function test_Submit_RevertWhen_SignatureIsMissingOrForeign() public {
         bytes memory unsigned = abi.encode(_sample(), _now(), bytes(""));
         vm.expectRevert(WeatherIndex.BadReporterSignature.selector);
         index.submit(unsigned);
@@ -500,20 +494,6 @@ contract WeatherIndexReportTest is WeatherIndexFixture {
 
         vm.expectRevert(WeatherIndex.BadReporterSignature.selector);
         index.submit(payload);
-    }
-
-    function test_SetRequireReporterSig() public {
-        vm.expectEmit(address(index));
-        emit WeatherIndex.RequireReporterSigSet(false);
-        vm.prank(owner);
-        index.setRequireReporterSig(false);
-        assertFalse(index.requireReporterSig());
-    }
-
-    function test_SetRequireReporterSig_RevertWhen_CallerIsNotOwner() public {
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, attacker));
-        vm.prank(attacker);
-        index.setRequireReporterSig(false);
     }
 
     function test_SetMaxReportAge() public {

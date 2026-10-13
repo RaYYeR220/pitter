@@ -53,7 +53,6 @@ contract DeployTest is Signing {
 
         assertEq(d.index.owner(), address(script));
         assertEq(d.index.reporter(), reporter);
-        assertTrue(d.index.requireReporterSig());
         assertTrue(d.index.isForwarder(forwarderA));
         assertTrue(d.index.isForwarder(forwarderB));
         assertFalse(d.index.isForwarder(address(script)));
