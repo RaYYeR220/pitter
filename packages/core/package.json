@@ -12,11 +12,12 @@
     "./cells": "./src/cells.ts",
     "./eip712": "./src/eip712.ts",
     "./weather": "./src/weather/index.ts",
-    "./pricing": "./src/pricing/index.ts"
+    "./pricing": "./src/pricing/index.ts",
+    "./testing": "./test/replay.ts"
   },
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "sync:contracts": "node scripts/sync-contracts.mjs",
     "record:fixtures": "bun scripts/record-fixtures.ts"
   },
@@ -25,6 +26,7 @@
     "viem": "2.57.5"
   },
   "devDependencies": {
+    "@types/node": "^24.19.2",
     "bun": "1.4.3",
     "typescript": "5.9.3",
     "vitest": "^5.0.4"

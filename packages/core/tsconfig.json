@@ -3,5 +3,7 @@
   "compilerOptions": {
     "types": []
   },
-  "include": ["src", "test"]
+  "include": [
+    "src"
+  ]
 }
