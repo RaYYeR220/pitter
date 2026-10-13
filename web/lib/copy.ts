@@ -686,6 +686,10 @@ export const copy = {
       silent: 'since the weather was last confirmed. We don’t guess: new cover waits until it is confirmed again.',
       notNow: 'for every minute of heavy rain, once cover can be sold here again.',
     },
+    offer: {
+      cost: (minutes: number) => `for the next ${minutes} minutes`,
+      pays: 'if heavy rain fills all of them',
+    },
     rain: {
       minutes: (seconds: number) => `${Math.floor(seconds / 60)} min ${Math.floor(seconds % 60)} s`,
       minutesCaption: 'of heavy rain paid or counting',
@@ -710,7 +714,7 @@ export const copy = {
       net: 'This shift, all in',
     },
     switch: {
-      offSub: (blockSeconds: number) => `Pay as you go, ${Math.round(blockSeconds / 60)} minutes at a time`,
+      offSub: (blockSeconds: number) => `Bought ${Math.round(blockSeconds / 60)} minutes at a time`,
       onSub: 'Tap to turn it off',
       needArea: 'Choose your area to turn cover on.',
     },
