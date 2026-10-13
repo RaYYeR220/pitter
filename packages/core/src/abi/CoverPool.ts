@@ -13,6 +13,11 @@ export const coverPoolAbi = [
         "internalType": "address"
       },
       {
+        "name": "treasury_",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
         "name": "name_",
         "type": "string",
         "internalType": "string"
@@ -41,6 +46,19 @@ export const coverPoolAbi = [
   {
     "type": "function",
     "name": "MIN_REDEEM_NOTICE",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "NOTICE_MARGIN",
     "inputs": [],
     "outputs": [
       {
@@ -192,6 +210,25 @@ export const coverPoolAbi = [
         "name": "",
         "type": "uint256",
         "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "claimBlockedByCover",
+    "inputs": [
+      {
+        "name": "controller",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
       }
     ],
     "stateMutability": "view"
@@ -799,6 +836,11 @@ export const coverPoolAbi = [
         "name": "claimableAt",
         "type": "uint64",
         "internalType": "uint64"
+      },
+      {
+        "name": "lastPolicyAtRequest",
+        "type": "uint64",
+        "internalType": "uint64"
       }
     ],
     "stateMutability": "view"
@@ -859,6 +901,24 @@ export const coverPoolAbi = [
   },
   {
     "type": "function",
+    "name": "rescueShares",
+    "inputs": [
+      {
+        "name": "to",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "shares",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "setBook",
     "inputs": [
       {
@@ -904,6 +964,19 @@ export const coverPoolAbi = [
         "name": "notice",
         "type": "uint64",
         "internalType": "uint64"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setTreasury",
+    "inputs": [
+      {
+        "name": "treasury_",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "outputs": [],
@@ -1045,6 +1118,19 @@ export const coverPoolAbi = [
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "treasury",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -1342,6 +1428,50 @@ export const coverPoolAbi = [
   },
   {
     "type": "event",
+    "name": "SharesRescued",
+    "inputs": [
+      {
+        "name": "to",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "shares",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "SurplusToTreasury",
+    "inputs": [
+      {
+        "name": "controller",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "treasury",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "Transfer",
     "inputs": [
       {
@@ -1361,6 +1491,19 @@ export const coverPoolAbi = [
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "TreasurySet",
+    "inputs": [
+      {
+        "name": "treasury",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
       }
     ],
     "anonymous": false
@@ -1420,6 +1563,11 @@ export const coverPoolAbi = [
   {
     "type": "error",
     "name": "ControllerNotAllowed",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "CoverStillOpen",
     "inputs": []
   },
   {
@@ -1596,6 +1744,11 @@ export const coverPoolAbi = [
         "internalType": "uint256"
       }
     ]
+  },
+  {
+    "type": "error",
+    "name": "ExceedsStrayShares",
+    "inputs": []
   },
   {
     "type": "error",

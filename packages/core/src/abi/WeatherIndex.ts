@@ -354,19 +354,6 @@ export const weatherIndexAbi = [
   },
   {
     "type": "function",
-    "name": "requireReporterSig",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "setForwarder",
     "inputs": [
       {
@@ -404,19 +391,6 @@ export const weatherIndexAbi = [
         "name": "reporter_",
         "type": "address",
         "internalType": "address"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "setRequireReporterSig",
-    "inputs": [
-      {
-        "name": "required",
-        "type": "bool",
-        "internalType": "bool"
       }
     ],
     "outputs": [],
@@ -594,19 +568,6 @@ export const weatherIndexAbi = [
         "type": "address",
         "indexed": true,
         "internalType": "address"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "RequireReporterSigSet",
-    "inputs": [
-      {
-        "name": "required",
-        "type": "bool",
-        "indexed": false,
-        "internalType": "bool"
       }
     ],
     "anonymous": false
