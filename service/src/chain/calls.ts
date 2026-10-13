@@ -18,6 +18,7 @@ import {
   BUY_WITH_AUTHORIZATION_GAS,
   DEPOSIT_WITH_AUTHORIZATION_GAS,
   DRIP_GAS,
+  EXPIRE_GAS,
   TRANSFER_WITH_AUTHORIZATION_GAS,
   settleManyGas,
   submitGas,
@@ -31,6 +32,7 @@ const HOME: Record<RelayedFunction, keyof ContractAbis> = {
   buyWithAuthorization: 'coverBook',
   buy: 'coverBook',
   settleMany: 'coverBook',
+  expire: 'coverBook',
   depositWithAuthorization: 'coverPool',
   transferWithAuthorization: 'token',
   approve: 'token',
@@ -49,6 +51,7 @@ export function buildAllowlist(settings: Pick<Settings, 'contracts' | 'x402' | '
   const allowlist = new Allowlist()
     .allow(coverBook, 'buyWithAuthorization')
     .allow(coverBook, 'settleMany')
+    .allow(coverBook, 'expire')
     .allow(coverPool, 'depositWithAuthorization')
     .allow(token, 'transferWithAuthorization')
     .allow(weatherIndex, 'submit')
@@ -136,6 +139,10 @@ export class Calls {
       data: this.encode('transferWithAuthorization', [from, to, value, validAfter, validBefore, nonce, v, r, s]),
       gas: TRANSFER_WITH_AUTHORIZATION_GAS,
     }
+  }
+
+  expire(id: bigint): RelayCall {
+    return { to: this.contracts.coverBook, data: this.encode('expire', [id]), gas: EXPIRE_GAS }
   }
 
   approve(spender: Address, amount: bigint): RelayCall {

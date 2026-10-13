@@ -2,11 +2,13 @@ import type { Hex } from 'viem'
 import { eventsOf } from '../chain/events'
 import type { Policy } from '../chain/reader'
 import type { Context } from '../context'
+import type { RelayCall } from '../relayer/relayer'
 import { ServiceError, conflict } from '../http/errors'
 import { relayFailure } from '../relay/reverts'
 import { NothingToSettle, findSettleable } from '../relay/settleable'
 import { readStorm } from '../sandbox/storm'
 import type { Reading } from '../types'
+import { advanceCursor, cursorToJson, parseCursor, planScan } from './scan'
 
 const CURSOR_KEY = 'keeper:cursor'
 const POLICY_PAGE = 50
@@ -37,7 +39,13 @@ export interface ReportOutcome {
 export interface SettlementOutcome {
   /** Policies looked at in this run. */
   scanned: number
+  /** The ids looked at, inclusive; null when every policy is known to be closed. */
+  range: { from: string; to: string } | null
   settled: Array<{ id: string; paid: string; closed: boolean }>
+  /** Policies closed by `expire` because the oracle never reported the end of their window. */
+  expired: Array<{ id: string; paid: string }>
+  /** Policies in the range that could be expired, including those left for a later tick. */
+  expirable: number
   transactions: Hex[]
   failures: string[]
 }
@@ -56,7 +64,7 @@ function chunks<T>(items: readonly T[], size: number): T[][] {
 
 /**
  * One keeper run: report the weather for every cell that has open cover, then push the payouts that became
- * due and close the policies whose window is fully reported.
+ * due, close the policies whose window is fully reported, and expire those the oracle never finished.
  *
  * The keeper reports only what the weather sources agreed on. A cell without a verdict gets no reading, and
  * when no source answers at all nothing is submitted, so the heartbeat ages and the book stops selling.
@@ -157,61 +165,94 @@ export class Keeper {
     return outcome
   }
 
+  /**
+   * Reads one stretch of the book (see `ScanCursor`), settles what is due there and expires what the oracle
+   * never finished. Per tick: at most `KEEPER_SCAN_LIMIT` policies read, one `settleMany` per
+   * `KEEPER_SETTLE_BATCH` of them, and at most `KEEPER_EXPIRE_PER_TICK` `expire` transactions.
+   */
   private async settle(): Promise<SettlementOutcome> {
-    const { settings, reader, relayer, calls, core, stores } = this.context
-    const outcome: SettlementOutcome = { scanned: 0, settled: [], transactions: [], failures: [] }
+    const { settings, reader, calls, stores } = this.context
+    const outcome: SettlementOutcome = {
+      scanned: 0,
+      range: null,
+      settled: [],
+      expired: [],
+      expirable: 0,
+      transactions: [],
+      failures: [],
+    }
 
     const count = await reader.policyCount()
-    const cursor = await this.cursor()
-    if (cursor > count) return outcome
+    const cursor = parseCursor(await stores.state.get(CURSOR_KEY))
+    const scan = planScan(cursor, count, settings.keeper.scanLimit)
+    if (!scan) return outcome
 
-    const last =
-      cursor + BigInt(settings.keeper.scanLimit) - 1n < count ? cursor + BigInt(settings.keeper.scanLimit) - 1n : count
     const ids: bigint[] = []
-    for (let id = cursor; id <= last; id++) ids.push(id)
-
+    for (let id = scan.from; id <= scan.to; id++) ids.push(id)
     const policies: Policy[] = []
     for (const page of chunks(ids, POLICY_PAGE)) policies.push(...(await reader.policies(page)))
     outcome.scanned = policies.length
+    outcome.range = { from: scan.from.toString(), to: scan.to.toString() }
 
-    const firstOpen = policies.find((policy) => !policy.closed)
-    const next = firstOpen ? firstOpen.id : last + 1n
-    if (next !== cursor) await stores.state.set(CURSOR_KEY, next.toString())
+    const firstOpen = policies.find((policy) => !policy.closed)?.id ?? null
+    const next = advanceCursor(cursor, scan, firstOpen, count)
+    if (next.low !== cursor.low || next.next !== cursor.next) await stores.state.set(CURSOR_KEY, cursorToJson(next))
 
-    const due = (await findSettleable(reader, policies)).map((entry) => entry.policy.id)
+    const [head, grace, settleable] = await Promise.all([
+      reader.head(),
+      reader.expiryGrace(),
+      findSettleable(reader, policies),
+    ])
+    // A policy the oracle reported to its end is closed by `settleMany`. One whose window ended more than the
+    // grace period ago and still is not fully reported is closed by `expire`, which also pays what was reported.
+    const closing = new Set(settleable.filter((entry) => entry.closes).map((entry) => entry.policy.id))
+    const expirable = policies.filter(
+      (policy) => !policy.closed && !closing.has(policy.id) && head.timestamp >= policy.end + grace,
+    )
+    const expiring = expirable.slice(0, settings.keeper.expirePerTick)
+    const expiringIds = new Set(expiring.map((policy) => policy.id))
+    outcome.expirable = expirable.length
+
+    const due = settleable.map((entry) => entry.policy.id).filter((id) => !expiringIds.has(id))
     for (const batch of chunks(due, settings.keeper.settleBatch)) {
-      try {
-        const receipt = await relayer.execute(calls.settleMany(batch), {
-          before: async () => {
-            const still = await findSettleable(reader, await reader.policies(batch))
-            if (still.length === 0) throw new NothingToSettle()
-          },
-        })
-        if (receipt.status !== 'success') {
-          outcome.failures.push('reverted')
-          continue
-        }
-        outcome.transactions.push(receipt.transactionHash)
-        for (const event of eventsOf(
-          core.abis.coverBook,
-          settings.contracts.coverBook,
-          receipt.logs,
-          'PolicySettled',
-        )) {
-          outcome.settled.push({ id: String(event.id), paid: String(event.paid), closed: Boolean(event.closed) })
-        }
-      } catch (error) {
-        if (error instanceof NothingToSettle) continue
-        outcome.failures.push(this.describe(error))
+      const events = await this.send(outcome, calls.settleMany(batch), async () => {
+        const still = await findSettleable(reader, await reader.policies(batch))
+        if (still.length === 0) throw new NothingToSettle()
+      })
+      for (const event of events) {
+        outcome.settled.push({ id: String(event.id), paid: String(event.paid), closed: Boolean(event.closed) })
       }
+    }
+
+    for (const policy of expiring) {
+      const events = await this.send(outcome, calls.expire(policy.id), async () => {
+        const [current] = await reader.policies([policy.id])
+        if (!current || current.closed) throw new NothingToSettle()
+      })
+      for (const event of events) outcome.expired.push({ id: String(event.id), paid: String(event.paid) })
     }
     return outcome
   }
 
-  /** First policy id that may still be open. Everything below it is known to be closed. */
-  private async cursor(): Promise<bigint> {
-    const stored = await this.context.stores.state.get(CURSOR_KEY)
-    return typeof stored === 'string' && /^[1-9]\d{0,30}$/.test(stored) ? BigInt(stored) : 1n
+  /** Relays one settlement transaction and returns the `PolicySettled` events it emitted. */
+  private async send(
+    outcome: SettlementOutcome,
+    call: RelayCall,
+    before: () => Promise<void>,
+  ): Promise<Array<Record<string, unknown>>> {
+    const { settings, relayer, core } = this.context
+    try {
+      const receipt = await relayer.execute(call, { before })
+      if (receipt.status !== 'success') {
+        outcome.failures.push('reverted')
+        return []
+      }
+      outcome.transactions.push(receipt.transactionHash)
+      return eventsOf(core.abis.coverBook, settings.contracts.coverBook, receipt.logs, 'PolicySettled')
+    } catch (error) {
+      if (!(error instanceof NothingToSettle)) outcome.failures.push(this.describe(error))
+      return []
+    }
   }
 
   private describe(error: unknown): string {

@@ -87,6 +87,7 @@ describe('allow-list', () => {
       buyWithAuthorization: coverBookAbi as Abi,
       buy: coverBookAbi as Abi,
       settleMany: coverBookAbi as Abi,
+      expire: coverBookAbi as Abi,
       depositWithAuthorization: coverPoolAbi as Abi,
       transferWithAuthorization: testDollarAbi as Abi,
       approve: testDollarAbi as Abi,
@@ -136,7 +137,14 @@ describe('allow-list', () => {
     const names = base.list().map((entry) => entry.name)
 
     expect(names.sort()).toEqual(
-      ['buyWithAuthorization', 'depositWithAuthorization', 'settleMany', 'submit', 'transferWithAuthorization'].sort(),
+      [
+        'buyWithAuthorization',
+        'depositWithAuthorization',
+        'expire',
+        'settleMany',
+        'submit',
+        'transferWithAuthorization',
+      ].sort(),
     )
   })
 

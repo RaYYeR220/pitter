@@ -338,6 +338,44 @@ describe('cover on a local Monad chain', () => {
     for (const address of recipients) expect(await world.balanceOf(address)).toBe(DRIP)
   })
 
+  it('expires cover the oracle never finished, once the grace period is over', async () => {
+    await world.tick()
+    const elsewhere = { lat: 10.025, lon: 10.025 }
+    const response = await world.get(quotePath(elsewhere))
+    const offer = await json(response)
+    expect(response.status).toBe(200)
+    const bought = await world.post(
+      '/relay/buy',
+      await world.buyBody(offer.quote, offer.quoteSig, offer.digest, holder),
+    )
+    const { policyId } = await json(bought)
+    const end = Number(offer.quote.end)
+    const grace = await world.client.readContract({
+      address: world.contracts.coverBook,
+      abi: coverBookAbi,
+      functionName: 'expiryGrace',
+    })
+    expect(bought.status).toBe(200)
+    expect(await world.lockedExposure()).toBe(MAX_PAYOUT)
+
+    await world.chain.mineAt(end + Number(grace) - 60)
+    const early = await world.tick()
+    await world.chain.mineAt(end + Number(grace) + 60)
+    const due = await world.tick()
+
+    expect(early.settlement.expired).toEqual([])
+    expect(due.settlement.expired).toEqual([{ id: policyId, paid: '0' }])
+    expect(due.settlement.failures).toEqual([])
+    expect(await world.lockedExposure()).toBe(0n)
+    const policy = await world.client.readContract({
+      address: world.contracts.coverBook,
+      abi: coverBookAbi,
+      functionName: 'policies',
+      args: [BigInt(policyId)],
+    })
+    expect(policy.at(-1)).toBe(true)
+  })
+
   it('sent every transaction synchronously, with a gas limit of its own choosing', () => {
     expect(world.nodeMethods.has('eth_sendRawTransactionSync')).toBe(true)
     expect(world.nodeMethods.has('eth_sendRawTransaction')).toBe(false)
@@ -355,6 +393,7 @@ describe('cover on a local Monad chain', () => {
         'buyWithAuthorization',
         'settleMany',
         'transferWithAuthorization',
+        'expire',
       ]),
     )
     if (process.env.SHOW_GAS) {

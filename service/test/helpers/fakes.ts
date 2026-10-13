@@ -51,6 +51,12 @@ export class FakeReader implements CoverReader {
     return this.marketState
   }
 
+  expiryGraceSeconds = 86_400
+
+  async expiryGrace(): Promise<number> {
+    return this.expiryGraceSeconds
+  }
+
   async policyCount(): Promise<bigint> {
     return [...this.policyRows.keys()].reduce((a, b) => (b > a ? b : a), 0n)
   }

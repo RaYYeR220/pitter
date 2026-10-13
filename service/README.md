@@ -93,6 +93,7 @@ the chain and open a gap.
 | `buyWithAuthorization` | cover book | 700,000 | 520,278 (first policy of a new cell) |
 | `buy` (paid cover only) | cover book | 640,000 | 454,680 |
 | `settleMany(n)` | cover book | 90,000 + 190,000 n | 189,525 for one payout |
+| `expire` | cover book | 500,000 | 137,993 with nothing to pay; allows for the close walking `oldestOpenId` |
 | `depositWithAuthorization` | cover pool | 280,000 | 178,777 |
 | `transferWithAuthorization` | token | 160,000 | 103,023 |
 | `approve` (paid cover only, spender must be the book) | token | 90,000 | 52,103 |
@@ -107,8 +108,17 @@ native USDC rather than round numbers. The measurements are from the integration
 about one reference cell, and submits readings only for cells on which enough sources agreed, chained from
 each cell's last reported minute and signed by the reporter key. With no answer from any source it submits
 nothing, the heartbeat ages and the book stops selling. It then settles the policies that have a payout due or
-a fully reported window, in batches. Schedule it every five minutes; `KEEPER_FIRST_READING_SECONDS` should
+a fully reported window, in batches, and closes with `expire` the policies whose window ended more than the
+book's `expiryGrace` ago without the oracle reporting all of it (`expire` pays what was reported, then
+releases the rest of the exposure). Schedule it every five minutes; `KEEPER_FIRST_READING_SECONDS` should
 equal the interval.
+
+The keeper walks the book with a cursor kept in the state store: every policy below its low mark is closed,
+and each tick reads the next `KEEPER_SCAN_LIMIT` ids, wrapping back to the low mark at the end. A policy that
+stays open holds the low mark back but not the walk, so every open policy is read at least once every
+`ceil((policyCount - low + 1) / KEEPER_SCAN_LIMIT)` ticks. Per tick the keeper reads at most
+`KEEPER_SCAN_LIMIT` policies and sends one report per `KEEPER_MAX_READINGS_PER_REPORT` readings, one
+`settleMany` per `KEEPER_SETTLE_BATCH` due policies, and at most `KEEPER_EXPIRE_PER_TICK` expiries.
 
 **Paid cover (x402).** `exact` scheme on `eip155:<chainId>` in the dollar token, paid to the relayer address.
 The order is: price → verify with the facilitator → check the book would sell → settle → buy. A payment is
@@ -216,6 +226,5 @@ facilitator logic running locally. Weather and pricing are stand-ins there; noth
   holder and window it buys, as with any x402 resource, so it must only ever travel over TLS.
 - **Known limits.** A payment whose settlement call never answered stays claimed and is not retried
   automatically; it has to be reconciled by hand from the logged payment id. A payment that settled for a
-  window that can no longer be bought needs a manual refund. The keeper finds open policies by scanning from
-  the oldest open one, `KEEPER_SCAN_LIMIT` per tick. Policies the oracle never finished reporting are not
-  expired by the keeper; `expire` is permissionless.
+  window that can no longer be bought needs a manual refund. A book with many open policies is walked over
+  several ticks, so a payout can wait up to one full pass of the scan cursor.

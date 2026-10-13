@@ -65,6 +65,8 @@ export interface CoverReader {
   head(): Promise<Head>
   market(key: bigint): Promise<Market>
   policyCount(): Promise<bigint>
+  /** Seconds after the end of its window at which a policy may be expired. */
+  expiryGrace(): Promise<number>
   policies(ids: readonly bigint[]): Promise<Policy[]>
   claimable(ids: readonly bigint[]): Promise<bigint[]>
   activeCells(): Promise<bigint[]>
@@ -194,6 +196,8 @@ export function viemCoverReader(
     },
 
     policyCount: () => book<bigint>('policyCount'),
+
+    expiryGrace: async () => Number(await book<bigint>('expiryGrace')),
 
     async policies(ids) {
       type Row = readonly [Address, bigint, bigint, bigint, bigint, bigint, bigint, bigint, bigint, boolean]

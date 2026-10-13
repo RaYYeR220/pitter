@@ -6,12 +6,14 @@ import {
   encodeErrorResult,
   encodeEventTopics,
   recoverAddress,
+  parseTransaction,
   type Hex,
+  type TransactionSerializedEIP1559,
 } from 'viem'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { coreCells } from '../../src/adapters/core'
 import { CRON_SECRET_HEADER, cronTickHandler } from '../../src/keeper/handler'
-import { submitGas } from '../../src/relayer/gas'
+import { EXPIRE_GAS, submitGas } from '../../src/relayer/gas'
 import { selectorOf } from '../../src/relayer/allowlist'
 import type { RelayLog } from '../../src/relayer/rpc'
 import { writeStorm } from '../../src/sandbox/storm'
@@ -404,6 +406,210 @@ describe('keeper tick', () => {
 
       expect(result.settlement.failures).toEqual(['would_revert:PolicyUnknown'])
       expect(result.settlement.transactions).toHaveLength(1)
+    })
+  })
+
+  describe('expiry', () => {
+    const GRACE = 86_400
+    const expires = () => h.rpc.simulated.filter((call) => call.data.startsWith(selectorOf('expire')))
+    const expiredIds = () =>
+      expires().map((call) => decodeFunctionData({ abi: coverBookAbi, data: call.data }).args?.[0] as bigint)
+
+    function at(time: number) {
+      h.clock.time = time
+      h.reader.marketState.head = { number: 50n, timestamp: time }
+      h.reader.oracleState = { heartbeat: time - 30, lastIssuedAt: BigInt(time - 30) }
+    }
+
+    /** Closes a policy in the fake book whenever an `expire` for it is sent. */
+    function closeOnExpire() {
+      h.rpc.onSend = (serialized) => {
+        const { data } = parseTransaction(serialized as TransactionSerializedEIP1559)
+        if (data?.startsWith(selectorOf('expire'))) {
+          const id = decodeFunctionData({ abi: coverBookAbi, data }).args?.[0] as bigint
+          h.reader.policyRows.set(id, { ...h.reader.policyRows.get(id)!, closed: true })
+        }
+        h.rpc.chainNonce++
+        return h.rpc.receipt()
+      }
+    }
+
+    function begin(env: Record<string, string | undefined> = {}) {
+      start(env)
+      h.weather.verdicts.set(WARSAW, false)
+      at(T0 + 600 + GRACE)
+    }
+
+    beforeEach(() => begin())
+
+    it('expires a policy the oracle never finished once the grace period is over', async () => {
+      h.reader.policyRows.set(1n, fakePolicy(1n, { key: CELL_B }))
+      h.rpc.logs = [settledLog(h, 1n, 0n, true)]
+
+      const result = await body(await tick())
+
+      expect(expiredIds()).toEqual([1n])
+      expect(expires()[0]).toMatchObject({ to: h.settings.contracts.coverBook, gas: EXPIRE_GAS })
+      expect(settles()).toHaveLength(0)
+      expect(result.settlement).toMatchObject({ expired: [{ id: '1', paid: '0' }], expirable: 1, failures: [] })
+    })
+
+    it('waits for the grace period to pass', async () => {
+      at(T0 + 600 + GRACE - 1)
+      h.reader.policyRows.set(1n, fakePolicy(1n, { key: CELL_B }))
+
+      const result = await body(await tick())
+
+      expect(expires()).toHaveLength(0)
+      expect(result.settlement).toMatchObject({ expired: [], expirable: 0 })
+    })
+
+    it('pays what was reported in the same transaction, not in a separate settlement', async () => {
+      h.reader.lastToValues.set(CELL_B, BigInt(T0 + 300))
+      h.reader.policyRows.set(1n, fakePolicy(1n, { key: CELL_B }))
+      h.reader.claimableAmounts.set(1n, 300_000n)
+      h.rpc.logs = [settledLog(h, 1n, 300_000n, true)]
+
+      const result = await body(await tick())
+
+      expect(expiredIds()).toEqual([1n])
+      expect(settles()).toHaveLength(0)
+      expect(result.settlement.expired).toEqual([{ id: '1', paid: '300000' }])
+    })
+
+    it('closes a fully reported policy with a settlement, not an expiry', async () => {
+      h.reader.lastToValues.set(CELL_A, BigInt(T0 + 600 + GRACE))
+      h.reader.policyRows.set(1n, fakePolicy(1n, { key: CELL_A }))
+
+      await tick()
+
+      expect(settles()).toHaveLength(1)
+      expect(expires()).toHaveLength(0)
+    })
+
+    it('leaves alone a policy whose window is still open', async () => {
+      h.reader.policyRows.set(1n, fakePolicy(1n, { key: CELL_B, end: T0 + 1_200 + GRACE }))
+
+      await tick()
+
+      expect(expires()).toHaveLength(0)
+    })
+
+    it('expires at most the configured number per tick and catches up on the next', async () => {
+      begin({ KEEPER_EXPIRE_PER_TICK: '2' })
+      closeOnExpire()
+      for (let id = 1n; id <= 5n; id++) h.reader.policyRows.set(id, fakePolicy(id, { key: CELL_B }))
+
+      const first = await body(await tick())
+      const afterFirst = expiredIds()
+      await tick()
+      await tick()
+
+      expect(afterFirst).toEqual([1n, 2n])
+      expect(first.settlement.expirable).toBe(5)
+      expect(expiredIds()).toEqual([1n, 2n, 3n, 4n, 5n])
+    })
+
+    it('can be turned off', async () => {
+      begin({ KEEPER_EXPIRE_PER_TICK: '0' })
+      h.reader.policyRows.set(1n, fakePolicy(1n, { key: CELL_B }))
+
+      const result = await body(await tick())
+
+      expect(expires()).toHaveLength(0)
+      expect(result.settlement.expirable).toBe(1)
+    })
+
+    it('sends nothing for a policy someone else closed in the meantime', async () => {
+      h.reader.policyRows.set(1n, fakePolicy(1n, { key: CELL_B }))
+      const policies = h.reader.policies.bind(h.reader)
+      let reads = 0
+      h.reader.policies = async (ids) => {
+        if (++reads === 2) h.reader.policyRows.set(1n, fakePolicy(1n, { key: CELL_B, closed: true }))
+        return policies(ids)
+      }
+
+      const result = await body(await tick())
+
+      expect(h.rpc.sent.filter((tx) => tx.includes(selectorOf('expire').slice(2)))).toHaveLength(0)
+      expect(result.settlement).toMatchObject({ expired: [], failures: [] })
+    })
+
+    it('records a failed expiry and carries on with the next', async () => {
+      h.reader.policyRows.set(1n, fakePolicy(1n, { key: CELL_B }))
+      h.reader.policyRows.set(2n, fakePolicy(2n, { key: CELL_B }))
+      let calls = 0
+      const simulate = h.rpc.simulate
+      h.rpc.simulate = async (call) => {
+        const first = call.data.startsWith(selectorOf('expire')) && ++calls === 1
+        h.rpc.revertWith = first ? encodeErrorResult({ abi: coverBookAbi, errorName: 'ExpiryNotReached' }) : null
+        return simulate(call)
+      }
+
+      const result = await body(await tick())
+
+      expect(result.settlement.failures).toEqual(['would_revert:ExpiryNotReached'])
+      expect(result.settlement.transactions).toHaveLength(1)
+    })
+  })
+
+  describe('scan cursor', () => {
+    beforeEach(() => {
+      start({ KEEPER_SCAN_LIMIT: '3' })
+      h.weather.verdicts.set(WARSAW, false)
+      h.reader.oracleState = { heartbeat: T0 + 870, lastIssuedAt: BigInt(T0 + 870) }
+      h.reader.marketState.head = { number: 9n, timestamp: T0 + 900 }
+      h.clock.time = T0 + 900
+      h.reader.lastToValues.set(CELL_A, BigInt(T0 + 900))
+    })
+
+    it('does not stall behind a policy that stays open', async () => {
+      h.reader.policyRows.set(1n, fakePolicy(1n, { key: CELL_B, end: T0 + 1_800 }))
+      for (const id of [2n, 3n, 4n, 5n, 7n]) h.reader.policyRows.set(id, fakePolicy(id, { key: CELL_A, closed: true }))
+      h.reader.policyRows.set(6n, fakePolicy(6n, { key: CELL_A }))
+      h.reader.claimableAmounts.set(6n, 600_000n)
+      h.rpc.logs = [settledLog(h, 6n, 600_000n, true)]
+
+      const ranges = []
+      for (let i = 0; i < 4; i++) ranges.push((await body(await tick())).settlement.range)
+
+      expect(ranges).toEqual([
+        { from: '1', to: '3' },
+        { from: '4', to: '6' },
+        { from: '7', to: '7' },
+        { from: '1', to: '3' },
+      ])
+      expect(settles().map((call) => decodeFunctionData({ abi: coverBookAbi, data: call.data }).args?.[0])).toEqual([
+        [6n],
+      ])
+    })
+
+    it('keeps its place in the state store', async () => {
+      h.reader.policyRows.set(1n, fakePolicy(1n, { key: CELL_B, end: T0 + 1_800 }))
+      for (let id = 2n; id <= 5n; id++) h.reader.policyRows.set(id, fakePolicy(id, { key: CELL_A, closed: true }))
+
+      await tick()
+
+      expect(await h.stores.state.get('keeper:cursor')).toEqual({ low: '1', next: '4' })
+    })
+
+    it('moves its low mark past policies that are closed', async () => {
+      for (let id = 1n; id <= 4n; id++) h.reader.policyRows.set(id, fakePolicy(id, { key: CELL_A, closed: true }))
+      h.reader.policyRows.set(5n, fakePolicy(5n, { key: CELL_B, end: T0 + 1_800 }))
+
+      await tick()
+      await tick()
+
+      expect(await h.stores.state.get('keeper:cursor')).toEqual({ low: '5', next: '5' })
+    })
+
+    it('continues from a cursor stored by an earlier version', async () => {
+      for (let id = 1n; id <= 5n; id++) h.reader.policyRows.set(id, fakePolicy(id, { key: CELL_B, end: T0 + 1_800 }))
+      await h.stores.state.set('keeper:cursor', '3')
+
+      const result = await body(await tick())
+
+      expect(result.settlement.range).toEqual({ from: '3', to: '5' })
     })
   })
 })

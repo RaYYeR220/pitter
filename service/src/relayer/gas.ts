@@ -29,6 +29,14 @@ export const APPROVE_GAS = 90_000n
 /** Measured 109,468 for the first drip, 92,468 afterwards. */
 export const DRIP_GAS = 150_000n
 
+/**
+ * `expire` of one policy: pays what was reported, closes it and releases the rest of its exposure. Measured
+ * 137,993 with nothing to pay; a payout and close is 218,722 in the snapshot. Closing also walks the book's
+ * `oldestOpenId` over up to 32 closed policies, one cold storage read each, which the limit allows for. Expiry
+ * is rare, and the relayer simulates at this limit, so a budget that falls short is refused before it is sent.
+ */
+export const EXPIRE_GAS = 500_000n
+
 /** No relayed call may ask for more than this. */
 export const MAX_RELAY_GAS = 3_000_000n
 

@@ -82,7 +82,11 @@ const nameOf = (selector: string) =>
 
 export interface TickOutcome {
   report: { status: string; reason?: string; readings: Array<Record<string, unknown>>; transactions: Hex[] }
-  settlement: { settled: Array<{ id: string; paid: string; closed: boolean }>; failures: string[] }
+  settlement: {
+    settled: Array<{ id: string; paid: string; closed: boolean }>
+    expired: Array<{ id: string; paid: string }>
+    failures: string[]
+  }
 }
 
 /**
