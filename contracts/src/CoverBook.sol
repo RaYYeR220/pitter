@@ -146,6 +146,7 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient {
     error TooManyCells();
     error PremiumNotReceived();
     error PolicyUnknown();
+    error ExpiryNotReached();
     error ZeroAddress();
     error ConfigInvalid();
 
@@ -237,15 +238,23 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient {
     /// @dev Does nothing and returns zero when there is no newly reported time or the policy is closed.
     /// @return paid Amount paid to the holder by this call.
     function settle(uint256 id) external nonReentrant returns (uint256 paid) {
-        return _settle(id);
+        return _settle(id, false);
     }
 
     /// @notice Settles several policies in one transaction. Closed policies are skipped.
     function settleMany(uint256[] calldata ids) external nonReentrant {
         uint256 count = ids.length;
         for (uint256 i = 0; i < count; ++i) {
-            _settle(ids[i]);
+            _settle(ids[i], false);
         }
+    }
+
+    /// @notice Closes policy `id` once `expiryGrace` has passed since the end of its window, even if the index
+    /// never reported the rest of the window. Whatever the index did confirm is paid first; the remaining
+    /// exposure is released back to the pool. Anyone may call.
+    /// @dev Reverts with `ExpiryNotReached` before `end + expiryGrace`. Does nothing for a closed policy.
+    function expire(uint256 id) external nonReentrant {
+        _settle(id, true);
     }
 
     // ───────────────────────────── views ─────────────────────────────
@@ -426,30 +435,39 @@ contract CoverBook is EIP712, Ownable2Step, ReentrancyGuardTransient {
         pool.lock(q.key, maxPayout);
     }
 
-    /// @dev Effects first, then the pool calls: by the time money moves the policy already reflects it.
-    function _settle(uint256 id) private returns (uint256 paid) {
+    /// @dev Settles policy `id` up to the latest confirmed time. With `expiring` set the policy is closed
+    /// regardless of how much of its window was confirmed, provided the grace period is over.
+    ///
+    /// Effects first, then the pool calls: by the time money moves the policy already reflects it.
+    function _settle(uint256 id, bool expiring) private returns (uint256 paid) {
         if (id == 0 || id > policyCount) revert PolicyUnknown();
         Policy storage p = _policies[id];
         if (p.closed) return 0;
 
         uint256 key = p.key;
         uint64 end = p.end;
+        if (expiring && block.timestamp < uint256(end) + expiryGrace) revert ExpiryNotReached();
+
         uint64 settledUntil = p.settledUntil;
         uint64 upTo = _confirmedUntil(key, end);
-        if (upTo <= settledUntil) return 0;
-
         uint256 remaining = _maxPayout(p) - p.paid;
-        paid = _payout(p, settledUntil, upTo, remaining);
-        bool closing = upTo == end;
 
-        p.settledUntil = upTo;
-        if (paid != 0) p.paid += uint128(paid);
+        if (upTo > settledUntil) {
+            paid = _payout(p, settledUntil, upTo, remaining);
+            settledUntil = upTo;
+            p.settledUntil = upTo;
+            if (paid != 0) p.paid += uint128(paid);
+        } else if (!expiring) {
+            return 0;
+        }
+
+        bool closing = expiring || settledUntil == end;
         if (closing) {
             p.closed = true;
             if (--openPolicies[key] == 0) _activeCells.remove(key);
         }
         address holder = p.holder;
-        emit PolicySettled(id, holder, paid, upTo, closing);
+        emit PolicySettled(id, holder, paid, settledUntil, closing);
 
         if (paid != 0) pool.pay(holder, key, paid);
         if (closing && remaining != paid) pool.release(key, remaining - paid);
