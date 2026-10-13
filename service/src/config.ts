@@ -48,6 +48,10 @@ export interface Settings {
     firstReadingSeconds: number
     heartbeatCell: { lat: number; lon: number }
   }
+  weather: {
+    /** How the service identifies itself to the weather sources that ask for it. */
+    userAgent: string
+  }
   x402: {
     enabled: boolean
     facilitatorUrl: string
@@ -169,6 +173,11 @@ const environment = z.object({
   KEEPER_HEARTBEAT_LAT: z.coerce.number().min(-90).max(90).default(52.2297),
   KEEPER_HEARTBEAT_LON: z.coerce.number().min(-180).max(180).default(21.0122),
 
+  WEATHER_USER_AGENT: z
+    .string()
+    .regex(/^[ -~]{3,200}$/, 'expected a short printable string')
+    .default('cover-service'),
+
   X402_ENABLED: flag,
   X402_FACILITATOR_URL: url.default('https://x402-facilitator.molandak.org'),
   X402_MAX_TIMEOUT_SECONDS: integer(30, 600, 120),
@@ -282,6 +291,7 @@ export function loadConfig(source: Record<string, string | undefined>): Config {
       firstReadingSeconds: env.KEEPER_FIRST_READING_SECONDS,
       heartbeatCell: { lat: env.KEEPER_HEARTBEAT_LAT, lon: env.KEEPER_HEARTBEAT_LON },
     },
+    weather: { userAgent: env.WEATHER_USER_AGENT },
     x402: {
       enabled: env.X402_ENABLED,
       facilitatorUrl: env.X402_FACILITATOR_URL,

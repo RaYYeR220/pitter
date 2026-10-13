@@ -5,7 +5,8 @@
   "license": "MIT",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./blob-auth": "./src/blobs/auth.ts"
   },
   "scripts": {
     "test": "vitest run",
