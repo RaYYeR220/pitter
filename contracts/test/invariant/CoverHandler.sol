@@ -8,9 +8,10 @@ import {WeatherIndex} from "../../src/WeatherIndex.sol";
 import {BlockableDollar} from "../mocks/BlockableDollar.sol";
 import {Signing} from "../utils/Signing.sol";
 
-/// @dev Drives the whole system with bounded random actions: purchases on both payment paths, replays of used
-/// quotes, oracle reports (genuine and forged), settlements, expiries, LP deposits, redemption requests,
-/// cancellations and claims, direct donations, issuer blocks on holders and clock movement.
+/// @dev Drives the whole system with bounded random actions: purchases on both payment paths (inside, at and
+/// beyond the cover horizon), replays of used quotes, oracle reports (genuine and forged), settlements,
+/// expiries, LP deposits, redemption requests, cancellations and claims, direct donations, issuer blocks on
+/// holders and clock movement.
 ///
 /// Every action either must succeed or may only be refused for a reason the handler has checked. Anything
 /// else is counted in a ghost counter that the invariants require to stay at zero.
@@ -53,11 +54,14 @@ contract CoverHandler is Signing {
     mapping(uint256 id => uint256) public paidTo;
     mapping(address holder => uint256) public premiumsPaid;
     mapping(address holder => uint256) public payoutsOwed;
+    mapping(uint256 id => uint256) public boughtAt;
+    mapping(address lp => uint256) public requestedAt;
 
     // Counters that must stay at zero.
     uint256 public unexpectedReverts;
     uint256 public unjustifiedRefusals;
     uint256 public capBreaches;
+    uint256 public horizonBreaches;
     uint256 public replaysAccepted;
     uint256 public forgeriesAccepted;
     uint256 public earlyExpiries;
@@ -74,6 +78,8 @@ contract CoverHandler is Signing {
     uint256 public expiries;
     uint256 public deferrals;
     uint256 public capProbes;
+    uint256 public horizonProbes;
+    uint256 public refusedTooFar;
     uint256 public requests;
     uint256 public cancellations;
     uint256 public claims;
@@ -263,8 +269,43 @@ contract CoverHandler is Signing {
         );
     }
 
-    /// @dev Submits a purchase and checks the outcome against the state it met: a sale must fit under both caps
-    /// of the active assets, and a refusal must have a cause.
+    /// @dev Asks for a window that ends in the last minute the horizon allows, or one or two minutes past it.
+    /// Only the first may be sold.
+    function buyAtTheHorizon(
+        uint256 holderSeed,
+        uint256 keySeed,
+        uint256 minutesSeed,
+        uint256 beyondSeed,
+        bool viaAuthorization
+    ) external {
+        if (_oracleStale()) heartbeat();
+
+        uint64 horizon = book.maxHorizon();
+        uint64 end = (_now() + horizon) / 60 * 60 + 60 * uint64(beyondSeed % 3);
+        // A minute short of the horizon at most, so that the window starts in the future.
+        uint64 duration = 60 * uint64(1 + minutesSeed % (horizon / 60 - 1));
+        ++horizonProbes;
+        _attempt(
+            Quote({
+                holder: holders[holderSeed % holders.length],
+                key: keys[keySeed % keys.length],
+                start: end - duration,
+                end: end,
+                ratePerSecond: 1,
+                premium: 1e6,
+                expiry: _now() + 5 minutes,
+                salt: bytes32(++salt)
+            }),
+            viaAuthorization
+        );
+    }
+
+    function _tooFar(Quote memory quote) internal view returns (bool) {
+        return quote.end > _now() + book.maxHorizon();
+    }
+
+    /// @dev Submits a purchase and checks the outcome against the state it met: a sale must end within the
+    /// horizon and fit under both caps of the active assets, and a refusal must have a cause.
     function _attempt(Quote memory quote, bool viaAuthorization) internal {
         address holder = quote.holder;
         Purchase memory p;
@@ -306,6 +347,8 @@ contract CoverHandler is Signing {
             ++bought;
             purchases.push(p);
             premiumsPaid[holder] += p.quote.premium;
+            boughtAt[book.policyCount()] = _now();
+            if (_tooFar(p.quote)) ++horizonBreaches;
             // The caps hold against the active assets the pool had when the exposure was locked.
             if (
                 lockedBefore + maxPayout > assetsBefore * pool.maxUtilizationBps() / 10_000
@@ -316,7 +359,10 @@ contract CoverHandler is Signing {
 
         ++refused;
         bytes4 selector = err.length >= 4 ? bytes4(err) : bytes4(0);
-        if (selector == CoverBook.OracleStale.selector) {
+        if (selector == CoverBook.WindowTooFar.selector) {
+            ++refusedTooFar;
+            if (!_tooFar(p.quote)) ++unjustifiedRefusals;
+        } else if (selector == CoverBook.OracleStale.selector) {
             if (!stale) ++unjustifiedRefusals;
         } else if (selector == CoverPool.GlobalCapExceeded.selector) {
             if (lockedBefore + maxPayout <= assetsBefore * pool.maxUtilizationBps() / 10_000) ++unjustifiedRefusals;
@@ -433,6 +479,7 @@ contract CoverHandler is Signing {
         shares = bound(shares, 1, balance);
         vm.prank(lp);
         pool.requestRedeem(shares, lp, lp);
+        requestedAt[lp] = _now();
         ++requests;
     }
 

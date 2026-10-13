@@ -15,14 +15,14 @@ contract CoverInvariantTest is CoverFixture {
         book.setMaxPolicyPayout(20_000e6);
         book.setExpiryGrace(1 hours);
         book.setDurationBounds(60, 90 minutes);
-        book.setMaxHorizon(2 hours);
-        pool.setRedeemNotice(2 hours);
+        book.setMaxHorizon(90 minutes);
+        pool.setRedeemNotice(90 minutes);
         vm.stopPrank();
 
         handler = new CoverHandler(dollar, index, pool, book, owner, underwriterKey, reporterKey);
         targetContract(address(handler));
 
-        bytes4[] memory selectors = new bytes4[](22);
+        bytes4[] memory selectors = new bytes4[](23);
         selectors[0] = CoverHandler.warp.selector;
         selectors[1] = CoverHandler.warpFar.selector;
         selectors[2] = CoverHandler.heartbeat.selector;
@@ -45,6 +45,7 @@ contract CoverInvariantTest is CoverFixture {
         selectors[19] = CoverHandler.setBlocked.selector;
         selectors[20] = CoverHandler.claimDeferred.selector;
         selectors[21] = CoverHandler.buyAboveTheCellCap.selector;
+        selectors[22] = CoverHandler.buyAtTheHorizon.selector;
         targetSelector(FuzzSelector({addr: address(handler), selectors: selectors}));
     }
 
@@ -82,6 +83,12 @@ contract CoverInvariantTest is CoverFixture {
         _checkEscrow();
     }
 
+    /// No policy ends beyond the horizon it was bought under, and no redemption request made after a sale
+    /// matures before that cover has ended.
+    function invariant_CoverEndsBeforeTheCapitalBehindItCanLeave() public view {
+        _checkHorizon();
+    }
+
     /// A quote produces at most one policy.
     function invariant_QuotesAreUsableOnce() public view {
         assertEq(handler.replaysAccepted(), 0);
@@ -104,6 +111,7 @@ contract CoverInvariantTest is CoverFixture {
         assertEq(handler.unexpectedReverts(), 0, "unexpected revert");
         assertEq(handler.unjustifiedRefusals(), 0, "sale refused without cause");
         assertEq(handler.capBreaches(), 0, "sale above a cap");
+        assertEq(handler.horizonBreaches(), 0, "sale beyond the horizon");
         assertEq(handler.earlyExpiries(), 0, "expired inside the grace period");
         assertEq(handler.overWithdrawals(), 0, "claimed above the limit");
         assertEq(handler.earlyClaims(), 0, "claimed before the notice was over");
@@ -176,6 +184,18 @@ contract CoverInvariantTest is CoverFixture {
         assertEq(handler.refused(), refusedBefore + 1, "sold against retiring capital");
         _checkAll();
 
+        // A window ending in the last minute of the horizon is sold, one ending a minute later is not. A
+        // provider who asks to leave right after the sale is still there when that cover ends.
+        uint256 boughtBefore = handler.bought();
+        handler.buyAtTheHorizon(1, 2, 0, 0, false);
+        assertEq(handler.bought(), boughtBefore + 1, "refused inside the horizon");
+        handler.buyAtTheHorizon(1, 2, 0, 1, true);
+        assertEq(handler.horizonProbes(), 2);
+        assertEq(handler.refusedTooFar(), 1, "sold beyond the horizon");
+        handler.requestRedeem(1, type(uint256).max);
+        _checkAll();
+        handler.cancelRedeem(1);
+
         // The oracle goes silent; the open policies are expired after the grace period.
         handler.expire(0);
         handler.warpFar(3 hours);
@@ -204,6 +224,7 @@ contract CoverInvariantTest is CoverFixture {
         _checkPolicies();
         _checkClaimLimits();
         _checkEscrow();
+        _checkHorizon();
         _checkHolderBalances();
         invariant_LockedExposureIsCoveredByAssets();
         invariant_QuotesAreUsableOnce();
@@ -314,6 +335,30 @@ contract CoverInvariantTest is CoverFixture {
         }
         assertEq(pool.escrowedShares(), requestedTotal, "escrow differs from the requests");
         assertEq(pool.balanceOf(address(pool)), requestedTotal, "the pool does not hold the escrowed shares");
+    }
+
+    function _checkHorizon() internal view {
+        uint256 providers = handler.lpCount();
+        uint256[] memory requestedAt = new uint256[](providers);
+        uint256[] memory claimableAt = new uint256[](providers);
+        for (uint256 i = 0; i < providers; ++i) {
+            address provider = handler.lps(i);
+            (uint256 requested,, uint64 matures) = pool.redeemRequests(provider);
+            if (requested != 0) (requestedAt[i], claimableAt[i]) = (handler.requestedAt(provider), matures);
+        }
+
+        uint256 horizon = book.maxHorizon();
+        uint256 count = book.policyCount();
+        for (uint256 id = 1; id <= count; ++id) {
+            uint256 end = _policy(id).end;
+            uint256 boughtAt = handler.boughtAt(id);
+            assertLe(end, boughtAt + horizon, "policy ends beyond the horizon it was bought under");
+            for (uint256 i = 0; i < providers; ++i) {
+                // Only a request made after the sale; a provider without one is left at zero.
+                if (requestedAt[i] < boughtAt) continue;
+                assertGe(claimableAt[i], end, "a request made after a sale matures before that cover ends");
+            }
+        }
     }
 
     function _checkHolderBalances() internal view {
